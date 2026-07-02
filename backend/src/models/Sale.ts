@@ -25,6 +25,7 @@ export interface ISale extends Document {
     paymentMethod: PaymentMethod;
     paidAmount: number;
     changeAmount: number;
+    loyaltyPointsEarned: number;
     status: SaleStatus;
     notes?: string;
     isActive: boolean;
@@ -151,6 +152,15 @@ const saleSchema = new Schema<ISale>(
             default: 0,
             min: 0,
         },
+
+
+        loyaltyPointsEarned: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
+
 
         status: {
             type: String,

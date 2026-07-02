@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Sale from "../models/Sale";
 import Product from "../models/Product";
 import Customer from "../models/Customer";
+import LoyaltyLedger from "../models/LoyaltyLedger";
 
 const generateInvoiceNumber = (): string => {
     const date = new Date();
@@ -289,6 +290,12 @@ export const createSale = async (req: Request, res: Response) => {
 
         const invoiceNumber = generateInvoiceNumber();
 
+        let loyaltyPointsEarned = 0;
+
+        if (customerId) {
+            loyaltyPointsEarned = Math.floor(total);
+        }
+
         const sale = await Sale.create({
             invoiceNumber,
             customerId,
@@ -302,10 +309,10 @@ export const createSale = async (req: Request, res: Response) => {
             paymentMethod,
             paidAmount: finalPaidAmount,
             changeAmount,
+            loyaltyPointsEarned,
             status: "completed",
             notes,
         });
-
         for (const item of saleItems) {
             await Product.findByIdAndUpdate(item.productId, {
                 $inc: {
@@ -315,19 +322,38 @@ export const createSale = async (req: Request, res: Response) => {
         }
 
         if (customerId) {
-            await Customer.findByIdAndUpdate(customerId, {
-                $inc: {
-                    totalSpent: total,
-                },
-                $push: {
-                    purchaseHistory: {
-                        productName: `Invoice ${invoiceNumber}`,
-                        amount: total,
-                        purchaseDate: new Date(),
-                        note: "Sale invoice",
+            const updatedCustomer = await Customer.findByIdAndUpdate(
+                customerId,
+                {
+                    $inc: {
+                        totalSpent: total,
+                        loyaltyPoints: loyaltyPointsEarned,
+                    },
+                    $push: {
+                        purchaseHistory: {
+                            productName: `Invoice ${invoiceNumber}`,
+                            amount: total,
+                            purchaseDate: new Date(),
+                            note: `Sale invoice - earned ${loyaltyPointsEarned} loyalty points`,
+                        },
                     },
                 },
-            });
+                {
+                    new: true,
+                }
+            );
+
+            if (updatedCustomer && loyaltyPointsEarned > 0) {
+                await LoyaltyLedger.create({
+                    customerId,
+                    type: "earn",
+                    points: loyaltyPointsEarned,
+                    amountSpent: total,
+                    balanceAfter: updatedCustomer.loyaltyPoints,
+                    description: `Earned ${loyaltyPointsEarned} points from invoice ${invoiceNumber}`,
+                    reference: invoiceNumber,
+                });
+            }
         }
 
         const fullSale = await Sale.findById(sale._id)
@@ -394,19 +420,38 @@ export const voidSale = async (req: Request, res: Response) => {
         await sale.save();
 
         if (sale.customerId) {
-            await Customer.findByIdAndUpdate(sale.customerId, {
-                $inc: {
-                    totalSpent: -sale.total,
-                },
-                $push: {
-                    purchaseHistory: {
-                        productName: `Voided Invoice ${sale.invoiceNumber}`,
-                        amount: 0,
-                        purchaseDate: new Date(),
-                        note: `Sale voided. Original total was ${sale.total}`,
-                    },
-                },
-            });
+            const customer = await Customer.findById(sale.customerId);
+
+            if (customer) {
+                customer.totalSpent = Math.max(0, customer.totalSpent - sale.total);
+
+                const pointsToRemove = Math.min(
+                    sale.loyaltyPointsEarned || 0,
+                    customer.loyaltyPoints
+                );
+
+                customer.loyaltyPoints -= pointsToRemove;
+
+                customer.purchaseHistory.push({
+                    productName: `Voided Invoice ${sale.invoiceNumber}`,
+                    amount: 0,
+                    purchaseDate: new Date(),
+                    note: `Sale voided. Original total was ${sale.total}. Reversed ${pointsToRemove} loyalty points.`,
+                });
+
+                await customer.save();
+
+                if (pointsToRemove > 0) {
+                    await LoyaltyLedger.create({
+                        customerId: sale.customerId,
+                        type: "adjust",
+                        points: -pointsToRemove,
+                        balanceAfter: customer.loyaltyPoints,
+                        description: `Reversed ${pointsToRemove} points from voided invoice ${sale.invoiceNumber}`,
+                        reference: sale.invoiceNumber,
+                    });
+                }
+            }
         }
 
         res.status(200).json({

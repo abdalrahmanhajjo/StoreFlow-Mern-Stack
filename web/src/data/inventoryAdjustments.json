@@ -1,0 +1,5 @@
+[
+  { "id": "a1", "productId": "p3", "productName": "Whole Milk 1L", "delta": -3, "reason": "Damage", "note": "", "by": "D. Okafor", "daysAgo": 1 },
+  { "id": "a2", "productId": "p8", "productName": "Tomatoes 1kg", "delta": -4, "reason": "Recount", "note": "", "by": "Amara Reyes", "daysAgo": 2 },
+  { "id": "a3", "productId": "p5", "productName": "Dish Soap 750ml", "delta": 24, "reason": "Restock", "note": "PO-0416", "by": "D. Okafor", "daysAgo": 3 }
+]

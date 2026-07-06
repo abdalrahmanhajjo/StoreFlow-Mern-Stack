@@ -1,0 +1,5 @@
+[
+  { "id": "s1", "user": "Amara Reyes", "ip": "196.20.x.x", "device": "Chrome / Mac", "started": "2m ago" },
+  { "id": "s2", "user": "Noor Aziz", "ip": "102.89.x.x", "device": "Safari / iPhone", "started": "1h ago" },
+  { "id": "s3", "user": "Marco Vidal", "ip": "81.14.x.x", "device": "Firefox / Win", "started": "3h ago" }
+]

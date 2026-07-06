@@ -1,0 +1,4 @@
+[
+  { "id": "ip1", "ip": "41.92.14.7", "reason": "14 failed logins" },
+  { "id": "ip2", "ip": "185.220.101.4", "reason": "Credential stuffing" }
+]

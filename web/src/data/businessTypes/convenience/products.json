@@ -1,0 +1,7 @@
+[
+  { "id": "cv_1", "sku": "CV-COLA", "name": "Cola 500ml", "price": 1.99, "unit": "each", "categoryId": "drinks", "stock": 300, "barcode": "049000028911" },
+  { "id": "cv_2", "sku": "CV-CHIPS", "name": "Salted chips", "price": 2.49, "unit": "each", "categoryId": "snacks", "stock": 180 },
+  { "id": "cv_3", "sku": "CV-CIG-20", "name": "Cigarettes (20)", "price": 11.99, "unit": "each", "categoryId": "tobacco", "stock": 90, "ageRestricted": true },
+  { "id": "cv_4", "sku": "CV-TOPUP", "name": "Mobile top-up $20", "price": 20, "unit": "each", "categoryId": "services", "stock": 9999 },
+  { "id": "cv_5", "sku": "CV-COFFEE", "name": "Hot coffee 12oz", "price": 1.75, "unit": "each", "categoryId": "drinks", "stock": 500 }
+]

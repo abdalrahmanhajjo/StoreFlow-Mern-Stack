@@ -1,0 +1,7 @@
+[
+  { "id": "u0", "name": "You (Platform Admin)", "email": "admin@storeflow.com", "role": "Platform admin", "store": "—", "status": "active", "lastActive": "now", "root": true },
+  { "id": "u1", "name": "Amara Reyes", "email": "owner@bluepalm-grocers.com", "role": "Owner", "store": "Blue Palm Grocers", "status": "active", "lastActive": "2m ago" },
+  { "id": "u2", "name": "D. Okafor", "email": "manager@bluepalm-grocers.com", "role": "Manager", "store": "Blue Palm Grocers", "status": "active", "lastActive": "18m ago" },
+  { "id": "u3", "name": "Noor Aziz", "email": "owner@sunrise-pharmacy.com", "role": "Owner", "store": "Sunrise Pharmacy", "status": "active", "lastActive": "1h ago" },
+  { "id": "u4", "name": "J. Mensah", "email": "cashier@bluepalm-grocers.com", "role": "Cashier", "store": "Blue Palm Grocers", "status": "disabled", "lastActive": "3d ago" }
+]

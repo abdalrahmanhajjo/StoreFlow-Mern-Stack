@@ -1,0 +1,14 @@
+{
+  "id": "store_corner24",
+  "tenantId": "tenant_corner24",
+  "name": "Corner 24",
+  "businessType": "convenience",
+  "locale": "en-US",
+  "currency": "USD",
+  "direction": "ltr",
+  "theme": { "accent": "#16a34a", "mode": "light" },
+  "taxProfile": { "inclusive": false, "defaultRate": 0.05, "label": "Sales Tax" },
+  "hardwareProfile": { "barcodeScanner": true, "receiptPrinter": true, "cashDrawer": true, "scale": false, "cardTerminal": true, "kitchenDisplay": false },
+  "featureFlags": { "ageVerification": true, "offlineQueue": true, "loyalty": false },
+  "complianceFlags": { "ageRestrictedSales": true }
+}

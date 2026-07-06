@@ -1,0 +1,14 @@
+{
+  "id": "store_petitjardin",
+  "tenantId": "tenant_petitjardin",
+  "name": "Le Petit Jardin",
+  "businessType": "restaurant",
+  "locale": "fr-FR",
+  "currency": "EUR",
+  "direction": "ltr",
+  "theme": { "accent": "#b45309", "mode": "light" },
+  "taxProfile": { "inclusive": true, "defaultRate": 0.1, "label": "TVA" },
+  "hardwareProfile": { "barcodeScanner": false, "receiptPrinter": true, "cashDrawer": true, "scale": false, "cardTerminal": true, "kitchenDisplay": true },
+  "featureFlags": { "tableService": true, "loyalty": false, "ageVerification": true },
+  "complianceFlags": { "ageRestrictedSales": true }
+}

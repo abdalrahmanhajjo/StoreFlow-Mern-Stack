@@ -1,0 +1,5 @@
+[
+  { "id": "sup1", "name": "Coastal Beverages Co.", "phone": "+33 4 91 22 17", "email": "sales@coastalbev.fr", "productCount": 14 },
+  { "id": "sup2", "name": "Le Moulin Bakery Supply", "phone": "+33 4 91 80 44", "email": "orders@lemoulin.fr", "productCount": 9 },
+  { "id": "sup3", "name": "Provence Dairy Collective", "phone": "+33 4 91 56 90", "email": "hello@provdairy.fr", "productCount": 11 }
+]

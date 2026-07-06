@@ -1,0 +1,4 @@
+{
+  "// webhint": "The Microsoft Edge Tools extension runs webhint, an HTML linter. It misreads JSX (e.g. aria-busy={expr} as an invalid literal) and flags intentional inline styles. Runtime a11y is validated by axe-core in the Playwright e2e suite instead, so its diagnostics are disabled here.",
+  "vscode-edge-devtools.webhint": false
+}

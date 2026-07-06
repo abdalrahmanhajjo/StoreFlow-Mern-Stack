@@ -1,0 +1,8 @@
+[
+  { "id": "l1", "time": "Jul 2 · 09:14", "actor": "Platform Admin", "action": "store.approve", "target": "Sunrise Pharmacy", "ip": "10.0.x.x", "kind": "store" },
+  { "id": "l2", "time": "Jul 2 · 08:02", "actor": "Platform Admin", "action": "store.suspend", "target": "Northbridge Mini-Mart", "ip": "10.0.x.x", "kind": "store" },
+  { "id": "l3", "time": "Jul 1 · 22:41", "actor": "System", "action": "auth.ip_blocked", "target": "41.92.14.7", "ip": "—", "kind": "auth" },
+  { "id": "l4", "time": "Jul 1 · 18:10", "actor": "Platform Admin", "action": "user.reset_password", "target": "j.mensah@bluepalm", "ip": "10.0.x.x", "kind": "user" },
+  { "id": "l5", "time": "Jul 1 · 14:55", "actor": "Amara Reyes", "action": "billing.plan_upgrade", "target": "Blue Palm → Pro", "ip": "196.20.x.x", "kind": "billing" },
+  { "id": "l6", "time": "Jul 1 · 11:30", "actor": "Platform Admin", "action": "store.delete", "target": "Test Shop 042", "ip": "10.0.x.x", "kind": "store" }
+]

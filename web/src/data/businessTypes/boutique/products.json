@@ -1,0 +1,7 @@
+[
+  { "id": "bt_1", "sku": "BT-DRESS-SLK", "name": "Silk midi dress", "price": 289, "unit": "each", "categoryId": "dresses", "stock": 8 },
+  { "id": "bt_2", "sku": "BT-SCARF", "name": "Printed silk scarf", "price": 95, "unit": "each", "categoryId": "accessories", "stock": 20 },
+  { "id": "bt_3", "sku": "BT-BAG-LTR", "name": "Leather tote", "price": 420, "unit": "each", "categoryId": "bags", "stock": 6 },
+  { "id": "bt_4", "sku": "BT-HEELS", "name": "Suede heels", "price": 175, "unit": "each", "categoryId": "shoes", "stock": 14 },
+  { "id": "bt_5", "sku": "BT-BLAZER", "name": "Tailored wool blazer", "price": 340, "unit": "each", "categoryId": "outerwear", "stock": 10 }
+]

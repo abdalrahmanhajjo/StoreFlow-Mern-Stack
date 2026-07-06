@@ -1,0 +1,7 @@
+[
+  { "id": "rs_1", "sku": "RS-BURGER", "name": "Jardin burger", "price": 16.5, "unit": "each", "categoryId": "mains", "stock": 999 },
+  { "id": "rs_2", "sku": "RS-SALADE", "name": "Salade niçoise", "price": 12, "unit": "each", "categoryId": "starters", "stock": 999 },
+  { "id": "rs_3", "sku": "RS-STEAK", "name": "Steak-frites", "price": 24, "unit": "each", "categoryId": "mains", "stock": 999 },
+  { "id": "rs_4", "sku": "RS-WINE-GL", "name": "Côtes du Rhône (glass)", "price": 7.5, "unit": "each", "categoryId": "drinks", "stock": 400, "ageRestricted": true },
+  { "id": "rs_5", "sku": "RS-ESP", "name": "Espresso", "price": 2.8, "unit": "each", "categoryId": "drinks", "stock": 999 }
+]

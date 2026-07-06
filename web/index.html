@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StoreFlow</title>
+    <!-- Do not send the full URL (which may carry returnTo/tokens) to third parties. -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!--
+      Content-Security-Policy is enforced at the edge/server as a RESPONSE HEADER,
+      not here — a meta CSP cannot use `frame-ancestors` and breaks the Vite dev
+      server (HMR). The authoritative policy + other security headers live in
+      `public/_headers` and `docs/security-headers.md`.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -21,5 +21,7 @@ export type { StatusBannerProps, StatusVariant } from './StatusBanner';
 export { confirm, ConfirmDialogHost } from './ConfirmDialog';
 export type { ConfirmOptions } from './ConfirmDialog';
 export { Spinner } from './Spinner';
+export { SearchField } from './SearchField';
+export { CategoryPills } from './CategoryPills';
 export { Skeleton, SkeletonGroup } from './Skeleton';
 export { ProgressBar } from './ProgressBar';

@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { safeUrl, safeImageUrl } from '@/lib/security/url';
 
 describe('safeImageUrl', () => {
-  it('accepts http(s) URLs', () => {
+  it('accepts http(s) URLs and data:image URIs', () => {
     expect(safeImageUrl('https://cdn.example.com/a.png')).toBe('https://cdn.example.com/a.png');
     expect(safeImageUrl('http://x.test/b.jpg')).toBe('http://x.test/b.jpg');
+    expect(safeImageUrl('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')).toMatch(/^data:image\//);
   });
 
-  it('rejects javascript:, data:, vbscript: and file: schemes', () => {
+  it('rejects javascript:, data: (non-image), vbscript: and file: schemes', () => {
     expect(safeImageUrl('javascript:alert(1)')).toBe('');
     expect(safeImageUrl('JavaScript:alert(1)')).toBe('');
     expect(safeImageUrl('data:text/html,<script>alert(1)</script>')).toBe('');

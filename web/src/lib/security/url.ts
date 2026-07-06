@@ -2,8 +2,6 @@
 // renders user-supplied URLs (e.g. product image URLs, links). They are NOT a
 // substitute for server-side validation and output encoding.
 
-const SAFE_PROTOCOLS = new Set(['http:', 'https:']);
-
 // Control chars (\x00-\x1F, \x7F) are used to smuggle `java\nscript:` past naive checks.
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001F\u007F]/;
@@ -21,20 +19,23 @@ export function safeUrl(input: string | null | undefined, base: string = window.
   if (trimmed === '' || CONTROL_CHARS.test(trimmed)) return '';
   try {
     const url = new URL(trimmed, base);
-    return SAFE_PROTOCOLS.has(url.protocol) ? url.href : '';
+    // Only http(s) for clickable links — blocks javascript:, data:, vbscript: etc.
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
   } catch {
     return '';
   }
 }
 
-/** Same as safeUrl but only accepts absolute http(s) image URLs (no relative). */
+/** Sanitise an image source URL. Accepts http(s) and data:image/* URIs (uploaded files). */
 export function safeImageUrl(input: string | null | undefined): string {
   if (!input) return '';
   const trimmed = input.trim();
   if (trimmed === '' || CONTROL_CHARS.test(trimmed)) return '';
   try {
     const url = new URL(trimmed);
-    return SAFE_PROTOCOLS.has(url.protocol) ? url.href : '';
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+    if (url.protocol === 'data:' && /^data:image\//.test(trimmed)) return url.href;
+    return '';
   } catch {
     return '';
   }

@@ -1,76 +1,50 @@
 import { useState, useMemo } from 'react';
-import { useProducts, statusFor, type Product } from './productsStore';
+import { useProducts } from './productsStore';
 import { useCategories } from '@/features/categories/categoriesStore';
-import { ProductForm } from './ProductForm';
 import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
-import { money } from '@/lib/format';
-import { DataTable, Badge, Button, ProductThumb, confirmDialog, toast, type Column } from '@/components/ui';
+import { ProductGrid } from './ProductGrid';
+import { ProductForm } from './ProductForm';
+import { SearchField, CategoryPills, Button } from '@/components/ui';
+import type { Product } from './productsStore';
 
 export default function ProductsPage() {
   const role = useSession((s) => s.user!.role);
-  const writable = can(role, 'product.write'); // owner only; manager/cashier view-only
-  const { products, remove } = useProducts();
+  const writable = can(role, 'product.write');
+  const { products } = useProducts();
   const categories = useCategories((s) => s.categories);
-  const [q, setQ] = useState('');
-  const [cat, setCat] = useState('All');
-  const [stock, setStock] = useState('any');
+
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('All');
+  const [stockFilter, setStockFilter] = useState('any');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
 
-  const rows = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return products.filter((p) => {
-      const st = statusFor(p);
-      const matchQ = !term || p.name.toLowerCase().includes(term) || p.sku.includes(term);
-      const matchCat = cat === 'All' || p.category === cat;
-      const matchStock =
-        stock === 'any' ||
-        (stock === 'in' && st === 'In stock') ||
-        (stock === 'low' && st === 'Low stock') ||
-        (stock === 'out' && st === 'Out of stock');
-      return matchQ && matchCat && matchStock;
-    });
-  }, [products, q, cat, stock]);
+  const catNames = useMemo(() => ['All', ...categories.map((c) => c.name)], [categories]);
 
-  const onDelete = async (p: Product) => {
-    if (await confirmDialog(`Delete "${p.name}"? This cannot be undone.`)) {
-      remove(p.id);
-      toast(`${p.name} deleted`);
+  const catCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: products.length };
+    for (const p of products) {
+      counts[p.category] = (counts[p.category] ?? 0) + 1;
     }
+    return counts;
+  }, [products]);
+
+  const openNew = () => { setEditing(null); setFormOpen(true); };
+  const openEdit = (p: Product) => { setEditing(p); setFormOpen(true); };
+
+  const handleBarcode = (code: string) => {
+    // In a real app this would query a barcode index.
+    // For the mock, skip debounce and search SKU immediately.
+    setQuery(code);
   };
 
-  const badge = (p: Product) => {
-    const s = statusFor(p);
-    return <Badge tone={s === 'In stock' ? 'green' : s === 'Low stock' ? 'amber' : 'red'}>{s}</Badge>;
-  };
-
-  const columns: Column<Product>[] = [
-    { key: 'name', header: 'Product', render: (p) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 11 }}>
-        <ProductThumb src={p.image} emoji={p.emoji} alt={p.name} size={36} radius={8} />
-        <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{p.name}</span>
-      </span>
-    ) },
-    { key: 'sku', header: 'SKU', render: (p) => <span className="mono">{p.sku}</span> },
-    { key: 'category', header: 'Category' },
-    { key: 'price', header: 'Price', align: 'right', render: (p) => <span className="mono">{money(p.price)}</span> },
-    { key: 'stock', header: 'Stock', align: 'right', render: (p) => <span className="mono">{p.stock}</span> },
-    { key: 'status', header: 'Status', render: badge },
-    ...(writable
-      ? [{
-          key: 'actions', header: '', align: 'right' as const,
-          render: (p: Product) => (
-            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-              <Button variant="ghost" size="sm" onClick={() => { setEditing(p); setFormOpen(true); }}>Edit</Button>
-              <Button variant="danger" size="sm" onClick={() => onDelete(p)}>Delete</Button>
-            </div>
-          ),
-        }]
-      : []),
+  const stockOpts = [
+    { value: 'any', label: 'All stock' },
+    { value: 'in', label: 'In stock' },
+    { value: 'low', label: 'Low stock' },
+    { value: 'out', label: 'Out of stock' },
   ];
-
-  const selStyle: React.CSSProperties = { padding: '9px 12px', border: '1px solid var(--line)', borderRadius: 9, fontSize: 12.5, background: '#fff', fontFamily: 'inherit', color: 'var(--ink)' };
 
   return (
     <>
@@ -80,28 +54,66 @@ export default function ProductsPage() {
           <h2 className="display" style={{ fontSize: 22, margin: 0, color: 'var(--ink)', fontWeight: 800 }}>Products</h2>
           <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)', fontSize: 13 }}>{products.length} products across {categories.length} categories.</p>
         </div>
-        {writable && <Button onClick={() => { setEditing(null); setFormOpen(true); }}>+ Add product</Button>}
+        {writable && <Button onClick={openNew}>+ Add product</Button>}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, SKU or barcode" style={{ ...selStyle, width: 240 }} />
-        <select aria-label="Filter by category" value={cat} onChange={(e) => setCat(e.target.value)} style={selStyle}>
-          <option value="All">All categories</option>
-          {categories.map((c) => <option key={c.id}>{c.name}</option>)}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ flex: '1 1 280px', minWidth: 200, maxWidth: 400 }}>
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            onBarcodeScan={handleBarcode}
+            placeholder="Search by name, SKU, barcode…"
+            aria-label="Search products"
+            autoComplete="off"
+          />
+        </div>
+        <select
+          aria-label="Filter by stock status"
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value)}
+          style={{
+            padding: '0 14px', height: 44, border: '1px solid var(--line)', borderRadius: 11,
+            fontSize: 12.5, fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--card)',
+            cursor: 'pointer', minWidth: 130,
+          }}
+        >
+          {stockOpts.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
         </select>
-        <select aria-label="Filter by stock" value={stock} onChange={(e) => setStock(e.target.value)} style={selStyle}>
-          <option value="any">Stock: any</option>
-          <option value="in">In stock</option>
-          <option value="low">Low stock</option>
-          <option value="out">Out of stock</option>
-        </select>
       </div>
 
-      <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
-        <DataTable columns={columns} data={rows} rowKey={(p) => p.id} emptyText="No products match your filters." />
+      <div style={{ marginBottom: 18 }}>
+        <CategoryPills
+          categories={catNames}
+          selected={category}
+          counts={catCounts}
+          onChange={setCategory}
+        />
       </div>
 
-      {writable && <ProductForm key={editing?.id ?? 'new'} open={formOpen} onClose={() => setFormOpen(false)} editing={editing} />}
+      <div style={{
+        background: 'var(--card)', border: '1px solid var(--line-soft)',
+        borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', padding: 20,
+      }}>
+        <ProductGrid
+          query={query}
+          category={category}
+          stockFilter={stockFilter}
+          onEdit={openEdit}
+          writable={writable}
+        />
+      </div>
+
+      {writable && (
+        <ProductForm
+          key={editing?.id ?? 'new'}
+          open={formOpen}
+          onClose={() => setFormOpen(false)}
+          editing={editing}
+        />
+      )}
     </>
   );
 }

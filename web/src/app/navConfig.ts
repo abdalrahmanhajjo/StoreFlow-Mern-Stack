@@ -34,6 +34,18 @@ export const NAV: NavItem[] = [
   { label: 'Store settings', path: '/settings', roles: ['owner'], group: 'Business' },
 ];
 
+/** Default landing route after login, per role — single source of truth. */
+export const LANDING: Record<Role, string> = {
+  platform_admin: '/admin/overview',
+  owner: '/dashboard',
+  manager: '/dashboard',
+  cashier: '/pos',
+};
+
 export function navForRole(role: Role): NavItem[] {
   return NAV.filter((i) => i.roles.includes(role));
+}
+
+export function landingRouteForRole(role: Role): string {
+  return LANDING[role];
 }

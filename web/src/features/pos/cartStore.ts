@@ -2,14 +2,38 @@ import { create } from 'zustand';
 import { useMemo } from 'react';
 import { earn, redeemValue, pointsUsed } from '@/features/customers/loyalty';
 import type { Product } from '@/features/products/productsStore';
+import type { Role } from '@/store/session';
 
 export const TAX_RATE = 0.054;
 export const DEFAULT_DISCOUNT = 0.1; // 10% promo
-export const MAX_DISCOUNT = 0.25; // SF-504b: cashier discount cap
+export const DEFAULT_DISCOUNT_FIXED = 0;
+export type DiscountMode = 'percent' | 'fixed';
+
+// Role-based discount caps (SF-504b).
+const MAX_DISCOUNT_PCT: Record<Role, number> = {
+  platform_admin: 1,
+  owner: 0.5,
+  manager: 0.35,
+  cashier: 0.25,
+};
+const MAX_DISCOUNT_FIXED: Record<Role, number> = {
+  platform_admin: Infinity,
+  owner: 500,
+  manager: 200,
+  cashier: 100,
+};
+
+export function maxPctForRole(role: Role | null): number {
+  return role ? MAX_DISCOUNT_PCT[role] : MAX_DISCOUNT_PCT.cashier;
+}
+export function maxFixedForRole(role: Role | null): number {
+  return role ? MAX_DISCOUNT_FIXED[role] : MAX_DISCOUNT_FIXED.cashier;
+}
 
 export interface CartItem {
   id: string;
   name: string;
+  sku: string;
   price: number;
   qty: number;
   emoji: string;
@@ -20,21 +44,25 @@ export interface CartCustomer {
   name: string;
   points: number;
 }
-export type PayMethod = 'Cash' | 'Card' | 'Mobile';
+export type PayMethod = 'Cash' | 'Card';
 
 interface CartState {
   items: CartItem[];
   payMethod: PayMethod;
   customer: CartCustomer | null;
   redeeming: boolean;
+  discountMode: DiscountMode;
   discountRate: number;
+  discountFixed: number;
   add: (p: Product) => void;
   changeQty: (id: string, delta: number) => void;
   remove: (id: string) => void;
   setPay: (m: PayMethod) => void;
   setCustomer: (c: CartCustomer | null) => void;
   toggleRedeem: () => void;
-  setDiscountRate: (rate: number) => void; // clamped to [0, MAX_DISCOUNT]
+  setDiscountMode: (m: DiscountMode) => void;
+  setDiscountRate: (rate: number, role: Role | null) => void;
+  setDiscountFixed: (amount: number, role: Role | null) => void;
   reset: () => void;
 }
 
@@ -43,16 +71,16 @@ export const useCart = create<CartState>((set) => ({
   payMethod: 'Cash',
   customer: null,
   redeeming: false,
+  discountMode: 'percent',
   discountRate: DEFAULT_DISCOUNT,
+  discountFixed: DEFAULT_DISCOUNT_FIXED,
 
-  // SF-501
   add: (p) =>
     set((s) => {
       const existing = s.items.find((i) => i.id === p.id);
       if (existing) return { items: s.items.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i)) };
-      return { items: [...s.items, { id: p.id, name: p.name, price: p.price, qty: 1, emoji: p.emoji, image: p.image }] };
+      return { items: [...s.items, { id: p.id, name: p.name, sku: p.sku, price: p.price, qty: 1, emoji: p.emoji, image: p.image }] };
     }),
-  // SF-502
   changeQty: (id, delta) =>
     set((s) => ({
       items: s.items
@@ -61,17 +89,21 @@ export const useCart = create<CartState>((set) => ({
     })),
   remove: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
   setPay: (payMethod) => set({ payMethod }),
-  // SF-504
   setCustomer: (customer) => set({ customer, redeeming: false }),
   toggleRedeem: () => set((s) => ({ redeeming: !s.redeeming })),
-  // SF-504b: clamp discount to the allowed cap, never negative
-  setDiscountRate: (rate) => set({ discountRate: Math.min(MAX_DISCOUNT, Math.max(0, rate)) }),
-  reset: () => set({ items: [], customer: null, redeeming: false, discountRate: DEFAULT_DISCOUNT, payMethod: 'Cash' }),
+  setDiscountMode: (mode) => set({ discountMode: mode }),
+  setDiscountRate: (rate, role) =>
+    set({ discountRate: Math.min(maxPctForRole(role), Math.max(0, rate)) }),
+  setDiscountFixed: (amount, role) =>
+    set({ discountFixed: Math.min(maxFixedForRole(role), Math.max(0, amount)) }),
+  reset: () => set({ items: [], customer: null, redeeming: false, discountMode: 'percent', discountRate: DEFAULT_DISCOUNT, discountFixed: DEFAULT_DISCOUNT_FIXED, payMethod: 'Cash' }),
 }));
 
 export interface CartTotals {
   subtotal: number;
   discount: number;
+  discountFixed: number;
+  discountPct: number;
   redeem: number;
   redeemPoints: number;
   taxable: number;
@@ -80,24 +112,30 @@ export interface CartTotals {
   pointsEarned: number;
 }
 
-// Pure totals computation (unit-tested).
-export function computeTotals(state: Pick<CartState, 'items' | 'customer' | 'redeeming' | 'discountRate'>): CartTotals {
-  const subtotal = state.items.reduce((s, i) => s + i.price * i.qty, 0);
-  const discount = subtotal * state.discountRate;
-  const afterDiscount = subtotal - discount;
-  const redeem = state.redeeming && state.customer ? redeemValue(state.customer.points, afterDiscount) : 0;
-  const redeemPoints = pointsUsed(redeem);
-  const taxable = afterDiscount - redeem;
-  const tax = taxable * TAX_RATE;
-  const total = taxable + tax;
-  return { subtotal, discount, redeem, redeemPoints, taxable, tax, total, pointsEarned: earn(total) };
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
-// Select raw fields and memo-derive so the returned object stays referentially stable.
+export function computeTotals(state: Pick<CartState, 'items' | 'customer' | 'redeeming' | 'discountMode' | 'discountRate' | 'discountFixed'>): CartTotals {
+  const subtotal = round2(state.items.reduce((s, i) => s + i.price * i.qty, 0));
+  const discountPct = round2(subtotal * state.discountRate);
+  const discountFixed = state.discountMode === 'fixed' ? Math.min(state.discountFixed, subtotal) : 0;
+  const discount = state.discountMode === 'percent' ? discountPct : round2(discountFixed);
+  const afterDiscount = round2(subtotal - discount);
+  const redeem = state.redeeming && state.customer ? redeemValue(state.customer.points, afterDiscount) : 0;
+  const redeemPoints = pointsUsed(redeem);
+  const taxable = round2(afterDiscount - redeem);
+  const tax = round2(taxable * TAX_RATE);
+  const total = round2(taxable + tax);
+  return { subtotal, discount, discountFixed, discountPct, redeem, redeemPoints, taxable, tax, total, pointsEarned: earn(total) };
+}
+
 export const useCartTotals = (): CartTotals => {
   const items = useCart((s) => s.items);
   const customer = useCart((s) => s.customer);
   const redeeming = useCart((s) => s.redeeming);
+  const discountMode = useCart((s) => s.discountMode);
   const discountRate = useCart((s) => s.discountRate);
-  return useMemo(() => computeTotals({ items, customer, redeeming, discountRate }), [items, customer, redeeming, discountRate]);
+  const discountFixed = useCart((s) => s.discountFixed);
+  return useMemo(() => computeTotals({ items, customer, redeeming, discountMode, discountRate, discountFixed }), [items, customer, redeeming, discountMode, discountRate, discountFixed]);
 };

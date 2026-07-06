@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { authService } from './authService';
 import { useSession } from '@/store/session';
-import { landingPath } from '@/lib/rbac';
+import { landingRouteForRole } from '@/app/navConfig';
 import { toast } from '@/components/ui';
 import type { LoginInput, RegisterInput } from './schemas';
 
@@ -15,7 +15,7 @@ export function useLogin(returnTo?: string) {
     mutationFn: (input) => authService.login(input),
     onSuccess: ({ user, accessToken }) => {
       setSession(user, accessToken);
-      navigate(returnTo || landingPath(user.role), { replace: true });
+      navigate(returnTo || landingRouteForRole(user.role), { replace: true });
     },
     onError: (err) => {
       if (err.code !== 'PENDING_APPROVAL') {

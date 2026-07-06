@@ -3,7 +3,7 @@ import type { Tier } from '@/components/ui';
 
 export const POINTS_PER_DOLLAR = 1; // earn 1 pt per $1 of final total
 export const POINTS_BLOCK = 100; // redeem in blocks of 100 pts
-export const BLOCK_VALUE = 5; // 100 pts = $5 off
+export const BLOCK_VALUE = 2; // 100 pts = $2 off
 
 /** Points earned on a completed sale total. */
 export function earn(total: number): number {

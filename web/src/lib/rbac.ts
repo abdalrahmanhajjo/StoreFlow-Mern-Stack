@@ -17,13 +17,6 @@ export function canAccess(role: Role, page: PageKey): boolean {
   return PAGE_ACCESS[role].includes(page);
 }
 
-// Landing route after login, per role.
-export function landingPath(role: Role): string {
-  if (role === 'platform_admin') return '/admin/overview';
-  if (role === 'cashier') return '/pos';
-  return '/dashboard';
-}
-
 // Fine-grained action check (used by later sprints for employee rules).
 export type Action =
   | 'product.write' | 'customer.create' | 'employee.manage'

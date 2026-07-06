@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/ui';
-import { landingPath } from '@/lib/rbac';
+import { landingRouteForRole } from '@/app/navConfig';
 import { money } from '@/lib/format';
 import { useSession } from '@/store/session';
 import tenantsData from '@/data/tenants.json';
@@ -100,7 +100,7 @@ export default function HomePage() {
   const pendingOrders = purchaseOrders.filter((order) => order.status === 'pending');
   const blockedAttempts = loginAttempts.filter((attempt) => attempt.result !== 'Success');
   const topStores = [...activeTenants].sort((a, b) => b.salesMtd - a.salesMtd).slice(0, 4);
-  const dashboardHref = user ? landingPath(user.role) : '/login';
+  const dashboardHref = user ? landingRouteForRole(user.role) : '/login';
   const dashboardLabel = user ? 'Open app' : 'Sign in';
 
   return (
@@ -116,7 +116,7 @@ export default function HomePage() {
               <a key={item.href} href={item.href}>{item.label}</a>
             ))}
           </nav>
-          <Link className="sf-home-outline" to={user ? landingPath(user.role) : '/register'}>
+          <Link className="sf-home-outline" to={user ? landingRouteForRole(user.role) : '/register'}>
             {user ? 'Dashboard' : 'Sign Up'}
           </Link>
         </header>

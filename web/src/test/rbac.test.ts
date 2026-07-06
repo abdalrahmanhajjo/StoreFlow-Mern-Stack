@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { landingPath, canAccess, can } from '@/lib/rbac';
-import { navForRole } from '@/app/navConfig';
+import { canAccess, can } from '@/lib/rbac';
+import { navForRole, landingRouteForRole } from '@/app/navConfig';
 
 describe('rbac', () => {
   it('routes each role to its landing page', () => {
-    expect(landingPath('platform_admin')).toBe('/admin/overview');
-    expect(landingPath('cashier')).toBe('/pos');
-    expect(landingPath('owner')).toBe('/dashboard');
-    expect(landingPath('manager')).toBe('/dashboard');
+    expect(landingRouteForRole('platform_admin')).toBe('/admin/overview');
+    expect(landingRouteForRole('cashier')).toBe('/pos');
+    expect(landingRouteForRole('owner')).toBe('/dashboard');
+    expect(landingRouteForRole('manager')).toBe('/dashboard');
   });
 
   it('scopes page access per role', () => {

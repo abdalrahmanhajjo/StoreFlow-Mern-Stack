@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { earn, redeemValue, pointsUsed, tierFor } from '@/features/customers/loyalty';
-import { computeTotals } from '@/features/pos/cartStore';
+import { computeTotals, maxPctForRole, maxFixedForRole } from '@/features/pos/cartStore';
 
 describe('loyalty engine (SF-902)', () => {
   it('earns 1 pt per $1, floored', () => {
@@ -10,14 +10,15 @@ describe('loyalty engine (SF-902)', () => {
   });
 
   it('redeems in 100-pt blocks capped at the bill', () => {
-    expect(redeemValue(240, 100)).toBe(10); // 2 blocks = $10
-    expect(redeemValue(582, 100)).toBe(25); // 5 blocks = $25, under cap
-    expect(redeemValue(582, 12)).toBe(12); // capped at bill
-    expect(redeemValue(70, 100)).toBe(0); // below one block
+    expect(redeemValue(240, 100)).toBe(4);  // 2 blocks × $2 = $4
+    expect(redeemValue(582, 100)).toBe(10); // 5 blocks × $2 = $10, under cap
+    expect(redeemValue(582, 8)).toBe(8);    // capped at bill
+    expect(redeemValue(70, 100)).toBe(0);   // below one block
   });
 
   it('computes points used from redeemed dollars', () => {
-    expect(pointsUsed(25)).toBe(500);
+    expect(pointsUsed(4)).toBe(200);   // $4 = 200 pts at $2/100-pt-block
+    expect(pointsUsed(10)).toBe(500);  // $10 = 500 pts
     expect(pointsUsed(0)).toBe(0);
   });
 
@@ -29,22 +30,58 @@ describe('loyalty engine (SF-902)', () => {
 });
 
 describe('cart totals (SF-502/504)', () => {
-  const items = [{ id: 'p1', name: 'A', price: 10, qty: 2, emoji: '', image: '' }]; // subtotal 20
+  const items = [{ id: 'p1', name: 'A', sku: 'SKU001', price: 10, qty: 2, emoji: '', image: '' }]; // subtotal 20
 
   it('applies 10% discount + tax, no customer', () => {
-    const t = computeTotals({ items, customer: null, redeeming: false, discountRate: 0.1 });
+    const t = computeTotals({ items, customer: null, redeeming: false, discountMode: 'percent', discountRate: 0.1, discountFixed: 0 });
     expect(t.subtotal).toBe(20);
-    expect(t.discount).toBeCloseTo(2);
-    expect(t.taxable).toBeCloseTo(18);
-    expect(t.tax).toBeCloseTo(18 * 0.054);
-    expect(t.pointsEarned).toBe(Math.floor(18 + 18 * 0.054));
+    expect(t.discount).toBe(2);
+    expect(t.taxable).toBe(18);
+    expect(t.tax).toBe(0.97);
+    expect(t.total).toBe(18.97);
+    expect(t.pointsEarned).toBe(18);
   });
 
   it('redeems points when toggled for a customer', () => {
-    const t = computeTotals({ items, customer: { id: 'c', name: 'X', points: 240 }, redeeming: true, discountRate: 0.1 });
-    // afterDiscount = 18 -> 2 blocks = $10 redeem
-    expect(t.redeem).toBe(10);
+    const t = computeTotals({ items, customer: { id: 'c', name: 'X', points: 240 }, redeeming: true, discountMode: 'percent', discountRate: 0.1, discountFixed: 0 });
+    expect(t.redeem).toBe(4);
     expect(t.redeemPoints).toBe(200);
-    expect(t.taxable).toBeCloseTo(8);
+    expect(t.taxable).toBe(14);
+    expect(t.tax).toBe(0.76);
+    expect(t.total).toBe(14.76);
+  });
+
+  it('applies fixed-dollar discount capped at subtotal', () => {
+    const t = computeTotals({ items, customer: null, redeeming: false, discountMode: 'fixed', discountRate: 0, discountFixed: 3 });
+    expect(t.subtotal).toBe(20);
+    expect(t.discount).toBe(3);
+    expect(t.taxable).toBe(17);
+    expect(t.tax).toBe(0.92); // round2(17 * 0.054)
+    expect(t.total).toBe(17.92);
+  });
+
+  it('clamps fixed discount to subtotal', () => {
+    const t = computeTotals({ items, customer: null, redeeming: false, discountMode: 'fixed', discountRate: 0, discountFixed: 99 });
+    expect(t.discount).toBe(20); // capped at subtotal
+    expect(t.taxable).toBe(0);
+    expect(t.total).toBe(0);
+  });
+});
+
+describe('role-based discount caps (SF-504b)', () => {
+  it('returns role-appropriate percent caps', () => {
+    expect(maxPctForRole('platform_admin')).toBe(1);
+    expect(maxPctForRole('owner')).toBe(0.5);
+    expect(maxPctForRole('manager')).toBe(0.35);
+    expect(maxPctForRole('cashier')).toBe(0.25);
+    expect(maxPctForRole(null)).toBe(0.25); // fallback to cashier
+  });
+
+  it('returns role-appropriate fixed-dollar caps', () => {
+    expect(maxFixedForRole('platform_admin')).toBe(Infinity);
+    expect(maxFixedForRole('owner')).toBe(500);
+    expect(maxFixedForRole('manager')).toBe(200);
+    expect(maxFixedForRole('cashier')).toBe(100);
+    expect(maxFixedForRole(null)).toBe(100);
   });
 });

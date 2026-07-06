@@ -4,6 +4,17 @@ import Sale from "../models/Sale";
 import Product from "../models/Product";
 import Customer from "../models/Customer";
 import LoyaltyLedger from "../models/LoyaltyLedger";
+import AuditLog from "../models/AuditLog";
+import { calculateLoyaltyTier } from "../utils/loyaltyTier";
+
+class AppError extends Error {
+    statusCode: number;
+
+    constructor(message: string, statusCode: number) {
+        super(message);
+        this.statusCode = statusCode;
+    }
+}
 
 const generateInvoiceNumber = (): string => {
     const date = new Date();
@@ -31,7 +42,7 @@ export const getSales = async (req: Request, res: Response) => {
         }
 
         const sales = await Sale.find(filter)
-            .populate("customerId", "name phone email")
+            .populate("customerId", "name phone email loyaltyPoints totalSpent lifetimePointsEarned loyaltyTier")
             .populate("items.productId", "name sku price quantity")
             .sort({ createdAt: -1 });
 
@@ -66,7 +77,7 @@ export const getSaleById = async (req: Request, res: Response) => {
             _id: id,
             isActive: true,
         })
-            .populate("customerId", "name phone email")
+            .populate("customerId", "name phone email loyaltyPoints totalSpent lifetimePointsEarned loyaltyTier")
             .populate("items.productId", "name sku price quantity");
 
         if (!sale) {
@@ -99,7 +110,7 @@ export const getInvoiceByNumber = async (req: Request, res: Response) => {
             invoiceNumber,
             isActive: true,
         })
-            .populate("customerId", "name phone email")
+            .populate("customerId", "name phone email loyaltyPoints totalSpent lifetimePointsEarned loyaltyTier")
             .populate("items.productId", "name sku price quantity");
 
         if (!sale) {
@@ -123,9 +134,13 @@ export const getInvoiceByNumber = async (req: Request, res: Response) => {
     }
 };
 
-// CREATE sale / invoice
+// CREATE sale / invoice WITH TRANSACTION ROLLBACK
 export const createSale = async (req: Request, res: Response) => {
+    const session = await mongoose.startSession();
+
     try {
+        session.startTransaction();
+
         const {
             customerId,
             cashierName,
@@ -137,96 +152,64 @@ export const createSale = async (req: Request, res: Response) => {
             notes,
         } = req.body;
 
+        const performedByName = cashierName || "Cashier";
+
         if (!items || !Array.isArray(items) || items.length === 0) {
-            res.status(400).json({
-                success: false,
-                message: "Sale must contain at least one item",
-            });
-            return;
+            throw new AppError("Sale must contain at least one item", 400);
         }
 
         if (!paymentMethod) {
-            res.status(400).json({
-                success: false,
-                message: "Payment method is required",
-            });
-            return;
+            throw new AppError("Payment method is required", 400);
         }
 
         if (!["cash", "card", "mobile_payment"].includes(paymentMethod)) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid payment method",
-            });
-            return;
+            throw new AppError("Invalid payment method", 400);
         }
 
         if (customerId) {
             if (!mongoose.Types.ObjectId.isValid(customerId)) {
-                res.status(400).json({
-                    success: false,
-                    message: "Invalid customer ID",
-                });
-                return;
+                throw new AppError("Invalid customer ID", 400);
             }
 
             const customer = await Customer.findOne({
                 _id: customerId,
                 isActive: true,
-            });
+            }).session(session);
 
             if (!customer) {
-                res.status(404).json({
-                    success: false,
-                    message: "Customer not found",
-                });
-                return;
+                throw new AppError("Customer not found", 404);
             }
         }
 
         let subtotal = 0;
-
-        const saleItems = [];
+        const saleItems: any[] = [];
 
         for (const item of items) {
             const productId = item.productId as string;
             const quantity = Number(item.quantity);
 
             if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
-                res.status(400).json({
-                    success: false,
-                    message: "Invalid product ID",
-                });
-                return;
+                throw new AppError("Invalid product ID", 400);
             }
 
             if (!quantity || quantity <= 0) {
-                res.status(400).json({
-                    success: false,
-                    message: "Quantity must be greater than 0",
-                });
-                return;
+                throw new AppError("Quantity must be greater than 0", 400);
             }
 
             const product = await Product.findOne({
                 _id: productId,
                 isActive: true,
-            });
+            }).session(session);
 
             if (!product) {
-                res.status(404).json({
-                    success: false,
-                    message: "Product not found",
-                });
-                return;
+                throw new AppError("Product not found", 404);
             }
 
             if (product.quantity < quantity) {
-                res.status(400).json({
-                    success: false,
-                    message: `Not enough stock for ${product.name}. Available: ${product.quantity}`,
-                });
-                return;
+                throw new AppError(
+                    `Not enough stock for ${product.name}. Available: ${product.quantity}`,
+                    400
+                );
             }
 
             const unitPrice = product.price;
@@ -247,28 +230,16 @@ export const createSale = async (req: Request, res: Response) => {
         const numericDiscount = Number(discount);
         const numericTaxRate = Number(taxRate);
 
-        if (numericDiscount < 0) {
-            res.status(400).json({
-                success: false,
-                message: "Discount cannot be negative",
-            });
-            return;
+        if (Number.isNaN(numericDiscount) || numericDiscount < 0) {
+            throw new AppError("Discount cannot be negative", 400);
         }
 
         if (numericDiscount > subtotal) {
-            res.status(400).json({
-                success: false,
-                message: "Discount cannot be greater than subtotal",
-            });
-            return;
+            throw new AppError("Discount cannot be greater than subtotal", 400);
         }
 
-        if (numericTaxRate < 0) {
-            res.status(400).json({
-                success: false,
-                message: "Tax rate cannot be negative",
-            });
-            return;
+        if (Number.isNaN(numericTaxRate) || numericTaxRate < 0) {
+            throw new AppError("Tax rate cannot be negative", 400);
         }
 
         const afterDiscount = subtotal - numericDiscount;
@@ -278,16 +249,11 @@ export const createSale = async (req: Request, res: Response) => {
         const finalPaidAmount =
             paidAmount === undefined ? total : Number(paidAmount);
 
-        if (finalPaidAmount < total) {
-            res.status(400).json({
-                success: false,
-                message: "Paid amount cannot be less than total",
-            });
-            return;
+        if (Number.isNaN(finalPaidAmount) || finalPaidAmount < total) {
+            throw new AppError("Paid amount cannot be less than total", 400);
         }
 
         const changeAmount = finalPaidAmount - total;
-
         const invoiceNumber = generateInvoiceNumber();
 
         let loyaltyPointsEarned = 0;
@@ -296,68 +262,184 @@ export const createSale = async (req: Request, res: Response) => {
             loyaltyPointsEarned = Math.floor(total);
         }
 
-        const sale = await Sale.create({
-            invoiceNumber,
-            customerId,
-            cashierName,
-            items: saleItems,
-            subtotal,
-            discount: numericDiscount,
-            taxRate: numericTaxRate,
-            taxAmount,
-            total,
-            paymentMethod,
-            paidAmount: finalPaidAmount,
-            changeAmount,
-            loyaltyPointsEarned,
-            status: "completed",
-            notes,
-        });
-        for (const item of saleItems) {
-            await Product.findByIdAndUpdate(item.productId, {
-                $inc: {
-                    quantity: -item.quantity,
+        const createdSales = await Sale.create(
+            [
+                {
+                    invoiceNumber,
+                    customerId,
+                    cashierName: performedByName,
+                    items: saleItems,
+                    subtotal,
+                    discount: numericDiscount,
+                    taxRate: numericTaxRate,
+                    taxAmount,
+                    total,
+                    paymentMethod,
+                    paidAmount: finalPaidAmount,
+                    changeAmount,
+                    loyaltyPointsEarned,
+                    status: "completed",
+                    notes,
                 },
-            });
-        }
+            ],
+            { session }
+        );
 
-        if (customerId) {
-            const updatedCustomer = await Customer.findByIdAndUpdate(
-                customerId,
+        const sale = createdSales[0];
+
+        await AuditLog.create(
+            [
+                {
+                    action: "CREATE_SALE",
+                    entity: "Sale",
+                    entityId: sale._id,
+                    description: `Sale invoice ${invoiceNumber} created with total ${total}`,
+                    performedByName,
+                    metadata: {
+                        invoiceNumber,
+                        subtotal,
+                        discount: numericDiscount,
+                        taxRate: numericTaxRate,
+                        taxAmount,
+                        total,
+                        paymentMethod,
+                        paidAmount: finalPaidAmount,
+                        changeAmount,
+                        customerId,
+                        loyaltyPointsEarned,
+                    },
+                },
+            ],
+            { session }
+        );
+
+        for (const item of saleItems) {
+            const updatedProduct = await Product.findOneAndUpdate(
+                {
+                    _id: item.productId,
+                    isActive: true,
+                    quantity: {
+                        $gte: item.quantity,
+                    },
+                },
                 {
                     $inc: {
-                        totalSpent: total,
-                        loyaltyPoints: loyaltyPointsEarned,
-                    },
-                    $push: {
-                        purchaseHistory: {
-                            productName: `Invoice ${invoiceNumber}`,
-                            amount: total,
-                            purchaseDate: new Date(),
-                            note: `Sale invoice - earned ${loyaltyPointsEarned} loyalty points`,
-                        },
+                        quantity: -item.quantity,
                     },
                 },
                 {
                     new: true,
+                    session,
                 }
             );
 
-            if (updatedCustomer && loyaltyPointsEarned > 0) {
-                await LoyaltyLedger.create({
-                    customerId,
-                    type: "earn",
-                    points: loyaltyPointsEarned,
-                    amountSpent: total,
-                    balanceAfter: updatedCustomer.loyaltyPoints,
-                    description: `Earned ${loyaltyPointsEarned} points from invoice ${invoiceNumber}`,
-                    reference: invoiceNumber,
-                });
+            if (!updatedProduct) {
+                throw new AppError(
+                    `Stock update failed for ${item.productName}. The product may not have enough stock.`,
+                    400
+                );
+            }
+
+            await AuditLog.create(
+                [
+                    {
+                        action: "STOCK_DECREMENT",
+                        entity: "Product",
+                        entityId: item.productId,
+                        description: `Stock decreased by ${item.quantity} for product ${item.productName} because of invoice ${invoiceNumber}`,
+                        performedByName,
+                        metadata: {
+                            saleId: sale._id,
+                            invoiceNumber,
+                            productId: item.productId,
+                            productName: item.productName,
+                            sku: item.sku,
+                            quantitySold: item.quantity,
+                            unitPrice: item.unitPrice,
+                            itemSubtotal: item.subtotal,
+                            newQuantity: updatedProduct.quantity,
+                        },
+                    },
+                ],
+                { session }
+            );
+        }
+
+        if (customerId) {
+            const updatedCustomer = await Customer.findById(customerId).session(
+                session
+            );
+
+            if (!updatedCustomer) {
+                throw new AppError("Customer update failed", 400);
+            }
+
+            updatedCustomer.totalSpent += total;
+            updatedCustomer.loyaltyPoints += loyaltyPointsEarned;
+            updatedCustomer.lifetimePointsEarned += loyaltyPointsEarned;
+            updatedCustomer.loyaltyTier = calculateLoyaltyTier(
+                updatedCustomer.lifetimePointsEarned
+            );
+
+            updatedCustomer.purchaseHistory.push({
+                productName: `Invoice ${invoiceNumber}`,
+                amount: total,
+                purchaseDate: new Date(),
+                note: `Sale invoice - earned ${loyaltyPointsEarned} loyalty points. Tier: ${updatedCustomer.loyaltyTier}`,
+            });
+
+            await updatedCustomer.save({ session });
+
+            if (loyaltyPointsEarned > 0) {
+                await LoyaltyLedger.create(
+                    [
+                        {
+                            customerId,
+                            type: "earn",
+                            points: loyaltyPointsEarned,
+                            amountSpent: total,
+                            balanceAfter: updatedCustomer.loyaltyPoints,
+                            tierAfter: updatedCustomer.loyaltyTier,
+                            description: `Earned ${loyaltyPointsEarned} points from invoice ${invoiceNumber}`,
+                            reference: invoiceNumber,
+                        },
+                    ],
+                    { session }
+                );
+
+                await AuditLog.create(
+                    [
+                        {
+                            action: "LOYALTY_EARNED",
+                            entity: "Customer",
+                            entityId: updatedCustomer._id,
+                            description: `Customer earned ${loyaltyPointsEarned} loyalty points from invoice ${invoiceNumber} and is now ${updatedCustomer.loyaltyTier}`,
+                            performedByName,
+                            metadata: {
+                                saleId: sale._id,
+                                invoiceNumber,
+                                customerId,
+                                loyaltyPointsEarned,
+                                total,
+                                balanceAfter: updatedCustomer.loyaltyPoints,
+                                lifetimePointsEarned: updatedCustomer.lifetimePointsEarned,
+                                loyaltyTier: updatedCustomer.loyaltyTier,
+                            },
+                        },
+                    ],
+                    { session }
+                );
             }
         }
 
+        await session.commitTransaction();
+        session.endSession();
+
         const fullSale = await Sale.findById(sale._id)
-            .populate("customerId", "name phone email")
+            .populate(
+                "customerId",
+                "name phone email loyaltyPoints totalSpent lifetimePointsEarned loyaltyTier"
+            )
             .populate("items.productId", "name sku price quantity");
 
         res.status(201).json({
@@ -366,61 +448,113 @@ export const createSale = async (req: Request, res: Response) => {
             data: fullSale,
         });
     } catch (error: any) {
-        res.status(500).json({
+        await session.abortTransaction();
+        session.endSession();
+
+        res.status(error.statusCode || 500).json({
             success: false,
-            message: "Failed to create sale invoice",
-            error: error.message,
+            message: error.message || "Failed to create sale invoice",
         });
     }
 };
 
-// VOID sale and restore stock
+// VOID sale and restore stock WITH TRANSACTION ROLLBACK
 export const voidSale = async (req: Request, res: Response) => {
+    const session = await mongoose.startSession();
+
     try {
+        session.startTransaction();
+
         const id = req.params.id as string;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid sale ID",
-            });
-            return;
+            throw new AppError("Invalid sale ID", 400);
         }
 
         const sale = await Sale.findOne({
             _id: id,
             isActive: true,
-        });
+        }).session(session);
 
         if (!sale) {
-            res.status(404).json({
-                success: false,
-                message: "Sale not found",
-            });
-            return;
+            throw new AppError("Sale not found", 404);
         }
 
         if (sale.status !== "completed") {
-            res.status(400).json({
-                success: false,
-                message: "Only completed sales can be voided",
-            });
-            return;
+            throw new AppError("Only completed sales can be voided", 400);
         }
 
+        const performedByName = sale.cashierName || "Cashier";
+
         for (const item of sale.items) {
-            await Product.findByIdAndUpdate(item.productId, {
-                $inc: {
-                    quantity: item.quantity,
+            const updatedProduct = await Product.findByIdAndUpdate(
+                item.productId,
+                {
+                    $inc: {
+                        quantity: item.quantity,
+                    },
                 },
-            });
+                {
+                    new: true,
+                    session,
+                }
+            );
+
+            if (!updatedProduct) {
+                throw new AppError(
+                    `Failed to restore stock for product ${item.productName}`,
+                    400
+                );
+            }
+
+            await AuditLog.create(
+                [
+                    {
+                        action: "STOCK_RESTORE",
+                        entity: "Product",
+                        entityId: item.productId,
+                        description: `Stock restored by ${item.quantity} for product ${item.productName} because invoice ${sale.invoiceNumber} was voided`,
+                        performedByName,
+                        metadata: {
+                            saleId: sale._id,
+                            invoiceNumber: sale.invoiceNumber,
+                            productId: item.productId,
+                            productName: item.productName,
+                            sku: item.sku,
+                            quantityRestored: item.quantity,
+                            newQuantity: updatedProduct.quantity,
+                        },
+                    },
+                ],
+                { session }
+            );
         }
 
         sale.status = "voided";
-        await sale.save();
+        await sale.save({ session });
+
+        await AuditLog.create(
+            [
+                {
+                    action: "VOID_SALE",
+                    entity: "Sale",
+                    entityId: sale._id,
+                    description: `Sale invoice ${sale.invoiceNumber} was voided`,
+                    performedByName,
+                    metadata: {
+                        invoiceNumber: sale.invoiceNumber,
+                        total: sale.total,
+                        loyaltyPointsEarned: sale.loyaltyPointsEarned || 0,
+                    },
+                },
+            ],
+            { session }
+        );
 
         if (sale.customerId) {
-            const customer = await Customer.findById(sale.customerId);
+            const customer = await Customer.findById(sale.customerId).session(
+                session
+            );
 
             if (customer) {
                 customer.totalSpent = Math.max(0, customer.totalSpent - sale.total);
@@ -432,38 +566,88 @@ export const voidSale = async (req: Request, res: Response) => {
 
                 customer.loyaltyPoints -= pointsToRemove;
 
+                // Because this void cancels the original sale, we also reverse lifetime earned points.
+                customer.lifetimePointsEarned = Math.max(
+                    0,
+                    customer.lifetimePointsEarned - pointsToRemove
+                );
+
+                customer.loyaltyTier = calculateLoyaltyTier(
+                    customer.lifetimePointsEarned
+                );
+
                 customer.purchaseHistory.push({
                     productName: `Voided Invoice ${sale.invoiceNumber}`,
                     amount: 0,
                     purchaseDate: new Date(),
-                    note: `Sale voided. Original total was ${sale.total}. Reversed ${pointsToRemove} loyalty points.`,
+                    note: `Sale voided. Original total was ${sale.total}. Reversed ${pointsToRemove} loyalty points. Tier: ${customer.loyaltyTier}`,
                 });
 
-                await customer.save();
+                await customer.save({ session });
 
                 if (pointsToRemove > 0) {
-                    await LoyaltyLedger.create({
-                        customerId: sale.customerId,
-                        type: "adjust",
-                        points: -pointsToRemove,
-                        balanceAfter: customer.loyaltyPoints,
-                        description: `Reversed ${pointsToRemove} points from voided invoice ${sale.invoiceNumber}`,
-                        reference: sale.invoiceNumber,
-                    });
+                    await LoyaltyLedger.create(
+                        [
+                            {
+                                customerId: sale.customerId,
+                                type: "adjust",
+                                points: -pointsToRemove,
+                                balanceAfter: customer.loyaltyPoints,
+                                tierAfter: customer.loyaltyTier,
+                                description: `Reversed ${pointsToRemove} points from voided invoice ${sale.invoiceNumber}`,
+                                reference: sale.invoiceNumber,
+                            },
+                        ],
+                        { session }
+                    );
+
+                    await AuditLog.create(
+                        [
+                            {
+                                action: "LOYALTY_REVERSED",
+                                entity: "Customer",
+                                entityId: customer._id,
+                                description: `Reversed ${pointsToRemove} loyalty points from voided invoice ${sale.invoiceNumber}. Customer tier is now ${customer.loyaltyTier}`,
+                                performedByName,
+                                metadata: {
+                                    saleId: sale._id,
+                                    invoiceNumber: sale.invoiceNumber,
+                                    customerId: sale.customerId,
+                                    pointsReversed: pointsToRemove,
+                                    balanceAfter: customer.loyaltyPoints,
+                                    lifetimePointsEarned: customer.lifetimePointsEarned,
+                                    loyaltyTier: customer.loyaltyTier,
+                                },
+                            },
+                        ],
+                        { session }
+                    );
                 }
             }
         }
 
+        await session.commitTransaction();
+        session.endSession();
+
+        const fullSale = await Sale.findById(sale._id)
+            .populate(
+                "customerId",
+                "name phone email loyaltyPoints totalSpent lifetimePointsEarned loyaltyTier"
+            )
+            .populate("items.productId", "name sku price quantity");
+
         res.status(200).json({
             success: true,
             message: "Sale voided successfully and stock restored",
-            data: sale,
+            data: fullSale,
         });
     } catch (error: any) {
-        res.status(500).json({
+        await session.abortTransaction();
+        session.endSession();
+
+        res.status(error.statusCode || 500).json({
             success: false,
-            message: "Failed to void sale",
-            error: error.message,
+            message: error.message || "Failed to void sale",
         });
     }
 };

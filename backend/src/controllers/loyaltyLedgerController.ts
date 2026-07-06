@@ -1,13 +1,37 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Customer from "../models/Customer";
 import LoyaltyLedger from "../models/LoyaltyLedger";
+import Customer from "../models/Customer";
+import { calculateLoyaltyTier } from "../utils/loyaltyTier";
 
 // GET all loyalty ledger records
 export const getLoyaltyLedgers = async (req: Request, res: Response) => {
     try {
-        const ledgers = await LoyaltyLedger.find({ isActive: true })
-            .populate("customerId", "name phone email loyaltyPoints")
+        const type = req.query.type as string | undefined;
+        const customerId = req.query.customerId as string | undefined;
+
+        const filter: any = {
+            isActive: true,
+        };
+
+        if (type) {
+            filter.type = type;
+        }
+
+        if (customerId) {
+            if (!mongoose.Types.ObjectId.isValid(customerId)) {
+                res.status(400).json({
+                    success: false,
+                    message: "Invalid customer ID",
+                });
+                return;
+            }
+
+            filter.customerId = customerId;
+        }
+
+        const ledgers = await LoyaltyLedger.find(filter)
+            .populate("customerId", "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier")
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -24,7 +48,7 @@ export const getLoyaltyLedgers = async (req: Request, res: Response) => {
     }
 };
 
-// GET one loyalty ledger record by ID
+// GET loyalty ledger by ID
 export const getLoyaltyLedgerById = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
@@ -40,7 +64,10 @@ export const getLoyaltyLedgerById = async (req: Request, res: Response) => {
         const ledger = await LoyaltyLedger.findOne({
             _id: id,
             isActive: true,
-        }).populate("customerId", "name phone email loyaltyPoints");
+        }).populate(
+            "customerId",
+            "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier"
+        );
 
         if (!ledger) {
             res.status(404).json({
@@ -63,8 +90,11 @@ export const getLoyaltyLedgerById = async (req: Request, res: Response) => {
     }
 };
 
-// GET loyalty history for one customer
-export const getCustomerLoyaltyLedger = async (req: Request, res: Response) => {
+// GET loyalty ledger records for one customer
+export const getCustomerLoyaltyLedger = async (
+    req: Request,
+    res: Response
+) => {
     try {
         const customerId = req.params.customerId as string;
 
@@ -99,9 +129,9 @@ export const getCustomerLoyaltyLedger = async (req: Request, res: Response) => {
             customer: {
                 _id: customer._id,
                 name: customer.name,
-                phone: customer.phone,
-                email: customer.email,
                 loyaltyPoints: customer.loyaltyPoints,
+                lifetimePointsEarned: customer.lifetimePointsEarned,
+                loyaltyTier: customer.loyaltyTier,
             },
             count: ledgers.length,
             data: ledgers,
@@ -115,26 +145,40 @@ export const getCustomerLoyaltyLedger = async (req: Request, res: Response) => {
     }
 };
 
-// EARN points
+// POST earn points
 export const earnPoints = async (req: Request, res: Response) => {
     try {
-        const { customerId, amountSpent, points, description, reference } = req.body;
+        const {
+            customerId,
+            amountSpent = 0,
+            points,
+            description,
+            reference,
+        } = req.body;
 
         if (!customerId || !mongoose.Types.ObjectId.isValid(customerId)) {
             res.status(400).json({
                 success: false,
-                message: "Invalid customer ID",
+                message: "Valid customer ID is required",
             });
             return;
         }
 
-        const earnedPoints = Number(points);
-        const spentAmount = Number(amountSpent || 0);
+        const numericPoints = Number(points);
+        const numericAmountSpent = Number(amountSpent);
 
-        if (Number.isNaN(earnedPoints) || earnedPoints <= 0) {
+        if (!numericPoints || numericPoints <= 0) {
             res.status(400).json({
                 success: false,
                 message: "Points must be greater than 0",
+            });
+            return;
+        }
+
+        if (numericAmountSpent < 0) {
+            res.status(400).json({
+                success: false,
+                message: "Amount spent cannot be negative",
             });
             return;
         }
@@ -152,28 +196,35 @@ export const earnPoints = async (req: Request, res: Response) => {
             return;
         }
 
-        customer.loyaltyPoints += earnedPoints;
-        customer.totalSpent += spentAmount;
+        customer.totalSpent += numericAmountSpent;
+        customer.loyaltyPoints += numericPoints;
+        customer.lifetimePointsEarned += numericPoints;
+        customer.loyaltyTier = calculateLoyaltyTier(
+            customer.lifetimePointsEarned
+        );
 
         await customer.save();
 
         const ledger = await LoyaltyLedger.create({
             customerId,
             type: "earn",
-            points: earnedPoints,
-            amountSpent: spentAmount,
+            points: numericPoints,
+            amountSpent: numericAmountSpent,
             balanceAfter: customer.loyaltyPoints,
-            description: description || "Points earned from purchase",
+            tierAfter: customer.loyaltyTier,
+            description: description || `Earned ${numericPoints} points`,
             reference,
         });
+
+        const fullLedger = await LoyaltyLedger.findById(ledger._id).populate(
+            "customerId",
+            "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier"
+        );
 
         res.status(201).json({
             success: true,
             message: "Loyalty points earned successfully",
-            data: {
-                customer,
-                ledger,
-            },
+            data: fullLedger,
         });
     } catch (error: any) {
         res.status(500).json({
@@ -184,7 +235,7 @@ export const earnPoints = async (req: Request, res: Response) => {
     }
 };
 
-// REDEEM points
+// POST redeem points
 export const redeemPoints = async (req: Request, res: Response) => {
     try {
         const { customerId, points, description, reference } = req.body;
@@ -192,14 +243,14 @@ export const redeemPoints = async (req: Request, res: Response) => {
         if (!customerId || !mongoose.Types.ObjectId.isValid(customerId)) {
             res.status(400).json({
                 success: false,
-                message: "Invalid customer ID",
+                message: "Valid customer ID is required",
             });
             return;
         }
 
-        const redeemedPoints = Number(points);
+        const numericPoints = Number(points);
 
-        if (Number.isNaN(redeemedPoints) || redeemedPoints <= 0) {
+        if (!numericPoints || numericPoints <= 0) {
             res.status(400).json({
                 success: false,
                 message: "Points must be greater than 0",
@@ -220,7 +271,7 @@ export const redeemPoints = async (req: Request, res: Response) => {
             return;
         }
 
-        if (customer.loyaltyPoints < redeemedPoints) {
+        if (customer.loyaltyPoints < numericPoints) {
             res.status(400).json({
                 success: false,
                 message: "Customer does not have enough loyalty points",
@@ -228,26 +279,34 @@ export const redeemPoints = async (req: Request, res: Response) => {
             return;
         }
 
-        customer.loyaltyPoints -= redeemedPoints;
+        customer.loyaltyPoints -= numericPoints;
+
+        // Redeeming points does not reduce lifetime points.
+        customer.loyaltyTier = calculateLoyaltyTier(
+            customer.lifetimePointsEarned
+        );
 
         await customer.save();
 
         const ledger = await LoyaltyLedger.create({
             customerId,
             type: "redeem",
-            points: -redeemedPoints,
+            points: -numericPoints,
             balanceAfter: customer.loyaltyPoints,
-            description: description || "Points redeemed",
+            tierAfter: customer.loyaltyTier,
+            description: description || `Redeemed ${numericPoints} points`,
             reference,
         });
+
+        const fullLedger = await LoyaltyLedger.findById(ledger._id).populate(
+            "customerId",
+            "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier"
+        );
 
         res.status(201).json({
             success: true,
             message: "Loyalty points redeemed successfully",
-            data: {
-                customer,
-                ledger,
-            },
+            data: fullLedger,
         });
     } catch (error: any) {
         res.status(500).json({
@@ -258,7 +317,7 @@ export const redeemPoints = async (req: Request, res: Response) => {
     }
 };
 
-// ADJUST points manually
+// POST adjust points
 export const adjustPoints = async (req: Request, res: Response) => {
     try {
         const { customerId, points, description, reference } = req.body;
@@ -266,17 +325,17 @@ export const adjustPoints = async (req: Request, res: Response) => {
         if (!customerId || !mongoose.Types.ObjectId.isValid(customerId)) {
             res.status(400).json({
                 success: false,
-                message: "Invalid customer ID",
+                message: "Valid customer ID is required",
             });
             return;
         }
 
-        const adjustedPoints = Number(points);
+        const numericPoints = Number(points);
 
-        if (Number.isNaN(adjustedPoints) || adjustedPoints === 0) {
+        if (!numericPoints || numericPoints === 0) {
             res.status(400).json({
                 success: false,
-                message: "Points must not be 0",
+                message: "Points adjustment cannot be 0",
             });
             return;
         }
@@ -294,36 +353,47 @@ export const adjustPoints = async (req: Request, res: Response) => {
             return;
         }
 
-        const newBalance = customer.loyaltyPoints + adjustedPoints;
+        const newBalance = customer.loyaltyPoints + numericPoints;
 
         if (newBalance < 0) {
             res.status(400).json({
                 success: false,
-                message: "Adjustment would make points negative",
+                message: "Adjustment cannot make loyalty points negative",
             });
             return;
         }
 
         customer.loyaltyPoints = newBalance;
 
+        if (numericPoints > 0) {
+            customer.lifetimePointsEarned += numericPoints;
+        }
+
+        customer.loyaltyTier = calculateLoyaltyTier(
+            customer.lifetimePointsEarned
+        );
+
         await customer.save();
 
         const ledger = await LoyaltyLedger.create({
             customerId,
             type: "adjust",
-            points: adjustedPoints,
+            points: numericPoints,
             balanceAfter: customer.loyaltyPoints,
-            description: description || "Manual points adjustment",
+            tierAfter: customer.loyaltyTier,
+            description: description || `Adjusted points by ${numericPoints}`,
             reference,
         });
+
+        const fullLedger = await LoyaltyLedger.findById(ledger._id).populate(
+            "customerId",
+            "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier"
+        );
 
         res.status(201).json({
             success: true,
             message: "Loyalty points adjusted successfully",
-            data: {
-                customer,
-                ledger,
-            },
+            data: fullLedger,
         });
     } catch (error: any) {
         res.status(500).json({
@@ -334,7 +404,7 @@ export const adjustPoints = async (req: Request, res: Response) => {
     }
 };
 
-// DELETE loyalty ledger record - soft delete
+// DELETE loyalty ledger - soft delete
 export const deleteLoyaltyLedger = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;

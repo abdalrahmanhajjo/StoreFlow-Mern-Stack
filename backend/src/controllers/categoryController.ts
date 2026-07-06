@@ -3,16 +3,70 @@ import mongoose from "mongoose";
 import Category from "../models/Category";
 import Product from "../models/Product";
 
+// GET all categories with product count
 export const getCategories = async (req: Request, res: Response) => {
     try {
-        const categories = await Category.find({ isActive: true }).sort({
+        const search = req.query.search as string | undefined;
+        const status = req.query.status as string | undefined;
+
+        const filter: any = {};
+
+        // status=active → active categories
+        // status=inactive → inactive categories
+        // status=all → active + inactive
+        if (!status || status === "active") {
+            filter.isActive = true;
+        } else if (status === "inactive") {
+            filter.isActive = false;
+        } else if (status === "all") {
+            // no isActive filter
+        } else {
+            res.status(400).json({
+                success: false,
+                message: "Invalid status. Use active, inactive, or all.",
+            });
+            return;
+        }
+
+        if (search) {
+            filter.$or = [
+                {
+                    name: {
+                        $regex: search,
+                        $options: "i",
+                    },
+                },
+                {
+                    description: {
+                        $regex: search,
+                        $options: "i",
+                    },
+                },
+            ];
+        }
+
+        const categories = await Category.find(filter).sort({
             createdAt: -1,
         });
 
+        const categoriesWithProductCount = await Promise.all(
+            categories.map(async (category) => {
+                const productCount = await Product.countDocuments({
+                    categoryId: category._id,
+                    isActive: true,
+                });
+
+                return {
+                    ...category.toObject(),
+                    productCount,
+                };
+            })
+        );
+
         res.status(200).json({
             success: true,
-            count: categories.length,
-            data: categories,
+            count: categoriesWithProductCount.length,
+            data: categoriesWithProductCount,
         });
     } catch (error: any) {
         res.status(500).json({
@@ -23,6 +77,7 @@ export const getCategories = async (req: Request, res: Response) => {
     }
 };
 
+// GET category by ID with product count
 export const getCategoryById = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
@@ -48,9 +103,17 @@ export const getCategoryById = async (req: Request, res: Response) => {
             return;
         }
 
+        const productCount = await Product.countDocuments({
+            categoryId: category._id,
+            isActive: true,
+        });
+
         res.status(200).json({
             success: true,
-            data: category,
+            data: {
+                ...category.toObject(),
+                productCount,
+            },
         });
     } catch (error: any) {
         res.status(500).json({
@@ -61,16 +124,41 @@ export const getCategoryById = async (req: Request, res: Response) => {
     }
 };
 
+// CREATE category
 export const createCategory = async (req: Request, res: Response) => {
     try {
-        const category = await Category.create(req.body);
+        const { name, description } = req.body;
+
+        if (!name) {
+            res.status(400).json({
+                success: false,
+                message: "Category name is required",
+            });
+            return;
+        }
+
+        const category = await Category.create({
+            name,
+            description,
+        });
 
         res.status(201).json({
             success: true,
             message: "Category created successfully",
-            data: category,
+            data: {
+                ...category.toObject(),
+                productCount: 0,
+            },
         });
     } catch (error: any) {
+        if (error.code === 11000) {
+            res.status(400).json({
+                success: false,
+                message: "Category name already exists",
+            });
+            return;
+        }
+
         res.status(500).json({
             success: false,
             message: "Failed to create category",
@@ -79,6 +167,7 @@ export const createCategory = async (req: Request, res: Response) => {
     }
 };
 
+// UPDATE category
 export const updateCategory = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
@@ -111,12 +200,28 @@ export const updateCategory = async (req: Request, res: Response) => {
             return;
         }
 
+        const productCount = await Product.countDocuments({
+            categoryId: category._id,
+            isActive: true,
+        });
+
         res.status(200).json({
             success: true,
             message: "Category updated successfully",
-            data: category,
+            data: {
+                ...category.toObject(),
+                productCount,
+            },
         });
     } catch (error: any) {
+        if (error.code === 11000) {
+            res.status(400).json({
+                success: false,
+                message: "Category name already exists",
+            });
+            return;
+        }
+
         res.status(500).json({
             success: false,
             message: "Failed to update category",
@@ -125,6 +230,7 @@ export const updateCategory = async (req: Request, res: Response) => {
     }
 };
 
+// DELETE category - soft delete with product guard
 export const deleteCategory = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
@@ -137,31 +243,10 @@ export const deleteCategory = async (req: Request, res: Response) => {
             return;
         }
 
-        const productsUsingCategory = await Product.countDocuments({
-            categoryId: id,
+        const category = await Category.findOne({
+            _id: id,
             isActive: true,
         });
-
-        if (productsUsingCategory > 0) {
-            res.status(400).json({
-                success: false,
-                message: "Cannot delete category because it has products",
-            });
-            return;
-        }
-
-        const category = await Category.findOneAndUpdate(
-            {
-                _id: id,
-                isActive: true,
-            },
-            {
-                isActive: false,
-            },
-            {
-                new: true,
-            }
-        );
 
         if (!category) {
             res.status(404).json({
@@ -171,9 +256,27 @@ export const deleteCategory = async (req: Request, res: Response) => {
             return;
         }
 
+        const assignedProductsCount = await Product.countDocuments({
+            categoryId: id,
+            isActive: true,
+        });
+
+        if (assignedProductsCount > 0) {
+            res.status(400).json({
+                success: false,
+                message: `Cannot delete category because ${assignedProductsCount} active product(s) are assigned to it.`,
+                productCount: assignedProductsCount,
+            });
+            return;
+        }
+
+        category.isActive = false;
+        await category.save();
+
         res.status(200).json({
             success: true,
             message: "Category deleted successfully",
+            data: category,
         });
     } catch (error: any) {
         res.status(500).json({

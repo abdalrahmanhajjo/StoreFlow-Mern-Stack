@@ -26,6 +26,7 @@ let seq = 100;
 interface InventoryState {
   adjustments: Adjustment[];
   adjust: (productId: string, delta: number, reason: AdjustReason, note: string, by: string) => { ok: boolean; error?: string };
+  clear: () => void;
 }
 
 // SF-701: manual stock adjustments (client-only; swap for API later).
@@ -46,4 +47,5 @@ export const useInventory = create<InventoryState>((set) => ({
     }));
     return { ok: true };
   },
+  clear: () => set({ adjustments: [] }),
 }));

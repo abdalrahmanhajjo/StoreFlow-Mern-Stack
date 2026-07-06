@@ -23,7 +23,7 @@ describe('purchase orders (SF-802)', () => {
 describe('suppliers (SF-801)', () => {
   it('adds and removes suppliers', () => {
     const before = useSupply.getState().suppliers.length;
-    expect(useSupply.getState().addSupplier('Acme', '+1', 'a@acme.com').ok).toBe(true);
+    expect(useSupply.getState().addSupplier({ name: 'Acme', phone: '+1', email: 'a@acme.com', address: '' }).ok).toBe(true);
     expect(useSupply.getState().suppliers.length).toBe(before + 1);
     const added = useSupply.getState().suppliers.find((s) => s.name === 'Acme')!;
     useSupply.getState().removeSupplier(added.id);

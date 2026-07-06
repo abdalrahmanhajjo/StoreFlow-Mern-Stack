@@ -11,11 +11,15 @@ export interface Customer {
 
 const SEED = customersData as Customer[];
 
+export type CustomerInput = Pick<Customer, 'name' | 'phone'>;
+
 interface CustomersState {
   customers: Customer[];
   search: (q: string) => Customer[];
   getById: (id: string) => Customer | undefined;
   create: (name: string, phone?: string) => Customer;
+  update: (id: string, input: Partial<CustomerInput>) => void;
+  remove: (id: string) => void;
   applySale: (id: string, earned: number, used: number, total: number) => void;
 }
 
@@ -35,6 +39,8 @@ export const useCustomers = create<CustomersState>((set, get) => ({
     set((s) => ({ customers: [c, ...s.customers] }));
     return c;
   },
+  update: (id, input) => set((s) => ({ customers: s.customers.map((c) => (c.id === id ? { ...c, ...input } : c)) })),
+  remove: (id) => set((s) => ({ customers: s.customers.filter((c) => c.id !== id) })),
   applySale: (id, earned, used, total) =>
     set((s) => ({
       customers: s.customers.map((c) =>

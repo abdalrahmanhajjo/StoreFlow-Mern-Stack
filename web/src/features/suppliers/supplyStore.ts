@@ -8,7 +8,7 @@ export interface Supplier {
   name: string;
   phone: string;
   email: string;
-  productCount: number;
+  address: string;
 }
 export interface POLine {
   productId: string;
@@ -25,7 +25,9 @@ export interface PurchaseOrder {
   expected: string;
 }
 
-const SUPPLIERS = suppliersData as Supplier[];
+export type SupplierInput = Pick<Supplier, 'name' | 'phone' | 'email' | 'address'>;
+
+const SUPPLIERS = (suppliersData as any[]).map((s) => ({ ...s, address: '' })) as Supplier[];
 const POS = purchaseOrdersData as PurchaseOrder[];
 
 let supSeq = 100;
@@ -34,21 +36,64 @@ let poSeq = 418;
 interface SupplyState {
   suppliers: Supplier[];
   purchaseOrders: PurchaseOrder[];
-  addSupplier: (name: string, phone: string, email: string) => { ok: boolean; error?: string };
+  addSupplier: (input: SupplierInput) => { ok: boolean; error?: string };
+  updateSupplier: (id: string, input: Partial<SupplierInput>) => { ok: boolean; error?: string };
   removeSupplier: (id: string) => void;
-  receivePO: (id: string) => number; // returns units added to stock
+  createPO: (supplier: string, lines: POLine[], expected: string) => { ok: boolean; error?: string };
+  removePO: (id: string) => void;
+  receivePO: (id: string) => number;
+}
+
+function productsForSupplier(supplierId: string) {
+  return useProducts.getState().products.filter((p) => p.supplierId === supplierId);
+}
+
+export function supplierProductCount(supplierId: string): number {
+  return productsForSupplier(supplierId).length;
+}
+
+export function supplierLinkedProducts(supplierId: string) {
+  return productsForSupplier(supplierId);
 }
 
 export const useSupply = create<SupplyState>((set, get) => ({
   suppliers: SUPPLIERS,
   purchaseOrders: POS,
-  addSupplier: (name, phone, email) => {
-    if (!name.trim()) return { ok: false, error: 'Name is required' };
-    set((s) => ({ suppliers: [...s.suppliers, { id: 'sup' + ++supSeq, name: name.trim(), phone, email, productCount: 0 }] }));
+  addSupplier: (input) => {
+    if (!input.name.trim()) return { ok: false, error: 'Name is required' };
+    set((s) => ({ suppliers: [...s.suppliers, { id: 'sup' + ++supSeq, ...input, name: input.name.trim() }] }));
+    return { ok: true };
+  },
+  updateSupplier: (id, input) => {
+    const existing = get().suppliers.find((s) => s.id === id);
+    if (!existing) return { ok: false, error: 'Supplier not found' };
+    set((s) => ({
+      suppliers: s.suppliers.map((sup) =>
+        sup.id === id ? { ...sup, ...input, name: input.name?.trim() ?? sup.name } : sup
+      ),
+    }));
     return { ok: true };
   },
   removeSupplier: (id) => set((s) => ({ suppliers: s.suppliers.filter((x) => x.id !== id) })),
-  // SF-802: receiving a PO increments product stock and locks the PO.
+  createPO: (supplier, lines, expected) => {
+    if (!supplier.trim()) return { ok: false, error: 'Supplier is required' };
+    if (lines.length === 0) return { ok: false, error: 'Add at least one product' };
+    const today = new Date();
+    const fmt = (d: Date) => `${d.toLocaleString('en', { month: 'short' })} ${d.getDate()}`;
+    set((s) => ({
+      purchaseOrders: [{
+        id: 'po' + ++poSeq,
+        poNo: 'PO-0' + poSeq,
+        supplier: supplier.trim(),
+        lines: lines.map((l) => ({ ...l })),
+        status: 'pending',
+        ordered: fmt(today),
+        expected,
+      }, ...s.purchaseOrders],
+    }));
+    return { ok: true };
+  },
+  removePO: (id) => set((s) => ({ purchaseOrders: s.purchaseOrders.filter((p) => p.id !== id) })),
   receivePO: (id) => {
     const po = get().purchaseOrders.find((p) => p.id === id);
     if (!po || po.status === 'received') return 0;

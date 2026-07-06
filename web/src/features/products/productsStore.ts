@@ -13,6 +13,7 @@ export interface Product {
   emoji: string; // fallback shown when `image` is empty or fails to load
   image: string; // primary product photo (URL); '' means use the emoji
   category: string;
+  supplierId?: string;
 }
 
 export type StockStatus = 'In stock' | 'Low stock' | 'Out of stock';

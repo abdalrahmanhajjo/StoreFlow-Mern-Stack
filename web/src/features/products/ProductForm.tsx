@@ -27,10 +27,11 @@ const FIELD_LABELS: Record<keyof ProductInput, string> = {
   reorderPoint: 'Reorder point',
   emoji: 'Emoji',
   image: 'Image',
+  supplierId: 'Supplier',
 };
 
 function validateField(key: keyof ProductInput, value: unknown): string | undefined {
-  const fieldSchema = productSchema.shape[key];
+  const fieldSchema = key in productSchema.shape ? productSchema.shape[key as keyof typeof productSchema.shape] : undefined;
   if (!fieldSchema) return;
   const result = fieldSchema.safeParse(value);
   if (!result.success) return result.error.issues[0].message;

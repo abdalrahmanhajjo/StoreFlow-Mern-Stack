@@ -9,21 +9,23 @@ import {
     addProductToSupplier,
     removeProductFromSupplier,
 } from "../controllers/supplierController";
+import { authenticate } from "../middleware/auth.middleware";
+import { authorize } from "../middleware/role.middleware";
 
 const router = express.Router();
 
-router.get("/", getSuppliers);
+router.get("/", authenticate, authorize("owner"), getSuppliers);
 
-router.get("/:id", getSupplierById);
+router.get("/:id", authenticate, authorize("owner"), getSupplierById);
 
-router.post("/", createSupplier);
+router.post("/", authenticate, authorize("owner"), createSupplier);
 
-router.put("/:id", updateSupplier);
+router.put("/:id", authenticate, authorize("owner"), updateSupplier);
 
-router.patch("/:id/products", addProductToSupplier);
+router.patch("/:id/products", authenticate, authorize("owner"), addProductToSupplier);
 
-router.delete("/:id/products/:productId", removeProductFromSupplier);
+router.delete("/:id/products/:productId", authenticate, authorize("owner"), removeProductFromSupplier);
 
-router.delete("/:id", deleteSupplier);
+router.delete("/:id", authenticate, authorize("owner"), deleteSupplier);
 
 export default router;

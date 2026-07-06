@@ -11,8 +11,14 @@ import supplierRoutes from "./routes/supplierRoutes";
 import purchaseOrderRoutes from "./routes/purchaseOrderRoutes";
 import storeSettingRoutes from "./routes/storeSettingRoutes";
 
+import authRoutes from "./routes/auth.routes";
+
+import cookieParser from 'cookie-parser';
+
+
 const app = express();
 
+app.use(cookieParser());
 // Middlewares
 app.use(cors());
 app.use(express.json());
@@ -23,6 +29,7 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // API routes
+app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/customers", customerRoutes);

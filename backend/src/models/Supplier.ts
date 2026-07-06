@@ -1,6 +1,7 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface ISupplier extends Document {
+    storeId: Types.ObjectId;
     name: string;
     phone?: string;
     email?: string;
@@ -12,6 +13,13 @@ export interface ISupplier extends Document {
 
 const supplierSchema = new Schema<ISupplier>(
     {
+        storeId: {
+            type: Schema.Types.ObjectId,
+            ref: "Store",
+            required: true,
+            index: true,
+        },
+
         name: {
             type: String,
             required: [true, "Supplier name is required"],

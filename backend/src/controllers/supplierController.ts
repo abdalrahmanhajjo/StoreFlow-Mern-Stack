@@ -3,30 +3,30 @@ import mongoose from "mongoose";
 import Supplier from "../models/Supplier";
 import Product from "../models/Product";
 
-// Validate product IDs if suppliedProducts is sent
+// Validate product IDs if suppliedProducts is sent (Optimized to prevent database N+1 loop and cross-tenant leak)
 const validateSuppliedProducts = async (
-    suppliedProducts: string[] | undefined
+    suppliedProducts: string[] | undefined,
+    storeId: any
 ): Promise<boolean> => {
     if (!suppliedProducts || suppliedProducts.length === 0) {
         return true;
     }
 
-    for (const productId of suppliedProducts) {
-        if (!mongoose.Types.ObjectId.isValid(productId)) {
-            return false;
-        }
-
-        const product = await Product.findOne({
-            _id: productId,
-            isActive: true,
-        });
-
-        if (!product) {
-            return false;
-        }
+    // Quick verification of all IDs up front to avoid casting errors
+    const allValid = suppliedProducts.every(id => mongoose.Types.ObjectId.isValid(id));
+    if (!allValid) {
+        return false;
     }
 
-    return true;
+    // Count how many of these products exist, are active, AND belong to this specific store
+    const count = await Product.countDocuments({
+        _id: { $in: suppliedProducts },
+        storeId: storeId,
+        isActive: true,
+    });
+
+    // If the count matches the input array length, all provided IDs are valid and owned by this store
+    return count === suppliedProducts.length;
 };
 
 // GET all suppliers
@@ -35,6 +35,7 @@ export const getSuppliers = async (req: Request, res: Response) => {
         const search = req.query.search as string | undefined;
 
         const filter: any = {
+            storeId: req.user?.storeId,
             isActive: true,
         };
 
@@ -79,6 +80,7 @@ export const getSupplierById = async (req: Request, res: Response) => {
 
         const supplier = await Supplier.findOne({
             _id: id,
+            storeId: req.user?.storeId,
             isActive: true,
         }).populate("suppliedProducts", "name sku price quantity");
 
@@ -108,7 +110,8 @@ export const createSupplier = async (req: Request, res: Response) => {
     try {
         const { suppliedProducts } = req.body;
 
-        const validProducts = await validateSuppliedProducts(suppliedProducts);
+        // Added req.user?.storeId here to ensure the products being linked belong to this store
+        const validProducts = await validateSuppliedProducts(suppliedProducts, req.user?.storeId);
 
         if (!validProducts) {
             res.status(400).json({
@@ -118,7 +121,10 @@ export const createSupplier = async (req: Request, res: Response) => {
             return;
         }
 
-        const supplier = await Supplier.create(req.body);
+        const supplier = await Supplier.create({
+            ...req.body,
+            storeId: req.user?.storeId,
+        });
 
         const fullSupplier = await Supplier.findById(supplier._id).populate(
             "suppliedProducts",
@@ -153,8 +159,10 @@ export const updateSupplier = async (req: Request, res: Response) => {
         }
 
         if (req.body.suppliedProducts) {
+            // Added req.user?.storeId here to prevent cross-tenant product hijacking on update
             const validProducts = await validateSuppliedProducts(
-                req.body.suppliedProducts
+                req.body.suppliedProducts,
+                req.user?.storeId
             );
 
             if (!validProducts) {
@@ -169,6 +177,7 @@ export const updateSupplier = async (req: Request, res: Response) => {
         const supplier = await Supplier.findOneAndUpdate(
             {
                 _id: id,
+                storeId: req.user?.storeId,
                 isActive: true,
             },
             req.body,
@@ -216,6 +225,7 @@ export const deleteSupplier = async (req: Request, res: Response) => {
         const supplier = await Supplier.findOneAndUpdate(
             {
                 _id: id,
+                storeId: req.user?.storeId,
                 isActive: true,
             },
             {
@@ -269,8 +279,10 @@ export const addProductToSupplier = async (req: Request, res: Response) => {
             return;
         }
 
+        // Added storeId check to guarantee that this single product belongs to the operating store
         const product = await Product.findOne({
             _id: productId,
+            storeId: req.user?.storeId,
             isActive: true,
         });
 
@@ -285,6 +297,7 @@ export const addProductToSupplier = async (req: Request, res: Response) => {
         const supplier = await Supplier.findOneAndUpdate(
             {
                 _id: supplierId,
+                storeId: req.user?.storeId,
                 isActive: true,
             },
             {
@@ -347,6 +360,7 @@ export const removeProductFromSupplier = async (
         const supplier = await Supplier.findOneAndUpdate(
             {
                 _id: supplierId,
+                storeId: req.user?.storeId,
                 isActive: true,
             },
             {

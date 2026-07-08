@@ -8,15 +8,22 @@ import {
     deleteCategory,
 } from "../controllers/category.controller";
 
+import {
+    createCategorySchema,
+    updateCategorySchema,
+} from "../validators/category.validator";
+
+import { validate } from "../middleware/validate.middleware";
+
 const router = express.Router();
 
 router.get("/", getCategories);
 
 router.get("/:id", getCategoryById);
 
-router.post("/", createCategory);
+router.post("/", validate(createCategorySchema), createCategory);
 
-router.put("/:id", updateCategory);
+router.put("/:id", validate(updateCategorySchema), updateCategory);
 
 router.delete("/:id", deleteCategory);
 

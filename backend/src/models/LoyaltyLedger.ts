@@ -1,13 +1,15 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export type LoyaltyTransactionType = "earn" | "redeem" | "adjust";
+export type LoyaltyType = "earn" | "redeem" | "adjust";
+export type LoyaltyTier = "Bronze" | "Silver" | "Gold" | "Platinum";
 
 export interface ILoyaltyLedger extends Document {
     customerId: mongoose.Types.ObjectId;
-    type: LoyaltyTransactionType;
+    type: LoyaltyType;
     points: number;
     amountSpent?: number;
     balanceAfter: number;
+    tierAfter?: LoyaltyTier;
     description?: string;
     reference?: string;
     isActive: boolean;
@@ -18,13 +20,13 @@ const loyaltyLedgerSchema = new Schema<ILoyaltyLedger>(
         customerId: {
             type: Schema.Types.ObjectId,
             ref: "Customer",
-            required: [true, "Customer is required"],
+            required: [true, "Customer ID is required"],
         },
 
         type: {
             type: String,
             enum: ["earn", "redeem", "adjust"],
-            required: [true, "Transaction type is required"],
+            required: [true, "Loyalty type is required"],
         },
 
         points: {
@@ -34,13 +36,19 @@ const loyaltyLedgerSchema = new Schema<ILoyaltyLedger>(
 
         amountSpent: {
             type: Number,
-            min: [0, "Amount spent cannot be negative"],
+            default: 0,
+            min: 0,
         },
 
         balanceAfter: {
             type: Number,
-            required: true,
-            min: [0, "Balance cannot be negative"],
+            required: [true, "Balance after is required"],
+            min: 0,
+        },
+
+        tierAfter: {
+            type: String,
+            enum: ["Bronze", "Silver", "Gold", "Platinum"],
         },
 
         description: {

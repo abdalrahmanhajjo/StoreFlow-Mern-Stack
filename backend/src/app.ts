@@ -10,6 +10,9 @@ import stockAdjustmentRoutes from "./routes/stockAdjustmentRoutes";
 import supplierRoutes from "./routes/supplierRoutes";
 import purchaseOrderRoutes from "./routes/purchaseOrderRoutes";
 import storeSettingRoutes from "./routes/storeSettingRoutes";
+import auditLogRoutes from "./routes/auditLogRoutes";
+import inventoryRoutes from "./routes/inventoryRoutes";
+
 
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
@@ -43,6 +46,8 @@ app.use("/api/stock-adjustments", stockAdjustmentRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/store-settings", storeSettingRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 // Not found route
 app.use((req: Request, res: Response) => {

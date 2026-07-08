@@ -1,7 +1,9 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export type LoyaltyTier = "Bronze" | "Silver" | "Gold" | "Platinum";
+
 export interface IPurchaseHistory {
-  productName?: string;
+  productName: string;
   amount: number;
   purchaseDate: Date;
   note?: string;
@@ -13,6 +15,8 @@ export interface ICustomer extends Document {
   email?: string;
   totalSpent: number;
   loyaltyPoints: number;
+  lifetimePointsEarned: number;
+  loyaltyTier: LoyaltyTier;
   purchaseHistory: IPurchaseHistory[];
   isActive: boolean;
 }
@@ -21,13 +25,14 @@ const purchaseHistorySchema = new Schema<IPurchaseHistory>(
   {
     productName: {
       type: String,
+      required: true,
       trim: true,
     },
 
     amount: {
       type: Number,
       required: true,
-      min: [0, "Amount cannot be negative"],
+      min: 0,
     },
 
     purchaseDate: {
@@ -67,13 +72,25 @@ const customerSchema = new Schema<ICustomer>(
     totalSpent: {
       type: Number,
       default: 0,
-      min: [0, "Total spent cannot be negative"],
+      min: 0,
     },
 
     loyaltyPoints: {
       type: Number,
       default: 0,
-      min: [0, "Loyalty points cannot be negative"],
+      min: 0,
+    },
+
+    lifetimePointsEarned: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    loyaltyTier: {
+      type: String,
+      enum: ["Bronze", "Silver", "Gold", "Platinum"],
+      default: "Bronze",
     },
 
     purchaseHistory: {

@@ -8,10 +8,11 @@ export interface IStockAdjustment extends Document {
     sku: string;
     adjustmentType: AdjustmentType;
     quantity: number;
+    delta?: number;
     previousQuantity: number;
     newQuantity: number;
     reason: string;
-    adjustedByName?: string;
+    adjustedByName: string;
     notes?: string;
     isActive: boolean;
 }
@@ -21,18 +22,18 @@ const stockAdjustmentSchema = new Schema<IStockAdjustment>(
         productId: {
             type: Schema.Types.ObjectId,
             ref: "Product",
-            required: [true, "Product is required"],
+            required: [true, "Product ID is required"],
         },
 
         productName: {
             type: String,
-            required: true,
+            required: [true, "Product name is required"],
             trim: true,
         },
 
         sku: {
             type: String,
-            required: true,
+            required: [true, "SKU is required"],
             trim: true,
         },
 
@@ -45,18 +46,22 @@ const stockAdjustmentSchema = new Schema<IStockAdjustment>(
         quantity: {
             type: Number,
             required: [true, "Quantity is required"],
-            min: [0, "Quantity cannot be negative"],
+            min: 0,
+        },
+
+        delta: {
+            type: Number,
         },
 
         previousQuantity: {
             type: Number,
-            required: true,
+            required: [true, "Previous quantity is required"],
             min: 0,
         },
 
         newQuantity: {
             type: Number,
-            required: true,
+            required: [true, "New quantity is required"],
             min: 0,
         },
 

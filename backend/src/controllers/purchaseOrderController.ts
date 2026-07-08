@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import PurchaseOrder from "../models/PurchaseOrder";
 import Supplier from "../models/Supplier";
 import Product from "../models/Product";
+import AuditLog from "../models/AuditLog";
 
 const generateOrderNumber = (): string => {
     const date = new Date();
@@ -15,6 +16,18 @@ const generateOrderNumber = (): string => {
 
     return `PO-${year}${month}${day}-${Date.now()}-${random}`;
 };
+
+
+class AppError extends Error {
+    statusCode: number;
+
+    constructor(message: string, statusCode: number) {
+        super(message);
+        this.statusCode = statusCode;
+    }
+}
+
+
 
 // GET all purchase orders
 export const getPurchaseOrders = async (req: Request, res: Response) => {
@@ -357,11 +370,15 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
     }
 };
 
-// RECEIVE purchase order items
 export const receivePurchaseOrder = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const { receivedItems } = req.body;
+
+        const {
+            receivedItems,
+            receivedByName = "Bakr",
+            notes,
+        } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             res.status(400).json({
@@ -399,7 +416,7 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
         if (purchaseOrder.status === "cancelled") {
             res.status(400).json({
                 success: false,
-                message: "Cannot receive a cancelled purchase order",
+                message: "Cancelled purchase orders cannot be received",
             });
             return;
         }
@@ -412,6 +429,8 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
             return;
         }
 
+        const stockUpdates: any[] = [];
+
         for (const receivedItem of receivedItems) {
             const productId = receivedItem.productId as string;
             const quantityReceivedNow = Number(receivedItem.quantityReceived);
@@ -419,30 +438,31 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
             if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
                 res.status(400).json({
                     success: false,
-                    message: "Invalid product ID in received items",
+                    message: "Invalid product ID in receivedItems",
                 });
                 return;
             }
 
             if (
+                !quantityReceivedNow ||
                 Number.isNaN(quantityReceivedNow) ||
                 quantityReceivedNow <= 0
             ) {
                 res.status(400).json({
                     success: false,
-                    message: "Quantity received must be greater than 0",
+                    message: "quantityReceived must be greater than 0",
                 });
                 return;
             }
 
-            const orderItem = purchaseOrder.items.find(
-                (item) => item.productId.toString() === productId
+            const orderItem: any = purchaseOrder.items.find(
+                (item: any) => item.productId.toString() === productId
             );
 
             if (!orderItem) {
                 res.status(400).json({
                     success: false,
-                    message: "Product does not exist in this purchase order",
+                    message: "Received product is not part of this purchase order",
                 });
                 return;
             }
@@ -453,44 +473,122 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
             if (quantityReceivedNow > remainingQuantity) {
                 res.status(400).json({
                     success: false,
-                    message: `Cannot receive ${quantityReceivedNow}. Remaining quantity for ${orderItem.productName} is ${remainingQuantity}`,
+                    message: `Cannot receive more than remaining quantity for ${orderItem.productName}. Remaining: ${remainingQuantity}`,
+                });
+                return;
+            }
+
+            const productBeforeUpdate = await Product.findOne({
+                _id: productId,
+                isActive: true,
+            });
+
+            if (!productBeforeUpdate) {
+                res.status(404).json({
+                    success: false,
+                    message: "Product not found",
+                });
+                return;
+            }
+
+            const previousQuantity = productBeforeUpdate.quantity;
+
+            const updatedProduct = await Product.findByIdAndUpdate(
+                productId,
+                {
+                    $inc: {
+                        quantity: quantityReceivedNow,
+                    },
+                },
+                {
+                    new: true,
+                    runValidators: true,
+                }
+            );
+
+            if (!updatedProduct) {
+                res.status(400).json({
+                    success: false,
+                    message: "Failed to increase product stock",
                 });
                 return;
             }
 
             orderItem.quantityReceived += quantityReceivedNow;
 
-            await Product.findByIdAndUpdate(productId, {
-                $inc: {
-                    quantity: quantityReceivedNow,
+            stockUpdates.push({
+                productId,
+                productName: orderItem.productName,
+                sku: orderItem.sku,
+                quantityReceivedNow,
+                previousQuantity,
+                newQuantity: updatedProduct.quantity,
+            });
+
+            await AuditLog.create({
+                action: "PO_STOCK_INCREASE",
+                entity: "Product",
+                entityId: updatedProduct._id,
+                description: `Stock increased by ${quantityReceivedNow} for product ${orderItem.productName} from purchase order ${purchaseOrder.orderNumber}`,
+                performedByName: receivedByName,
+                metadata: {
+                    purchaseOrderId: purchaseOrder._id,
+                    orderNumber: purchaseOrder.orderNumber,
+                    productId,
+                    productName: orderItem.productName,
+                    sku: orderItem.sku,
+                    quantityReceivedNow,
+                    previousQuantity,
+                    newQuantity: updatedProduct.quantity,
                 },
             });
         }
 
-        const allItemsReceived = purchaseOrder.items.every(
-            (item) => item.quantityReceived === item.quantityOrdered
+        const allItemsFullyReceived = purchaseOrder.items.every(
+            (item: any) => item.quantityReceived >= item.quantityOrdered
         );
 
-        const someItemsReceived = purchaseOrder.items.some(
-            (item) => item.quantityReceived > 0
+        const atLeastOneItemReceived = purchaseOrder.items.some(
+            (item: any) => item.quantityReceived > 0
         );
 
-        if (allItemsReceived) {
+        if (allItemsFullyReceived) {
             purchaseOrder.status = "received";
             purchaseOrder.receivedDate = new Date();
-        } else if (someItemsReceived) {
+        } else if (atLeastOneItemReceived) {
             purchaseOrder.status = "partially_received";
+        }
+
+        if (notes) {
+            purchaseOrder.notes = notes;
         }
 
         await purchaseOrder.save();
 
+        await AuditLog.create({
+            action: "RECEIVE_PURCHASE_ORDER",
+            entity: "PurchaseOrder",
+            entityId: purchaseOrder._id,
+            description: `Purchase order ${purchaseOrder.orderNumber} received with status ${purchaseOrder.status}`,
+            performedByName: receivedByName,
+            metadata: {
+                purchaseOrderId: purchaseOrder._id,
+                orderNumber: purchaseOrder.orderNumber,
+                supplierId: purchaseOrder.supplierId,
+                supplierName: purchaseOrder.supplierName,
+                status: purchaseOrder.status,
+                receivedItems,
+                stockUpdates,
+            },
+        });
+
         const fullPurchaseOrder = await PurchaseOrder.findById(purchaseOrder._id)
-            .populate("supplierId", "name phone email")
-            .populate("items.productId", "name sku quantity cost price");
+            .populate("supplierId", "name phone email address")
+            .populate("items.productId", "name sku price quantity");
 
         res.status(200).json({
             success: true,
-            message: "Purchase order received successfully and stock updated",
+            message: "Purchase order received successfully",
             data: fullPurchaseOrder,
         });
     } catch (error: any) {
@@ -501,7 +599,6 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
         });
     }
 };
-
 // CANCEL purchase order
 export const cancelPurchaseOrder = async (req: Request, res: Response) => {
     try {

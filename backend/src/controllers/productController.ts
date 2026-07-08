@@ -3,15 +3,58 @@ import mongoose from "mongoose";
 import Product from "../models/Product";
 import Category from "../models/Category";
 
+// GET all products with filters and pagination
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const categoryId = req.query.categoryId as string | undefined;
+    const name = req.query.name as string | undefined;
+    const barcode = req.query.barcode as string | undefined;
+    const categoryId =
+      (req.query.categoryId as string | undefined) ||
+      (req.query.category as string | undefined);
+    const status = req.query.status as string | undefined;
     const search = req.query.search as string | undefined;
 
-    const filter: any = {
-      isActive: true,
-    };
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
+    const filter: any = {};
+
+    // Status filter
+    // status=active → active products
+    // status=inactive → deleted/inactive products
+    // status=all → active + inactive
+    if (!status || status === "active") {
+      filter.isActive = true;
+    } else if (status === "inactive") {
+      filter.isActive = false;
+    } else if (status === "all") {
+      // no isActive filter
+    } else {
+      res.status(400).json({
+        success: false,
+        message: "Invalid status. Use active, inactive, or all.",
+      });
+      return;
+    }
+
+    // Name filter
+    if (name) {
+      filter.name = {
+        $regex: name,
+        $options: "i",
+      };
+    }
+
+    // Barcode filter
+    if (barcode) {
+      filter.barcode = {
+        $regex: barcode,
+        $options: "i",
+      };
+    }
+
+    // Category filter
     if (categoryId) {
       if (!mongoose.Types.ObjectId.isValid(categoryId)) {
         res.status(400).json({
@@ -24,21 +67,66 @@ export const getProducts = async (req: Request, res: Response) => {
       filter.categoryId = categoryId;
     }
 
+    // General search filter: name, sku, barcode
     if (search) {
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { sku: { $regex: search, $options: "i" } },
-        { barcode: { $regex: search, $options: "i" } },
+        {
+          name: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          sku: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          barcode: {
+            $regex: search,
+            $options: "i",
+          },
+        },
       ];
     }
 
+    if (page <= 0 || limit <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "Page and limit must be greater than 0",
+      });
+      return;
+    }
+
+    const totalProducts = await Product.countDocuments(filter);
+
     const products = await Product.find(filter)
-      .populate("categoryId", "name")
-      .sort({ createdAt: -1 });
+      .populate("categoryId", "name description")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalPages = Math.ceil(totalProducts / limit);
 
     res.status(200).json({
       success: true,
       count: products.length,
+      totalProducts,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+      filters: {
+        name: name || null,
+        barcode: barcode || null,
+        categoryId: categoryId || null,
+        status: status || "active",
+        search: search || null,
+      },
       data: products,
     });
   } catch (error: any) {
@@ -50,6 +138,7 @@ export const getProducts = async (req: Request, res: Response) => {
   }
 };
 
+// GET product by ID
 export const getProductById = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -65,7 +154,7 @@ export const getProductById = async (req: Request, res: Response) => {
     const product = await Product.findOne({
       _id: id,
       isActive: true,
-    }).populate("categoryId", "name");
+    }).populate("categoryId", "name description");
 
     if (!product) {
       res.status(404).json({
@@ -88,11 +177,31 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
+// CREATE product
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const categoryId = req.body.categoryId as string;
+    const {
+      name,
+      sku,
+      barcode,
+      description,
+      price,
+      cost,
+      quantity = 0,
+      reorderThreshold = 5,
+      imageUrl,
+      categoryId,
+    } = req.body;
 
-    if (!categoryId || !mongoose.Types.ObjectId.isValid(categoryId)) {
+    if (!name || !sku || price === undefined || cost === undefined || !categoryId) {
+      res.status(400).json({
+        success: false,
+        message: "Name, SKU, price, cost, and categoryId are required",
+      });
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
       res.status(400).json({
         success: false,
         message: "Invalid category ID",
@@ -113,7 +222,18 @@ export const createProduct = async (req: Request, res: Response) => {
       return;
     }
 
-    const product = await Product.create(req.body);
+    const product = await Product.create({
+      name,
+      sku,
+      barcode,
+      description,
+      price,
+      cost,
+      quantity,
+      reorderThreshold,
+      imageUrl,
+      categoryId,
+    });
 
     res.status(201).json({
       success: true,
@@ -129,6 +249,7 @@ export const createProduct = async (req: Request, res: Response) => {
   }
 };
 
+// UPDATE product
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -142,9 +263,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     if (req.body.categoryId) {
-      const categoryId = req.body.categoryId as string;
-
-      if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      if (!mongoose.Types.ObjectId.isValid(req.body.categoryId)) {
         res.status(400).json({
           success: false,
           message: "Invalid category ID",
@@ -153,7 +272,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       }
 
       const category = await Category.findOne({
-        _id: categoryId,
+        _id: req.body.categoryId,
         isActive: true,
       });
 
@@ -176,7 +295,7 @@ export const updateProduct = async (req: Request, res: Response) => {
         new: true,
         runValidators: true,
       }
-    ).populate("categoryId", "name");
+    ).populate("categoryId", "name description");
 
     if (!product) {
       res.status(404).json({
@@ -200,6 +319,7 @@ export const updateProduct = async (req: Request, res: Response) => {
   }
 };
 
+// DELETE product - soft delete
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -246,6 +366,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
   }
 };
 
+// GET low stock products
 export const getLowStockProducts = async (req: Request, res: Response) => {
   try {
     const products = await Product.find({
@@ -254,7 +375,7 @@ export const getLowStockProducts = async (req: Request, res: Response) => {
         $lte: ["$quantity", "$reorderThreshold"],
       },
     })
-      .populate("categoryId", "name")
+      .populate("categoryId", "name description")
       .sort({ quantity: 1 });
 
     res.status(200).json({
@@ -271,6 +392,7 @@ export const getLowStockProducts = async (req: Request, res: Response) => {
   }
 };
 
+// PATCH update product stock
 export const updateProductStock = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -284,14 +406,10 @@ export const updateProductStock = async (req: Request, res: Response) => {
       return;
     }
 
-    if (
-      req.body.quantity === undefined ||
-      Number.isNaN(quantity) ||
-      quantity < 0
-    ) {
+    if (quantity < 0 || Number.isNaN(quantity)) {
       res.status(400).json({
         success: false,
-        message: "Quantity is required and cannot be negative",
+        message: "Quantity must be 0 or greater",
       });
       return;
     }
@@ -308,7 +426,7 @@ export const updateProductStock = async (req: Request, res: Response) => {
         new: true,
         runValidators: true,
       }
-    ).populate("categoryId", "name");
+    ).populate("categoryId", "name description");
 
     if (!product) {
       res.status(404).json({

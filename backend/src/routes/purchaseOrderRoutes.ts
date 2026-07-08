@@ -17,15 +17,17 @@ router.get("/", getPurchaseOrders);
 
 router.get("/supplier/:supplierId", getPurchaseOrdersBySupplier);
 
-router.get("/:id", getPurchaseOrderById);
-
 router.post("/", createPurchaseOrder);
 
-router.put("/:id", updatePurchaseOrder);
+router.post("/:id/receive", receivePurchaseOrder);
 
 router.patch("/:id/receive", receivePurchaseOrder);
 
 router.patch("/:id/cancel", cancelPurchaseOrder);
+
+router.get("/:id", getPurchaseOrderById);
+
+router.put("/:id", updatePurchaseOrder);
 
 router.delete("/:id", deletePurchaseOrder);
 

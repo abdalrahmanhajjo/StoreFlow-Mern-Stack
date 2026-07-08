@@ -3,12 +3,20 @@ import express from "express";
 import {
     getProducts,
     getProductById,
+    getLowStockProducts,
     createProduct,
     updateProduct,
-    deleteProduct,
-    getLowStockProducts,
     updateProductStock,
+    deleteProduct,
 } from "../controllers/productController";
+
+import { validate } from "../middleware/validate.middleware";
+
+import {
+    createProductSchema,
+    updateProductSchema,
+    updateProductStockSchema,
+} from "../validators/product.validator";
 
 const router = express.Router();
 
@@ -18,11 +26,15 @@ router.get("/", getProducts);
 
 router.get("/:id", getProductById);
 
-router.post("/", createProduct);
+router.post("/", validate(createProductSchema), createProduct);
 
-router.put("/:id", updateProduct);
+router.put("/:id", validate(updateProductSchema), updateProduct);
 
-router.patch("/:id/stock", updateProductStock);
+router.patch(
+    "/:id/stock",
+    validate(updateProductStockSchema),
+    updateProductStock
+);
 
 router.delete("/:id", deleteProduct);
 

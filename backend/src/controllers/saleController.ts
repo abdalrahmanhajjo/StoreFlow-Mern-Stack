@@ -6,6 +6,7 @@ import Customer from "../models/Customer";
 import LoyaltyLedger from "../models/LoyaltyLedger";
 import AuditLog from "../models/AuditLog";
 import { calculateLoyaltyTier } from "../utils/loyaltyTier";
+import StoreSetting from "../models/StoreSetting";
 
 class AppError extends Error {
     statusCode: number;
@@ -648,6 +649,113 @@ export const voidSale = async (req: Request, res: Response) => {
         res.status(error.statusCode || 500).json({
             success: false,
             message: error.message || "Failed to void sale",
+        });
+    }
+};
+
+export const getSaleReceipt = async (req: Request, res: Response) => {
+    try {
+        const saleId = req.params.id as string;
+
+        if (!saleId || !mongoose.Types.ObjectId.isValid(saleId)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid sale ID",
+            });
+            return;
+        }
+
+        const sale: any = await Sale.findOne({
+            _id: saleId,
+            isActive: true,
+        })
+            .populate("customerId", "name phone email")
+            .populate("items.productId", "name sku price");
+
+        if (!sale) {
+            res.status(404).json({
+                success: false,
+                message: "Sale not found",
+            });
+            return;
+        }
+
+        const storeSettings: any = await StoreSetting.findOne({
+            isActive: true,
+        });
+
+        const receiptData = {
+            store: {
+                name:
+                    storeSettings?.storeName ||
+                    storeSettings?.name ||
+                    "StoreFlow POS",
+                phone: storeSettings?.phone || storeSettings?.storePhone || "",
+                email: storeSettings?.email || storeSettings?.storeEmail || "",
+                address: storeSettings?.address || storeSettings?.storeAddress || "",
+                currency: storeSettings?.currency || "USD",
+                receiptFooter:
+                    storeSettings?.receiptFooter ||
+                    storeSettings?.receiptFooterMessage ||
+                    "Thank you for shopping with us!",
+            },
+
+            receipt: {
+                saleId: sale._id,
+                invoiceNumber: sale.invoiceNumber,
+                date: sale.createdAt,
+                cashierName: sale.cashierName || sale.createdByName || "Bakr",
+
+                customer: sale.customerId
+                    ? {
+                        id: sale.customerId._id,
+                        name: sale.customerId.name,
+                        phone: sale.customerId.phone,
+                        email: sale.customerId.email,
+                    }
+                    : null,
+
+                items: sale.items.map((item: any) => ({
+                    productId: item.productId?._id || item.productId,
+                    productName: item.productName || item.productId?.name,
+                    sku: item.sku || item.productId?.sku,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    subtotal: item.subtotal,
+                })),
+
+                subtotal: sale.subtotal,
+                discount: sale.discount,
+                taxRate: sale.taxRate,
+                taxAmount: sale.taxAmount,
+                total: sale.total,
+
+                payment: {
+                    method: sale.paymentMethod,
+                    paidAmount: sale.paidAmount,
+                    changeAmount: sale.changeAmount,
+                },
+
+                loyalty: {
+                    pointsEarned: sale.loyaltyPointsEarned || 0,
+                    pointsRedeemed: sale.loyaltyPointsRedeemed || 0,
+                },
+
+                status: sale.status,
+                notes: sale.notes || "",
+            },
+        };
+
+        res.status(200).json({
+            success: true,
+            message: "Receipt data retrieved successfully",
+            data: receiptData,
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to get receipt data",
+            error: error.message,
         });
     }
 };

@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Sale from "../models/Sale";
-import Product from "../models/Product";
-import Customer from "../models/Customer";
-import LoyaltyLedger from "../models/LoyaltyLedger";
-import AuditLog from "../models/AuditLog";
+import Product from "../models/product.model";
+import Customer from "../models/customer.model";
+import LoyaltyLedger from "../models/loyalty_ledger.model";
+import AuditLog from "../models/audit_log.model";
 import { calculateLoyaltyTier } from "../utils/loyaltyTier";
 
 class AppError extends Error {

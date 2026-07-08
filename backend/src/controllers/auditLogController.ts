@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import AuditLog from "../models/AuditLog";
+import AuditLog from "../models/audit_log.model";
 
 // GET all audit logs
 export const getAuditLogs = async (req: Request, res: Response) => {

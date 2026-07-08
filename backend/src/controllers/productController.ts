@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Product from "../models/Product";
-import Category from "../models/Category";
+import Product from "../models/product.model";
+import Category from "../models/category.model";
 
 // GET all products with filters and pagination
 export const getProducts = async (req: Request, res: Response) => {

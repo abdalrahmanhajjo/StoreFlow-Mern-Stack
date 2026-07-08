@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Product from "../models/Product";
-import StockAdjustment from "../models/StockAdjustment";
+import Product from "../models/product.model";
+import StockAdjustment from "../models/stock_adjustment.model";
 
 class AppError extends Error {
     statusCode: number;

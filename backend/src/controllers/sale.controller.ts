@@ -1,13 +1,12 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Sale from "../models/Sale";
-import Product from "../models/Product";
-import Customer from "../models/Customer";
-import LoyaltyLedger from "../models/LoyaltyLedger";
-import AuditLog from "../models/AuditLog";
-import { calculateLoyaltyTier } from "../utils/loyaltyTier";
-import StoreSetting from "../models/StoreSetting";
-
+import Sale from "../models/sale.model";
+import Product from "../models/product.model";
+import Customer from "../models/customer.model";
+import LoyaltyLedger from "../models/loyalty_ledger.model";
+import AuditLog from "../models/audit_log.model";
+import { calculateLoyaltyTier } from "../utils/loyalty_tier.utils";
+import StoreSetting from "../models/store_setting.model";
 class AppError extends Error {
     statusCode: number;
 

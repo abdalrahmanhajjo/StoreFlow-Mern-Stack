@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Customer from "../models/Customer";
+import Customer from "../models/customer.model";
 
 // GET all customers
 export const getCustomers = async (req: Request, res: Response) => {

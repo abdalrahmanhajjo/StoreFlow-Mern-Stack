@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import PurchaseOrder from "../models/PurchaseOrder";
-import Supplier from "../models/Supplier";
-import Product from "../models/Product";
-import AuditLog from "../models/AuditLog";
+import PurchaseOrder from "../models/purchase_order.model";
+import Supplier from "../models/supplier.model";
+import Product from "../models/product.model";
+import AuditLog from "../models/audit_log.model";
 
 const generateOrderNumber = (): string => {
     const date = new Date();

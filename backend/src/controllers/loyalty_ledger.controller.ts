@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import LoyaltyLedger from "../models/LoyaltyLedger";
-import Customer from "../models/Customer";
-import { calculateLoyaltyTier } from "../utils/loyaltyTier";
+import LoyaltyLedger from "../models/loyalty_ledger.model";
+import Customer from "../models/customer.model";
+import { calculateLoyaltyTier } from "../utils/loyalty_tier.utils";
 
 // GET all loyalty ledger records
 export const getLoyaltyLedgers = async (req: Request, res: Response) => {

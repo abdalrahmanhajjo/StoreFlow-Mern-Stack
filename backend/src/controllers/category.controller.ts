@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Category from "../models/Category";
-import Product from "../models/Product";
+import Category from "../models/category.model";
+import Product from "../models/product.model";
 
 // GET all categories with product count
 export const getCategories = async (req: Request, res: Response) => {

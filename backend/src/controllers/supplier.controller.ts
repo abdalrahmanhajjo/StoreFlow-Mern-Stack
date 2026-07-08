@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
-import Supplier from "../models/Supplier";
-import Product from "../models/Product";
+import Supplier from "../models/supplier.model";
+import Product from "../models/product.model";
 
 // Helper function to build multi-tenant query objects dynamically
 const buildTenantFilter = (req: Request, baseFilter: any = {}) => {

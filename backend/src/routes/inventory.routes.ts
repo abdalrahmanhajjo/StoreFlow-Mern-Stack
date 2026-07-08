@@ -1,6 +1,6 @@
 import express from "express";
-import Product from "../models/Product";
-import StockAdjustment from "../models/StockAdjustment";
+import Product from "../models/product.model";
+import StockAdjustment from "../models/stock_adjustment.model";
 
 const router = express.Router();
 

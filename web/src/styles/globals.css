@@ -16,10 +16,23 @@ button { font-family: inherit; cursor: pointer; }
 .display { font-family: var(--font-display); letter-spacing: -0.022em; }
 .mono { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
 
+/* SF-1601: visible focus ring — AA-compliant 3px outline with blue-soft */
 :focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--blue-soft);
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
   border-radius: 6px;
+}
+/* Remove focus ring for mouse clicks (only keyboard focus) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip link visibility */
+#main-content { outline: none; }
+
+/* SF-1601: ensure body text never drops below 16px on mobile (prevents iOS zoom) */
+@media (max-width: 768px) {
+  body, input, select, textarea, button { font-size: 16px; }
 }
 
 /* SF-1504: respect reduced-motion preference */

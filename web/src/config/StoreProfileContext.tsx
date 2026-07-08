@@ -1,8 +1,9 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import type { StoreProfile, StoreRole } from '@/lib/contracts/types';
 import { storeProfileSchema } from '@/lib/contracts/schemas';
 import { resolveStoreConfig, type ResolvedStoreConfig } from '@/config/templates/registry';
 import { createFormatters, type Formatters } from '@/lib/i18n/format';
+import { useI18n } from '@/store/i18n';
 
 interface StoreContextValue {
   config: ResolvedStoreConfig;
@@ -29,6 +30,12 @@ export interface StoreProfileProviderProps {
  * best-effort rather than crashing the shell.
  */
 export function StoreProfileProvider({ profile, role, children }: StoreProfileProviderProps) {
+  const configure = useI18n((s) => s.configure);
+
+  useEffect(() => {
+    configure(profile.locale, profile.currency, profile.timezone ?? 'UTC');
+  }, [profile.locale, profile.currency, profile.timezone, configure]);
+
   const value = useMemo<StoreContextValue>(() => {
     const parsed = storeProfileSchema.safeParse(profile);
     if (!parsed.success && import.meta.env.DEV) {

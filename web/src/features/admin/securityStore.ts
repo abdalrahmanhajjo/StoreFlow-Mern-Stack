@@ -15,6 +15,16 @@ export interface BlockedIp {
   id: string;
   ip: string;
   reason: string;
+  blockedAt?: string;
+  banCount: number;
+}
+
+export function banDuration(banCount: number): string {
+  if (banCount <= 0) return '—';
+  if (banCount === 1) return '1hr';
+  if (banCount === 2) return '1 day';
+  if (banCount === 3) return '2 days';
+  return `${Math.pow(2, banCount - 2)} days`;
 }
 export interface Attempt {
   id: string;
@@ -51,7 +61,7 @@ export const useSecurity = create<SecurityState>((set, get) => ({
     const v = ip.trim();
     if (!v) return { ok: false, error: 'Enter an IP address' };
     if (get().blockedIps.some((b) => b.ip === v)) return { ok: false, error: 'Already blocked' };
-    set((s) => ({ blockedIps: [...s.blockedIps, { id: 'ip' + ++seq, ip: v, reason: 'Manually blocked' }] }));
+    set((s) => ({ blockedIps: [...s.blockedIps, { id: 'ip' + ++seq, ip: v, reason: 'Manually blocked', blockedAt: 'just now', banCount: 1 }] }));
     return { ok: true };
   },
   unblockIp: (id) => set((s) => ({ blockedIps: s.blockedIps.filter((b) => b.id !== id) })),

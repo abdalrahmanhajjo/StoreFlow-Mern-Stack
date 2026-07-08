@@ -1,4 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { Spinner } from './Spinner';
 
 type Variant = 'primary' | 'ghost' | 'dark' | 'danger';
 type Size = 'sm' | 'md';
@@ -67,7 +68,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
         ...style,
       }}
     >
-      {isLoading ? 'Please wait…' : (<>{leftIcon}{children}</>)}
+      {isLoading ? <><Spinner size="sm" color="currentColor" />{children}</> : (<>{leftIcon}{children}</>)}
     </button>
   );
 });

@@ -76,6 +76,7 @@ export const storeProfileSchema = z
     // Validate BCP-47 shape defensively; Intl does the heavy lifting later.
     locale: z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, 'Invalid locale'),
     currency: z.string().regex(/^[A-Z]{3}$/, 'Invalid ISO 4217 currency'),
+    timezone: z.string().optional(),
     direction: directionSchema,
     theme: storeThemeSchema,
     taxProfile: taxProfileSchema,

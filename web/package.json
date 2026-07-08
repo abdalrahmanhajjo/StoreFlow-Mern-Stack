@@ -11,6 +11,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\"",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:a11y": "playwright test --grep @a11y",
     "audit:ci": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
@@ -25,7 +26,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.10.0",
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.48.0",
     "@testing-library/dom": "^10.4.1",

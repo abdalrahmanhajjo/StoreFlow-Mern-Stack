@@ -55,15 +55,71 @@ export function Skeleton({
   );
 }
 
-export function SkeletonGroup({ count = 3, variant = 'text' as SkeletonVariant, style }: { count?: number; variant?: SkeletonVariant; style?: CSSProperties }) {
+export function SkeletonGroup({
+  count = 3, variant = 'text', style,
+}: { count?: number; variant?: SkeletonVariant; style?: CSSProperties }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, ...style }}>
       {Array.from({ length: count }, (_, i) => (
         <Skeleton
           key={i}
           variant={variant}
-          width={variant === 'text' ? `${70 + Math.random() * 30}%` : undefined}
+          width={variant === 'text' ? `${70 + (i * 13 % 30)}%` : undefined}
         />
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonCard({
+  lines = 3, style,
+}: { lines?: number; style?: CSSProperties }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        background: 'var(--card)', border: '1px solid var(--line-soft)',
+        borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)',
+        padding: 20, ...style,
+      }}
+    >
+      <Skeleton variant="rect" width="60%" height={16} borderRadius={6} style={{ marginBottom: 14 }} />
+      {Array.from({ length: lines }, (_, i) => (
+        <Skeleton
+          key={i}
+          width={`${80 + (i * 7 % 20)}%`}
+          style={{ marginBottom: i < lines - 1 ? 10 : 0 }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function SkeletonTable({
+  rows = 4, cols = 4, style,
+}: { rows?: number; cols?: number; style?: CSSProperties }) {
+  return (
+    <div aria-hidden style={{ overflowX: 'auto', ...style }}>
+      <div style={{
+        display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gap: 12, padding: '11px 20px',
+        borderBottom: '1px solid var(--line)',
+        background: 'var(--paper)',
+      }}>
+        {Array.from({ length: cols }, (_, i) => (
+          <Skeleton key={i} width={`${60 + (i * 10 % 40)}%`} style={{ height: 10 }} />
+        ))}
+      </div>
+      {Array.from({ length: rows }, (_, r) => (
+        <div key={r} style={{
+          display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gap: 12, padding: '14px 20px',
+          borderBottom: '1px solid var(--line-soft)',
+        }}>
+          {Array.from({ length: cols }, (_, c) => (
+            <Skeleton key={c} width={`${50 + ((r * 13 + c * 7) % 50)}%`} style={{ height: 12 }} />
+          ))}
+        </div>
       ))}
     </div>
   );

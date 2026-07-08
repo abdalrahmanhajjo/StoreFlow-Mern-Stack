@@ -6,9 +6,27 @@
   "locale": "it-IT",
   "currency": "EUR",
   "direction": "ltr",
-  "theme": { "accent": "#7c3aed", "mode": "light" },
-  "taxProfile": { "inclusive": true, "defaultRate": 0.22, "label": "IVA" },
-  "hardwareProfile": { "barcodeScanner": false, "receiptPrinter": true, "cashDrawer": false, "scale": false, "cardTerminal": true, "kitchenDisplay": false },
-  "featureFlags": { "loyalty": true, "offlineQueue": true },
-  "complianceFlags": {}
+  "theme": {
+    "accent": "#7c3aed",
+    "mode": "light"
+  },
+  "taxProfile": {
+    "inclusive": true,
+    "defaultRate": 0.22,
+    "label": "IVA"
+  },
+  "hardwareProfile": {
+    "barcodeScanner": false,
+    "receiptPrinter": true,
+    "cashDrawer": false,
+    "scale": false,
+    "cardTerminal": true,
+    "kitchenDisplay": false
+  },
+  "featureFlags": {
+    "loyalty": true,
+    "offlineQueue": true
+  },
+  "complianceFlags": {},
+  "timezone": "America/New_York"
 }

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useMemo } from 'react';
 import { useSession } from '@/store/session';
 import { navForRole } from '@/app/navConfig';
@@ -7,6 +7,7 @@ import { Logo } from '@/components/ui';
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const user = useSession((s) => s.user);
+  const location = useLocation();
   const pendingApprovals = useApprovals((s) => s.applications.length);
   const items = useMemo(() => (user ? navForRole(user.role) : []), [user]);
   const groups = useMemo(() => [...new Set(items.map((i) => i.group))], [items]);
@@ -59,6 +60,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     color: isActive ? 'var(--blue-deep)' : 'var(--ink-soft)',
                     background: isActive ? 'var(--blue-soft)' : 'transparent',
                   })}
+                  aria-current={location.pathname === i.path ? 'page' : undefined}
                 >
                   <span style={{ flex: 1 }}>{i.label}</span>
                   {i.path === '/admin/approvals' && pendingApprovals > 0 && (

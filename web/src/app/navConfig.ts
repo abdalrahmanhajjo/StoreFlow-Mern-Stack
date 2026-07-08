@@ -17,6 +17,7 @@ export const NAV: NavItem[] = [
   { label: 'Subscription plans', path: '/admin/plans', roles: ['platform_admin'], group: 'People' },
   { label: 'Security & sessions', path: '/admin/security', roles: ['platform_admin'], group: 'Trust & safety' },
   { label: 'Audit logs', path: '/admin/audit', roles: ['platform_admin'], group: 'Trust & safety' },
+  { label: 'Content moderation', path: '/admin/moderation', roles: ['platform_admin'], group: 'Trust & safety' },
   { label: 'System settings', path: '/admin/settings', roles: ['platform_admin'], group: 'System' },
 
   // Store

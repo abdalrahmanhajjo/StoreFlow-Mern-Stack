@@ -98,6 +98,8 @@ export interface StoreProfile {
   locale: string;
   /** ISO 4217 currency code, e.g. "USD", "GBP", "EGP". */
   currency: string;
+  /** IANA timezone, e.g. "Europe/London", "America/New_York". Defaults to UTC. */
+  timezone?: string;
   direction: TextDirection;
   theme: StoreTheme;
   taxProfile: TaxProfile;

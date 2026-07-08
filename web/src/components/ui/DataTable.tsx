@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Skeleton } from './Skeleton';
 
 export interface Column<T> {
   key: string;
@@ -58,7 +59,7 @@ export function DataTable<T>({ columns, data, isLoading, isError, emptyText = 'N
               <tr key={i}>
                 {columns.map((c) => (
                   <td key={c.key} style={td}>
-                    <div style={{ height: 12, borderRadius: 6, background: 'var(--paper-dim)', width: `${40 + ((i * 13 + c.key.length * 7) % 50)}%` }} />
+                    <Skeleton width={`${50 + ((i * 13 + c.key.length * 7) % 50)}%`} style={{ height: 12 }} />
                   </td>
                 ))}
               </tr>

@@ -6,9 +6,30 @@
   "locale": "en-US",
   "currency": "USD",
   "direction": "ltr",
-  "theme": { "accent": "#16a34a", "mode": "light" },
-  "taxProfile": { "inclusive": false, "defaultRate": 0.05, "label": "Sales Tax" },
-  "hardwareProfile": { "barcodeScanner": true, "receiptPrinter": true, "cashDrawer": true, "scale": false, "cardTerminal": true, "kitchenDisplay": false },
-  "featureFlags": { "ageVerification": true, "offlineQueue": true, "loyalty": false },
-  "complianceFlags": { "ageRestrictedSales": true }
+  "theme": {
+    "accent": "#16a34a",
+    "mode": "light"
+  },
+  "taxProfile": {
+    "inclusive": false,
+    "defaultRate": 0.05,
+    "label": "Sales Tax"
+  },
+  "hardwareProfile": {
+    "barcodeScanner": true,
+    "receiptPrinter": true,
+    "cashDrawer": true,
+    "scale": false,
+    "cardTerminal": true,
+    "kitchenDisplay": false
+  },
+  "featureFlags": {
+    "ageVerification": true,
+    "offlineQueue": true,
+    "loyalty": false
+  },
+  "complianceFlags": {
+    "ageRestrictedSales": true
+  },
+  "timezone": "America/Chicago"
 }

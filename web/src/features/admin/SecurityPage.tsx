@@ -1,73 +1,208 @@
-import { useState } from 'react';
-import { useSecurity, type Session, type BlockedIp, type Attempt } from './securityStore';
-import { KpiCard, Card, Badge, Button, DataTable, toast, type Column } from '@/components/ui';
+import { useMemo } from 'react';
+import { useSecurity, banDuration, type Attempt } from './securityStore';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Badge, Button, toast } from '@/components/ui';
 
 export default function SecurityPage() {
-  const { sessions, blockedIps, attempts, forceLogout, revokeAll, blockIp, unblockIp } = useSecurity();
-  const [ip, setIp] = useState('');
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const { sessions, blockedIps, attempts, forceLogout, revokeAll, unblockIp } = useSecurity();
+  const failedCount = useMemo(() => attempts.filter((a) => a.result === 'Failed').length, [attempts]);
 
-  const onBlock = () => {
-    const res = blockIp(ip);
-    if (!res.ok) return toast(res.error ?? 'Could not block');
-    toast(`${ip} blocked`);
-    setIp('');
+  const resultBadge = (r: Attempt['result']) => {
+    if (r === 'Success') return { label: 'Success', tone: 'green' as const };
+    if (r === 'Blocked') return { label: 'Blocked', tone: 'red' as const };
+    return { label: `Failed ×${failedCount}`, tone: 'red' as const };
   };
-
-  const sessionCols: Column<Session>[] = [
-    { key: 'user', header: 'User', render: (s) => <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{s.user}</span> },
-    { key: 'ip', header: 'IP · device', render: (s) => <span style={{ fontSize: 12, color: 'var(--ink-soft)' }} className="mono">{s.ip} · {s.device}</span> },
-    { key: 'started', header: 'Started', render: (s) => <span className="mono">{s.started}</span> },
-    { key: 'act', header: '', align: 'right', render: (s) => <Button variant="danger" size="sm" onClick={() => { forceLogout(s.id); toast(`Forced logout — ${s.user}`); }}>Force logout</Button> },
-  ];
-  const ipCols: Column<BlockedIp>[] = [
-    { key: 'ip', header: 'IP address', render: (b) => <span className="mono">{b.ip}</span> },
-    { key: 'reason', header: 'Reason', render: (b) => <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{b.reason}</span> },
-    { key: 'act', header: '', align: 'right', render: (b) => <Button variant="ghost" size="sm" onClick={() => { unblockIp(b.id); toast(`${b.ip} unblocked`); }}>Unblock</Button> },
-  ];
-  const attemptCols: Column<Attempt>[] = [
-    { key: 'account', header: 'Account' },
-    { key: 'ip', header: 'IP', render: (a) => <span className="mono">{a.ip}</span> },
-    { key: 'when', header: 'Time', render: (a) => <span className="mono">{a.when}</span> },
-    { key: 'result', header: 'Result', render: (a) => <Badge tone={a.result === 'Success' ? 'green' : 'red'}>{a.result === 'Failed' ? 'Failed ×14' : a.result}</Badge> },
-  ];
 
   return (
     <>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--blue)', fontWeight: 600, marginBottom: 6 }}>Trust &amp; safety</div>
-        <h2 className="display" style={{ fontSize: 22, margin: 0, color: 'var(--ink)', fontWeight: 800 }}>Security &amp; sessions</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)', fontSize: 13 }}>Monitor authentication, force logouts, and block suspicious sources.</p>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', marginBottom: isMobile ? 14 : 18, gap: 10, flexDirection: isMobile ? 'column' : 'row' }}>
+        <div>
+          <div style={{ fontSize: isMobile ? 10 : 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--blue)', fontWeight: 600, marginBottom: isMobile ? 4 : 6 }}>Trust &amp; safety</div>
+          <h2 className="display" style={{ fontSize: isMobile ? 19 : 22, margin: 0, color: 'var(--ink)', fontWeight: 800 }}>Security &amp; sessions</h2>
+          <p style={{ margin: '2px 0 0', color: 'var(--ink-soft)', fontSize: isMobile ? 12 : 13 }}>Monitor authentication, force logouts, and block suspicious sources.</p>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14, marginBottom: 20 }}>
-        <KpiCard label="Failed logins (24h)" value="37" delta="▲ from 21" />
-        <KpiCard label="Active sessions" value={sessions.length} />
-        <KpiCard label="Blocked IPs" value={blockedIps.length} />
-        <KpiCard label="2FA coverage" value="68%" delta="▲ 4%" />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 18, marginBottom: 18 }}>
-        <Card>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: 15, color: 'var(--ink)' }}>Active sessions</h3>
-            <Button variant="ghost" size="sm" onClick={() => { revokeAll(); toast('All sessions revoked'); }}>Revoke all</Button>
+      {/* KPI stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12, marginBottom: isMobile ? 14 : 20 }}>
+        {[
+          { label: 'Failed logins (24h)', value: failedCount, color: 'var(--red)', delta: '▲ from 21' },
+          { label: 'Active sessions', value: sessions.length, color: 'var(--green)' },
+          { label: 'Blocked IPs', value: blockedIps.length, color: 'var(--blue-deep)' },
+          { label: '2FA coverage', value: '68%', color: 'var(--amber)', delta: '▲ 4%' },
+        ].map((s) => (
+          <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: isMobile ? '10px 14px' : '12px 16px', boxShadow: 'var(--shadow)' }}>
+            <div style={{ fontSize: isMobile ? 10 : 10.5, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <div className="mono" style={{ fontSize: isMobile ? 18 : 20, fontWeight: 800, color: s.color }}>{s.value}</div>
+              {s.delta && <span style={{ fontSize: isMobile ? 10 : 11, color: s.color, fontWeight: 600 }}>{s.delta}</span>}
+            </div>
           </div>
-          <DataTable columns={sessionCols} data={sessions} rowKey={(s) => s.id} emptyText="No active sessions." />
-        </Card>
-        <Card>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)' }}><h3 style={{ margin: 0, fontSize: 15, color: 'var(--ink)' }}>Blocked IPs</h3></div>
-          <DataTable columns={ipCols} data={blockedIps} rowKey={(b) => b.id} emptyText="No blocked IPs." />
-          <div style={{ padding: 14, borderTop: '1px solid var(--line)', display: 'flex', gap: 8 }}>
-            <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="Block an IP address…" style={{ flex: 1, padding: '8px 11px', border: '1px solid var(--line)', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', color: 'var(--ink)' }} />
-            <Button variant="dark" size="sm" onClick={onBlock}>Block</Button>
-          </div>
-        </Card>
+        ))}
       </div>
 
-      <Card>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)' }}><h3 style={{ margin: 0, fontSize: 15, color: 'var(--ink)' }}>Recent login attempts</h3></div>
-        <DataTable columns={attemptCols} data={attempts} rowKey={(a) => a.id} />
-      </Card>
+      <style>{`
+        .sf-sec-card { transition: box-shadow .2s, transform .2s; }
+        .sf-sec-card:hover { box-shadow: 0 8px 24px -8px rgba(0,0,0,.1); transform: translateY(-2px); }
+        .sf-sec-row { transition: background .12s; }
+        .sf-sec-row:hover { background: var(--paper); }
+        @media (prefers-reduced-motion: reduce) {
+          .sf-sec-card, .sf-sec-row { transition: none; }
+          .sf-sec-card:hover { transform: none; }
+        }
+      `}</style>
+
+      {/* Sessions + Blocked IPs */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 18 }}>
+        {/* Active sessions */}
+        <div style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+          <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: isMobile ? 14 : 15, color: 'var(--ink)' }}>Active sessions</h3>
+            {sessions.length > 0 && <Button variant="ghost" size="sm" onClick={() => { revokeAll(); toast('All sessions revoked'); }}>Revoke all</Button>}
+          </div>
+          {sessions.length === 0 ? (
+            <div style={{ padding: isMobile ? 32 : 40, textAlign: 'center', color: 'var(--ink-faint)', fontSize: isMobile ? 13 : 13 }}>No active sessions.</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr auto' : '1fr 1fr auto', gap: 8, padding: isMobile ? '8px 12px' : '10px 16px', borderBottom: '1px solid var(--line-soft)', background: 'var(--paper)', fontSize: isMobile ? 10.5 : 11, fontWeight: 700, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+              <span>User</span><span>IP · device</span><span style={{ textAlign: 'right' }}>Action</span>
+            </div>
+          )}
+          <div style={{ padding: isMobile ? 4 : 0 }}>
+            {sessions.map((s, i) => (
+              <div key={s.id} className="sf-sec-row" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr auto' : '1fr 1fr auto', gap: 8, padding: isMobile ? '11px 12px' : '12px 16px', borderBottom: i < sessions.length - 1 ? '1px solid var(--line-soft)' : 'none', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: isMobile ? 13 : 13 }}>{s.user}</div>
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="mono" style={{ fontSize: isMobile ? 12 : 11.5, color: 'var(--ink-soft)' }}>{s.ip}</div>
+                  <div style={{ fontSize: isMobile ? 11.5 : 11.5, color: 'var(--ink-faint)' }}>{s.device} · {s.started}</div>
+                </div>
+                <button type="button" onClick={() => { forceLogout(s.id); toast(`Forced logout — ${s.user}`); }}
+                  style={{ padding: isMobile ? '8px 12px' : '5px 10px', borderRadius: 6, border: '1px solid var(--red)', background: 'transparent', fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', color: 'var(--red)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--red-soft)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >Logout</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Blocked IPs */}
+        <div style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+          <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: '1px solid var(--line)' }}>
+            <h3 style={{ margin: 0, fontSize: isMobile ? 14 : 15, color: 'var(--ink)' }}>Blocked IPs</h3>
+          </div>
+          {blockedIps.length === 0 ? (
+            <div style={{ padding: isMobile ? 24 : 28, textAlign: 'center', color: 'var(--ink-faint)', fontSize: isMobile ? 13 : 13 }}>No blocked IPs.</div>
+          ) : (
+            <div style={{ padding: isMobile ? 4 : 0 }}>
+              {blockedIps.map((b, i) => (
+                <div key={b.id} className="sf-sec-row" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, padding: isMobile ? '11px 12px' : '12px 16px', borderBottom: i < blockedIps.length - 1 ? '1px solid var(--line-soft)' : 'none', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span className="mono" style={{ fontWeight: 700, color: 'var(--red)', fontSize: isMobile ? 13 : 13 }}>{b.ip}</span>
+                      <Badge tone="red">{banDuration(b.banCount)}</Badge>
+                      {b.blockedAt && <span style={{ fontSize: isMobile ? 11 : 10.5, color: 'var(--ink-faint)' }}>{b.blockedAt}</span>}
+                    </div>
+                    <div style={{ fontSize: isMobile ? 12 : 11.5, color: 'var(--ink-soft)', marginTop: 2 }}>{b.reason} · ban #{b.banCount}</div>
+                  </div>
+                  <button type="button" onClick={() => { unblockIp(b.id); toast(`${b.ip} unblocked`); }}
+                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', borderRadius: 6, border: '1px solid var(--line)', background: 'transparent', fontSize: isMobile ? 12 : 11, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--paper-dim)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >Unblock</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Auto-block criteria + escalation */}
+          <div style={{ padding: isMobile ? 12 : 14, borderTop: '1px solid var(--line)', background: 'var(--paper)' }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: isMobile ? 12.5 : 12, fontWeight: 700, color: 'var(--ink)' }}>Auto-block criteria</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+              {[
+                { label: 'Failed logins', value: '≥5 in 15m', icon: '✕', color: 'var(--red)' },
+                { label: 'Unknown accounts', value: '≥3 in 1h', icon: '?', color: 'var(--amber)' },
+                { label: 'Credential stuffing', value: 'Pattern detected', icon: '⚡', color: 'var(--purple)' },
+                { label: 'Known bad ranges', value: 'Threat intel feed', icon: '🛡', color: 'var(--blue-deep)' },
+              ].map((r) => (
+                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, background: 'var(--card)', border: '1px solid var(--line-soft)' }}>
+                  <span style={{ fontSize: isMobile ? 13 : 12 }}>{r.icon}</span>
+                  <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: isMobile ? 12.5 : 12, color: 'var(--ink)', fontWeight: 600 }}>{r.label}</span>
+                    <span style={{ fontSize: isMobile ? 11.5 : 11, color: r.color, fontWeight: 700 }}>{r.value}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+              <span style={{ fontSize: isMobile ? 11.5 : 11, color: 'var(--ink-faint)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', display: 'block', marginBottom: 6 }}>Ban escalation</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[
+                  { label: '1st offence', duration: '1hr' },
+                  { label: '2nd offence', duration: '1 day' },
+                  { label: '3rd offence', duration: '2 days' },
+                  { label: '4th offence', duration: '4 days' },
+                  { label: '5th+ offence', duration: 'Doubles each time' },
+                ].map((e) => (
+                  <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 4, fontSize: isMobile ? 12 : 11.5 }}>
+                    <span style={{ color: 'var(--ink-soft)' }}>{e.label}</span>
+                    <span className="mono" style={{ fontWeight: 700, color: 'var(--ink)' }}>{e.duration}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent login attempts */}
+      <div style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+        <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: '1px solid var(--line)' }}>
+          <h3 style={{ margin: 0, fontSize: isMobile ? 14 : 15, color: 'var(--ink)' }}>Recent login attempts</h3>
+        </div>
+        {attempts.length === 0 ? (
+          <div style={{ padding: isMobile ? 32 : 40, textAlign: 'center', color: 'var(--ink-faint)', fontSize: 13 }}>No login attempts recorded.</div>
+        ) : isMobile ? (
+          <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {attempts.map((a) => {
+              const rb = resultBadge(a.result);
+              return (
+                <div key={a.id} style={{ background: 'var(--paper)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div className="mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{a.account}</div>
+                    <Badge tone={rb.tone}>{rb.label}</Badge>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--ink-soft)' }}>
+                    <span className="mono">{a.ip}</span>
+                    <span>{a.when}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 80px 70px', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--line-soft)', background: 'var(--paper)', fontSize: 11, fontWeight: 700, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+              <span>Account</span><span>IP</span><span>Time</span><span style={{ textAlign: 'center' }}>Result</span>
+            </div>
+            <div style={{ padding: 0 }}>
+              {attempts.map((a, i) => {
+                const rb = resultBadge(a.result);
+                return (
+                  <div key={a.id} className="sf-sec-row" style={{ display: 'grid', gridTemplateColumns: '1fr 140px 80px 70px', gap: 8, padding: '12px 16px', borderBottom: i < attempts.length - 1 ? '1px solid var(--line-soft)' : 'none', alignItems: 'center' }}>
+                    <div className="mono" style={{ fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.account}</div>
+                    <span className="mono" style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{a.ip}</span>
+                    <span className="mono" style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{a.when}</span>
+                    <span style={{ textAlign: 'center' }}><Badge tone={rb.tone}>{rb.label}</Badge></span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 }

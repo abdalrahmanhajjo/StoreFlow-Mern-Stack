@@ -5,7 +5,7 @@ import {
     createStoreSetting,
     updateStoreSetting,
     resetStoreSetting,
-} from "../controllers/storeSettingController";
+} from "../controllers/store_setting.controller";
 
 const router = express.Router();
 

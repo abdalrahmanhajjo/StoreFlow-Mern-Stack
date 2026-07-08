@@ -8,7 +8,7 @@ import {
     redeemPoints,
     adjustPoints,
     deleteLoyaltyLedger,
-} from "../controllers/loyaltyLedgerController";
+} from "../controllers/loyalty_ledger.controller";
 
 const router = express.Router();
 

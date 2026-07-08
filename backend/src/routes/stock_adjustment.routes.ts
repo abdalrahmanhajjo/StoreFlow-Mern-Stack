@@ -6,7 +6,7 @@ import {
     getProductStockAdjustments,
     createStockAdjustment,
     deleteStockAdjustment,
-} from "../controllers/stockAdjustmentController";
+} from "../controllers/stock_adjustment.controller";
 
 const router = express.Router();
 

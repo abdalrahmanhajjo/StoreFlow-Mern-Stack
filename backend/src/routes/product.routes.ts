@@ -8,7 +8,8 @@ import {
     updateProduct,
     updateProductStock,
     deleteProduct,
-} from "../controllers/productController";
+} from "../controllers/product.controller";
+
 
 import { validate } from "../middleware/validate.middleware";
 

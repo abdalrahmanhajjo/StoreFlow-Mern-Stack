@@ -6,7 +6,7 @@ import {
     createCategory,
     updateCategory,
     deleteCategory,
-} from "../controllers/categoryController";
+} from "../controllers/category.controller";
 
 import {
     createCategorySchema,

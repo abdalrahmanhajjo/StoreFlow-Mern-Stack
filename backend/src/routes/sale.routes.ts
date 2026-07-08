@@ -7,7 +7,8 @@ import {
     createSale,
     voidSale,
     getSaleReceipt,
-} from "../controllers/saleController";
+} from "../controllers/sale.controller";
+
 
 const router = express.Router();
 

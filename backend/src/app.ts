@@ -1,17 +1,17 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 
-import categoryRoutes from "./routes/categoryRoutes";
-import productRoutes from "./routes/productRoutes";
-import customerRoutes from "./routes/customerRoutes";
-import loyaltyLedgerRoutes from "./routes/loyaltyLedgerRoutes";
-import saleRoutes from "./routes/saleRoutes";
-import stockAdjustmentRoutes from "./routes/stockAdjustmentRoutes";
-import supplierRoutes from "./routes/supplierRoutes";
-import purchaseOrderRoutes from "./routes/purchaseOrderRoutes";
-import storeSettingRoutes from "./routes/storeSettingRoutes";
-import auditLogRoutes from "./routes/auditLogRoutes";
-import inventoryRoutes from "./routes/inventoryRoutes";
+import categoryRoutes from "./routes/category.routes";
+import productRoutes from "./routes/product.routes";
+import customerRoutes from "./routes/customer.routes";
+import loyaltyLedgerRoutes from "./routes/loyalty_ledger.routes";
+import saleRoutes from "./routes/sale.routes";
+import stockAdjustmentRoutes from "./routes/stock_adjustment.routes";
+import supplierRoutes from "./routes/supplier.routes";
+import purchaseOrderRoutes from "./routes/purchase_order.routes";
+import storeSettingRoutes from "./routes/store_setting.routes";
+import auditLogRoutes from "./routes/audit_log.routes";
+import inventoryRoutes from "./routes/inventory.routes";
 
 
 import authRoutes from "./routes/auth.routes";

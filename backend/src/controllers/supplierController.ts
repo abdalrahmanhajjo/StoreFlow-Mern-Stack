@@ -3,7 +3,16 @@ import mongoose from "mongoose";
 import Supplier from "../models/Supplier";
 import Product from "../models/Product";
 
-// Validate product IDs if suppliedProducts is sent (Optimized to prevent database N+1 loop and cross-tenant leak)
+// Helper function to build multi-tenant query objects dynamically
+const buildTenantFilter = (req: Request, baseFilter: any = {}) => {
+    const filter = { ...baseFilter };
+    if (req.storeId) {
+        filter.storeId = req.storeId;
+    }
+    return filter;
+};
+
+// Validate product IDs if suppliedProducts is sent
 const validateSuppliedProducts = async (
     suppliedProducts: string[] | undefined,
     storeId: any
@@ -12,20 +21,18 @@ const validateSuppliedProducts = async (
         return true;
     }
 
-    // Quick verification of all IDs up front to avoid casting errors
     const allValid = suppliedProducts.every(id => mongoose.Types.ObjectId.isValid(id));
     if (!allValid) {
         return false;
     }
 
-    // Count how many of these products exist, are active, AND belong to this specific store
-    const count = await Product.countDocuments({
+    // Build the query object conditionally depending on whether tenant scope is active
+    const productQuery = buildTenantFilter({ storeId } as any, {
         _id: { $in: suppliedProducts },
-        storeId: storeId,
         isActive: true,
     });
 
-    // If the count matches the input array length, all provided IDs are valid and owned by this store
+    const count = await Product.countDocuments(productQuery);
     return count === suppliedProducts.length;
 };
 
@@ -34,10 +41,8 @@ export const getSuppliers = async (req: Request, res: Response) => {
     try {
         const search = req.query.search as string | undefined;
 
-        const filter: any = {
-            storeId: req.user?.storeId,
-            isActive: true,
-        };
+        // Build base filter with tenant isolation rules applied automatically
+        const filter = buildTenantFilter(req, { isActive: true });
 
         if (search) {
             filter.$or = [
@@ -78,11 +83,8 @@ export const getSupplierById = async (req: Request, res: Response) => {
             return;
         }
 
-        const supplier = await Supplier.findOne({
-            _id: id,
-            storeId: req.user?.storeId,
-            isActive: true,
-        }).populate("suppliedProducts", "name sku price quantity");
+        const query = buildTenantFilter(req, { _id: id, isActive: true });
+        const supplier = await Supplier.findOne(query).populate("suppliedProducts", "name sku price quantity");
 
         if (!supplier) {
             res.status(404).json({
@@ -110,8 +112,7 @@ export const createSupplier = async (req: Request, res: Response) => {
     try {
         const { suppliedProducts } = req.body;
 
-        // Added req.user?.storeId here to ensure the products being linked belong to this store
-        const validProducts = await validateSuppliedProducts(suppliedProducts, req.user?.storeId);
+        const validProducts = await validateSuppliedProducts(suppliedProducts, req.storeId);
 
         if (!validProducts) {
             res.status(400).json({
@@ -121,9 +122,10 @@ export const createSupplier = async (req: Request, res: Response) => {
             return;
         }
 
+        // Explicitly set storeId to prevent standard users from modifying other data environments
         const supplier = await Supplier.create({
             ...req.body,
-            storeId: req.user?.storeId,
+            storeId: req.storeId,
         });
 
         const fullSupplier = await Supplier.findById(supplier._id).populate(
@@ -159,10 +161,9 @@ export const updateSupplier = async (req: Request, res: Response) => {
         }
 
         if (req.body.suppliedProducts) {
-            // Added req.user?.storeId here to prevent cross-tenant product hijacking on update
             const validProducts = await validateSuppliedProducts(
                 req.body.suppliedProducts,
-                req.user?.storeId
+                req.storeId
             );
 
             if (!validProducts) {
@@ -174,12 +175,9 @@ export const updateSupplier = async (req: Request, res: Response) => {
             }
         }
 
+        const query = buildTenantFilter(req, { _id: id, isActive: true });
         const supplier = await Supplier.findOneAndUpdate(
-            {
-                _id: id,
-                storeId: req.user?.storeId,
-                isActive: true,
-            },
+            query,
             req.body,
             {
                 new: true,
@@ -222,18 +220,11 @@ export const deleteSupplier = async (req: Request, res: Response) => {
             return;
         }
 
+        const query = buildTenantFilter(req, { _id: id, isActive: true });
         const supplier = await Supplier.findOneAndUpdate(
-            {
-                _id: id,
-                storeId: req.user?.storeId,
-                isActive: true,
-            },
-            {
-                isActive: false,
-            },
-            {
-                new: true,
-            }
+            query,
+            { isActive: false },
+            { new: true }
         );
 
         if (!supplier) {
@@ -279,12 +270,8 @@ export const addProductToSupplier = async (req: Request, res: Response) => {
             return;
         }
 
-        // Added storeId check to guarantee that this single product belongs to the operating store
-        const product = await Product.findOne({
-            _id: productId,
-            storeId: req.user?.storeId,
-            isActive: true,
-        });
+        const productQuery = buildTenantFilter(req, { _id: productId, isActive: true });
+        const product = await Product.findOne(productQuery);
 
         if (!product) {
             res.status(404).json({
@@ -294,20 +281,11 @@ export const addProductToSupplier = async (req: Request, res: Response) => {
             return;
         }
 
+        const supplierQuery = buildTenantFilter(req, { _id: supplierId, isActive: true });
         const supplier = await Supplier.findOneAndUpdate(
-            {
-                _id: supplierId,
-                storeId: req.user?.storeId,
-                isActive: true,
-            },
-            {
-                $addToSet: {
-                    suppliedProducts: productId,
-                },
-            },
-            {
-                new: true,
-            }
+            supplierQuery,
+            { $addToSet: { suppliedProducts: productId } },
+            { new: true }
         ).populate("suppliedProducts", "name sku price quantity");
 
         if (!supplier) {
@@ -357,20 +335,11 @@ export const removeProductFromSupplier = async (
             return;
         }
 
+        const query = buildTenantFilter(req, { _id: supplierId, isActive: true });
         const supplier = await Supplier.findOneAndUpdate(
-            {
-                _id: supplierId,
-                storeId: req.user?.storeId,
-                isActive: true,
-            },
-            {
-                $pull: {
-                    suppliedProducts: productId,
-                },
-            },
-            {
-                new: true,
-            }
+            query,
+            { $pull: { suppliedProducts: productId } },
+            { new: true }
         ).populate("suppliedProducts", "name sku price quantity");
 
         if (!supplier) {

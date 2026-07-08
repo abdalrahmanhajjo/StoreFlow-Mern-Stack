@@ -12,8 +12,10 @@ import purchaseOrderRoutes from "./routes/purchaseOrderRoutes";
 import storeSettingRoutes from "./routes/storeSettingRoutes";
 
 import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
 
 import cookieParser from 'cookie-parser';
+import storeRoutes from "./routes/store.routes";
 
 
 const app = express();
@@ -30,6 +32,8 @@ app.get("/", (req: Request, res: Response) => {
 
 // API routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/stores", storeRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/customers", customerRoutes);

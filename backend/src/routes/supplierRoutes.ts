@@ -11,21 +11,27 @@ import {
 } from "../controllers/supplierController";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/role.middleware";
+import { tenantScope } from "../middleware/tenant.middleware";
 
 const router = express.Router();
 
-router.get("/", authenticate, authorize("owner"), getSuppliers);
+// Apply Authentication, Tenant Scoping, and Role Authorization globally to all supplier routes
+router.use(authenticate);
+router.use(tenantScope);
+router.use(authorize("owner"));
 
-router.get("/:id", authenticate, authorize("owner"), getSupplierById);
+router.get("/", getSuppliers);
 
-router.post("/", authenticate, authorize("owner"), createSupplier);
+router.get("/:id", getSupplierById);
 
-router.put("/:id", authenticate, authorize("owner"), updateSupplier);
+router.post("/", createSupplier);
 
-router.patch("/:id/products", authenticate, authorize("owner"), addProductToSupplier);
+router.put("/:id", updateSupplier);
 
-router.delete("/:id/products/:productId", authenticate, authorize("owner"), removeProductFromSupplier);
+router.patch("/:id/products", addProductToSupplier);
 
-router.delete("/:id", authenticate, authorize("owner"), deleteSupplier);
+router.delete("/:id/products/:productId", removeProductFromSupplier);
+
+router.delete("/:id", deleteSupplier);
 
 export default router;

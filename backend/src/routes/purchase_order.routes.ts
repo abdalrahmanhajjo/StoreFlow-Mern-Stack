@@ -9,7 +9,7 @@ import {
     receivePurchaseOrder,
     cancelPurchaseOrder,
     deletePurchaseOrder,
-} from "../controllers/purchaseOrderController";
+} from "../controllers/purchase_order.controller";
 
 const router = express.Router();
 

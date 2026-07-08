@@ -8,7 +8,7 @@ import {
     deleteProduct,
     getLowStockProducts,
     updateProductStock,
-} from "../controllers/productController";
+} from "../controllers/product.controller";
 
 const router = express.Router();
 

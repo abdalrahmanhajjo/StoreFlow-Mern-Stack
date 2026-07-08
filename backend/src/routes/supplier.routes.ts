@@ -8,7 +8,7 @@ import {
     deleteSupplier,
     addProductToSupplier,
     removeProductFromSupplier,
-} from "../controllers/supplierController";
+} from "../controllers/supplier.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/role.middleware";
 import { tenantScope } from "../middleware/tenant.middleware";

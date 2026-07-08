@@ -6,7 +6,7 @@ import {
     getInvoiceByNumber,
     createSale,
     voidSale,
-} from "../controllers/saleController";
+} from "../controllers/sale.controller";
 
 const router = express.Router();
 

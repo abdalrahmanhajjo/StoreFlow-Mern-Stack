@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import StoreSetting from "../models/StoreSetting";
+import StoreSetting from "../models/store_setting.model";
 
 // GET store settings
 export const getStoreSetting = async (req: Request, res: Response) => {

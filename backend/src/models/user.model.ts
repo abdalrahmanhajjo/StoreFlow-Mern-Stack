@@ -11,6 +11,18 @@ export interface IUser {
   storeId: Types.ObjectId | null; // null only for platform_admin
   isActive: boolean;
 
+  phone: {
+    countryCode: string;
+    number: string;
+  };
+
+  idVerification: {
+    type: "national_id" | "passport" | "drivers_license";
+    number: string;
+  };
+
+  emailVerified: boolean;
+
   // --- Login lockout state (BS-202) ---
   failedLoginAttempts: number;
   lockUntil: Date | null;
@@ -21,8 +33,6 @@ export interface IUser {
 
   createdAt: Date;
   updatedAt: Date;
-
-  save: (options?: { session?: any }) => Promise<IUser>;
 }
 
 const userSchema = new Schema<IUser>(
@@ -45,6 +55,22 @@ const userSchema = new Schema<IUser>(
     },
     storeId: { type: Schema.Types.ObjectId, ref: 'Store', default: null, index: true },
     isActive: { type: Boolean, default: true },
+
+    phone: {
+      countryCode: { type: String, required: true },
+      number: { type: String, required: true },
+    },
+
+    idVerification: {
+      type: {
+        type: String,
+        enum: ["national_id", "passport", "drivers_license"],
+        required: true,
+      },
+      number: {type: String, required: true },
+    },
+
+    emailVerified: { type: Boolean, default: false},
 
     failedLoginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date, default: null },

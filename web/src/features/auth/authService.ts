@@ -18,8 +18,9 @@ export interface ApprovalStatus {
 }
 
 /** Real API whenever a base URL is configured; otherwise the built-in demo
- * mocks keep the app fully usable without a backend. */
-const USE_MOCK = !import.meta.env.VITE_API_BASE_URL;
+ * mocks keep the app fully usable without a backend. Unit tests always run
+ * on the mocks, whatever .env says. */
+const USE_MOCK = !import.meta.env.VITE_API_BASE_URL || import.meta.env.MODE === 'test';
 
 /** Register form labels → backend businessType enum. */
 const BUSINESS_TYPE_TO_API: Record<string, string> = {

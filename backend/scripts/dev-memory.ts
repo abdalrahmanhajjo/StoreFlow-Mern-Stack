@@ -5,10 +5,12 @@
  *
  *   npm run dev:memory
  */
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 
 async function main() {
-  const mongo = await MongoMemoryServer.create();
+  // Single-node replica set: the sale endpoint uses transactions, which a
+  // standalone mongod refuses ("Transaction numbers are only allowed…").
+  const mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   process.env.MONGO_URI = mongo.getUri('storeflow');
   console.log(`[dev:memory] MongoDB (in-memory) at ${process.env.MONGO_URI}`);
 

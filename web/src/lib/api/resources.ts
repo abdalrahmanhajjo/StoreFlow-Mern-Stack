@@ -1,0 +1,404 @@
+/**
+ * API resource layer: maps between backend documents and the frontend's store
+ * shapes, one section per resource. Imports nothing from the stores at runtime
+ * (type-only imports), so stores can safely import this module for mutation
+ * mirroring without a cycle.
+ *
+ * Connected mode is driven by VITE_API_BASE_URL — unset means the app runs on
+ * its built-in demo seed data and none of these functions are called.
+ */
+import { api } from '@/lib/axios';
+import type { Product, ProductInput } from '@/features/products/productsStore';
+import type { Category } from '@/features/categories/categoriesStore';
+import type { Customer } from '@/features/customers/customersStore';
+import type { Supplier, SupplierInput, PurchaseOrder, POLine } from '@/features/suppliers/supplyStore';
+import type { Sale } from '@/features/sales/salesStore';
+import type { Adjustment, AdjustReason } from '@/features/inventory/inventoryStore';
+import type { Employee, StaffRole } from '@/features/employees/employeesStore';
+
+// Unit tests always run against the demo seed data, whatever .env says.
+export const isConnected =
+  Boolean(import.meta.env.VITE_API_BASE_URL) && import.meta.env.MODE !== 'test';
+
+/** Big enough to pull the whole catalog of a small store in one page. */
+const LIST_LIMIT = 500;
+
+interface Envelope<T> { success: boolean; data: T }
+
+type Doc = Record<string, any>;
+
+const id = (doc: Doc): string => String(doc._id ?? doc.id);
+
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+const CATEGORY_EMOJIS = ['🥤', '🍞', '🥛', '🥬', '🧻', '🥫', '🧴', '📦', '🧀', '🍫'];
+
+/** Stable emoji per category name — the backend doesn't store one. */
+function emojiForCategory(name: string): string {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return CATEGORY_EMOJIS[Math.abs(h) % CATEGORY_EMOJIS.length];
+}
+
+function mapCategory(doc: Doc): Category {
+  return {
+    id: id(doc),
+    name: doc.name,
+    emoji: emojiForCategory(doc.name),
+    description: doc.description ?? '',
+  };
+}
+
+export async function apiListCategories(): Promise<Category[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/categories', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapCategory);
+}
+
+export async function apiCreateCategory(name: string, description: string): Promise<Category> {
+  const { data } = await api.post<Envelope<Doc>>('/categories', {
+    name,
+    description: description || undefined,
+  });
+  return mapCategory(data.data);
+}
+
+export async function apiUpdateCategory(catId: string, patch: { name?: string; description?: string }): Promise<void> {
+  await api.put(`/categories/${catId}`, patch);
+}
+
+export async function apiDeleteCategory(catId: string): Promise<void> {
+  await api.delete(`/categories/${catId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Products
+// ---------------------------------------------------------------------------
+
+function mapProduct(doc: Doc): Product {
+  const category = typeof doc.categoryId === 'object' && doc.categoryId ? doc.categoryId.name : '';
+  return {
+    id: id(doc),
+    name: doc.name,
+    sku: doc.sku,
+    barcode: doc.barcode ?? '',
+    price: doc.price,
+    cost: doc.cost ?? 0,
+    stock: doc.quantity ?? 0,
+    reorderPoint: doc.reorderThreshold ?? 0,
+    emoji: '📦',
+    image: doc.imageUrl ?? '',
+    category,
+  };
+}
+
+export async function apiListProducts(): Promise<Product[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/products', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapProduct);
+}
+
+/** The backend wants a categoryId; the frontend works with category names. */
+function productBody(input: Partial<ProductInput>, categoryId?: string) {
+  return {
+    name: input.name,
+    sku: input.sku,
+    barcode: input.barcode || undefined,
+    price: input.price,
+    cost: input.cost,
+    quantity: input.stock,
+    reorderThreshold: input.reorderPoint,
+    imageUrl: input.image || undefined,
+    ...(categoryId ? { categoryId } : {}),
+  };
+}
+
+export async function apiCreateProduct(input: ProductInput, categoryId: string): Promise<Product> {
+  const { data } = await api.post<Envelope<Doc>>('/products', productBody(input, categoryId));
+  return mapProduct(data.data);
+}
+
+export async function apiUpdateProduct(
+  productId: string,
+  patch: Partial<ProductInput>,
+  categoryId?: string
+): Promise<void> {
+  const body = Object.fromEntries(
+    Object.entries(productBody(patch, categoryId)).filter(([, v]) => v !== undefined)
+  );
+  await api.put(`/products/${productId}`, body);
+}
+
+export async function apiDeleteProduct(productId: string): Promise<void> {
+  await api.delete(`/products/${productId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Customers
+// ---------------------------------------------------------------------------
+
+function mapCustomer(doc: Doc): Customer {
+  return {
+    id: id(doc),
+    name: doc.name,
+    phone: doc.phone ?? '',
+    points: doc.loyaltyPoints ?? 0,
+    spent: doc.totalSpent ?? 0,
+  };
+}
+
+export async function apiListCustomers(): Promise<Customer[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/customers', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapCustomer);
+}
+
+export async function apiCreateCustomer(name: string, phone?: string): Promise<Customer> {
+  const { data } = await api.post<Envelope<Doc>>('/customers', {
+    name,
+    phone: phone || undefined,
+  });
+  return mapCustomer(data.data);
+}
+
+export async function apiUpdateCustomer(customerId: string, patch: { name?: string; phone?: string }): Promise<void> {
+  await api.put(`/customers/${customerId}`, patch);
+}
+
+export async function apiDeleteCustomer(customerId: string): Promise<void> {
+  await api.delete(`/customers/${customerId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Suppliers & purchase orders
+// ---------------------------------------------------------------------------
+
+function mapSupplier(doc: Doc): Supplier {
+  return {
+    id: id(doc),
+    name: doc.name,
+    phone: doc.phone ?? '',
+    email: doc.email ?? '',
+    address: doc.address ?? '',
+  };
+}
+
+export async function apiListSuppliers(): Promise<Supplier[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/suppliers', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapSupplier);
+}
+
+export async function apiCreateSupplier(input: SupplierInput): Promise<Supplier> {
+  const { data } = await api.post<Envelope<Doc>>('/suppliers', {
+    name: input.name,
+    phone: input.phone || undefined,
+    email: input.email || undefined,
+    address: input.address || undefined,
+  });
+  return mapSupplier(data.data);
+}
+
+export async function apiUpdateSupplier(supplierId: string, patch: Partial<SupplierInput>): Promise<void> {
+  const body = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined && v !== ''));
+  await api.put(`/suppliers/${supplierId}`, body);
+}
+
+export async function apiDeleteSupplier(supplierId: string): Promise<void> {
+  await api.delete(`/suppliers/${supplierId}`);
+}
+
+const shortDate = (value: string | undefined): string => {
+  if (!value) return '—';
+  const d = new Date(value);
+  return `${d.toLocaleString('en', { month: 'short' })} ${d.getDate()}`;
+};
+
+function mapPurchaseOrder(doc: Doc): PurchaseOrder {
+  return {
+    id: id(doc),
+    poNo: doc.orderNumber ?? id(doc),
+    supplier: doc.supplierName ?? '',
+    lines: (doc.items ?? []).map((it: Doc): POLine => ({
+      productId: typeof it.productId === 'object' && it.productId ? id(it.productId) : String(it.productId),
+      name: it.productName ?? '',
+      qty: it.quantityOrdered ?? 0,
+    })),
+    status: doc.status === 'received' ? 'received' : 'pending',
+    ordered: shortDate(doc.orderDate ?? doc.createdAt),
+    expected: '—',
+  };
+}
+
+export async function apiListPurchaseOrders(): Promise<PurchaseOrder[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/purchase-orders', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapPurchaseOrder);
+}
+
+export async function apiCreatePurchaseOrder(
+  supplierId: string,
+  items: { productId: string; quantityOrdered: number; unitCost: number }[]
+): Promise<PurchaseOrder> {
+  const { data } = await api.post<Envelope<Doc>>('/purchase-orders', { supplierId, items });
+  return mapPurchaseOrder(data.data);
+}
+
+export async function apiReceivePurchaseOrder(
+  poId: string,
+  receivedItems: { productId: string; quantityReceived: number }[],
+  receivedByName?: string
+): Promise<void> {
+  await api.post(`/purchase-orders/${poId}/receive`, { receivedItems, receivedByName });
+}
+
+export async function apiDeletePurchaseOrder(poId: string): Promise<void> {
+  await api.delete(`/purchase-orders/${poId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Sales
+// ---------------------------------------------------------------------------
+
+function mapSale(doc: Doc): Sale {
+  return {
+    invoiceNo: doc.invoiceNumber ?? id(doc),
+    cashier: doc.cashierName ?? 'Cashier',
+    customerName:
+      typeof doc.customerId === 'object' && doc.customerId ? (doc.customerId.name ?? null) : null,
+    lines: (doc.items ?? []).map((it: Doc) => ({
+      name: it.productName ?? '',
+      qty: it.quantity ?? 0,
+      price: it.unitPrice ?? 0,
+    })),
+    subtotal: doc.subtotal ?? 0,
+    discount: doc.discount ?? 0,
+    pointsRedeemed: 0,
+    tax: doc.taxAmount ?? 0,
+    total: doc.total ?? 0,
+    payment: doc.paymentMethod === 'card' ? 'Card' : doc.paymentMethod === 'mobile_payment' ? 'Mobile' : 'Cash',
+    pointsEarned: doc.loyaltyPointsEarned ?? 0,
+    createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
+  };
+}
+
+export async function apiListSales(): Promise<Sale[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/sales', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapSale);
+}
+
+export interface CreateSaleInput {
+  items: { productId: string; quantity: number }[];
+  /** Absolute discount amount (loyalty redemption folded in). */
+  discount: number;
+  taxRate: number;
+  paymentMethod: 'cash' | 'card';
+  customerId?: string;
+  cashierName?: string;
+}
+
+export async function apiCreateSale(input: CreateSaleInput): Promise<Sale> {
+  const { data } = await api.post<Envelope<Doc>>('/sales', {
+    items: input.items,
+    discount: input.discount || undefined,
+    taxRate: input.taxRate || undefined,
+    paymentMethod: input.paymentMethod,
+    customerId: input.customerId,
+    cashierName: input.cashierName,
+  });
+  return mapSale(data.data);
+}
+
+// ---------------------------------------------------------------------------
+// Stock adjustments
+// ---------------------------------------------------------------------------
+
+const ADJUST_REASONS: AdjustReason[] = ['Restock', 'Damage', 'Recount', 'Expired'];
+
+function mapAdjustment(doc: Doc): Adjustment {
+  // Reason is stored as "Restock — optional note"; split it back apart.
+  const [head, ...rest] = String(doc.reason ?? '').split(' — ');
+  const reason = (ADJUST_REASONS as string[]).includes(head) ? (head as AdjustReason) : 'Recount';
+  const delta =
+    doc.adjustmentType === 'decrease'
+      ? -(doc.quantity ?? 0)
+      : doc.adjustmentType === 'set'
+        ? (doc.newQuantity ?? 0) - (doc.previousQuantity ?? 0)
+        : (doc.quantity ?? 0);
+  return {
+    id: id(doc),
+    productId: typeof doc.productId === 'object' && doc.productId ? id(doc.productId) : String(doc.productId),
+    productName: doc.productName ?? '',
+    delta,
+    reason,
+    note: rest.join(' — '),
+    by: doc.adjustedByName ?? '',
+    at: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
+  };
+}
+
+export async function apiListAdjustments(): Promise<Adjustment[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/stock-adjustments', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapAdjustment);
+}
+
+export async function apiCreateAdjustment(input: {
+  productId: string;
+  delta: number;
+  reason: AdjustReason;
+  note: string;
+  by: string;
+}): Promise<void> {
+  await api.post('/stock-adjustments', {
+    productId: input.productId,
+    adjustmentType: input.delta >= 0 ? 'increase' : 'decrease',
+    quantity: Math.abs(input.delta),
+    reason: input.note ? `${input.reason} — ${input.note}` : input.reason,
+    adjustedByName: input.by || undefined,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Employees (staff user accounts — owner only)
+// ---------------------------------------------------------------------------
+
+function mapEmployee(doc: Doc): Employee {
+  return {
+    id: id(doc),
+    name: doc.name,
+    email: doc.email,
+    role: (['owner', 'manager', 'cashier'].includes(doc.role) ? doc.role : 'cashier') as StaffRole,
+    status: doc.isActive === false ? 'disabled' : 'active',
+  };
+}
+
+export async function apiListEmployees(): Promise<Employee[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/users', { params: { limit: LIST_LIMIT } });
+  return (data.data ?? []).map(mapEmployee);
+}
+
+export async function apiCreateEmployee(input: {
+  name: string;
+  email: string;
+  role: StaffRole;
+  password: string;
+  storeId: string;
+}): Promise<Employee> {
+  const { data } = await api.post<Envelope<Doc>>('/users', {
+    name: input.name,
+    email: input.email,
+    role: input.role,
+    password: input.password,
+    storeId: input.storeId,
+    isEmailVerified: true,
+  });
+  return mapEmployee(data.data);
+}
+
+export async function apiUpdateEmployee(
+  userId: string,
+  patch: { role?: StaffRole; isActive?: boolean }
+): Promise<void> {
+  await api.put(`/users/${userId}`, patch);
+}
+
+export async function apiDeleteEmployee(userId: string): Promise<void> {
+  await api.delete(`/users/${userId}`);
+}

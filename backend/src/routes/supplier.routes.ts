@@ -9,29 +9,57 @@ import {
     addProductToSupplier,
     removeProductFromSupplier,
 } from "../controllers/supplier.controller";
-import { authenticate } from "../middleware/auth.middleware";
-import { authorize } from "../middleware/role.middleware";
-import { tenantScope } from "../middleware/tenant.middleware";
+
+import { validate } from "../middleware/validate.middleware";
+
+import {
+    supplierIdParamSchema,
+    supplierProductParamSchema,
+    createSupplierSchema,
+    updateSupplierSchema,
+    addProductToSupplierSchema,
+} from "../validators/supplier.validator";
 
 const router = express.Router();
 
-// Apply Authentication, Tenant Scoping, and Role Authorization globally to all supplier routes
-router.use(authenticate);
-router.use(tenantScope);
-router.use(authorize("owner"));
-
 router.get("/", getSuppliers);
 
-router.get("/:id", getSupplierById);
+router.get(
+    "/:id",
+    validate(supplierIdParamSchema),
+    getSupplierById
+);
 
-router.post("/", createSupplier);
+router.post(
+    "/",
+    validate(createSupplierSchema),
+    createSupplier
+);
 
-router.put("/:id", updateSupplier);
+router.put(
+    "/:id",
+    validate(supplierIdParamSchema),
+    validate(updateSupplierSchema),
+    updateSupplier
+);
 
-router.patch("/:id/products", addProductToSupplier);
+router.patch(
+    "/:id/products",
+    validate(supplierIdParamSchema),
+    validate(addProductToSupplierSchema),
+    addProductToSupplier
+);
 
-router.delete("/:id/products/:productId", removeProductFromSupplier);
+router.delete(
+    "/:id/products/:productId",
+    validate(supplierProductParamSchema),
+    removeProductFromSupplier
+);
 
-router.delete("/:id", deleteSupplier);
+router.delete(
+    "/:id",
+    validate(supplierIdParamSchema),
+    deleteSupplier
+);
 
 export default router;

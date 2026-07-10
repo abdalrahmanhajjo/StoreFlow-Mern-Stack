@@ -25,9 +25,16 @@ export const validate =
                 return;
             }
 
-            if (result.data.body) req.body = result.data.body;
-            if (result.data.query) req.query = result.data.query;
-            if (result.data.params) req.params = result.data.params;
+            if (result.data.body) {
+                req.body = result.data.body;
+            }
+
+            if (result.data.params) {
+                req.params = result.data.params;
+            }
+
+            // Do NOT assign req.query.
+            // req.query is read-only in your Express version.
 
             next();
         };

@@ -7,6 +7,10 @@ export const getCustomers = async (req: Request, res: Response) => {
     try {
         const search = req.query.search as string | undefined;
 
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
         const filter: any = {
             isActive: true,
         };
@@ -19,13 +23,22 @@ export const getCustomers = async (req: Request, res: Response) => {
             ];
         }
 
-        const customers = await Customer.find(filter).sort({
-            createdAt: -1,
-        });
+        const total = await Customer.countDocuments(filter);
+
+        const customers = await Customer.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
 
         res.status(200).json({
             success: true,
             count: customers.length,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
             data: customers,
         });
     } catch (error: any) {

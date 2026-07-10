@@ -37,3 +37,25 @@ export const resetPasswordSchema = z.object({
   token: z.string().min(10),
   newPassword: z.string().min(8).max(72),
 });
+
+
+export const verifyEmailCodeSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email('Email must be valid')
+    .toLowerCase(),
+
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Verification code must be 6 digits'),
+});
+
+export const resendVerificationCodeSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email('Email must be valid')
+    .toLowerCase(),
+});

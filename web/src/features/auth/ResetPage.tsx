@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from './authService';
 import { Button, Input, Logo } from '@/components/ui';
 
@@ -18,10 +18,17 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
 };
 
-// SF-104: neutral success, no account enumeration
+// SF-104: neutral success, no account enumeration.
+// Two shapes of the same page:
+//  - demo: email → 6-digit code → new password (all local)
+//  - connected: email → "check your inbox"; the emailed link comes back here
+//    as /reset-password?token=… and opens straight on the new-password step.
 export default function ResetPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const [params] = useSearchParams();
+  const resetToken = params.get('token');
+  const [step, setStep] = useState(resetToken ? 2 : 0);
+  const [serverError, setServerError] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -53,8 +60,12 @@ export default function ResetPage() {
     e.preventDefault();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
     setBusy(true);
-    await authService.requestReset(email);
+    await authService.requestReset(email).catch(() => undefined); // neutral either way
     setBusy(false);
+    if (authService.usesResetLink) {
+      setStep(3); // check-your-inbox screen; the emailed link continues the flow
+      return;
+    }
     setStep(1);
     startResendTimer();
     setTimeout(() => otpInputsRef.current[0]?.focus(), 100);
@@ -89,7 +100,7 @@ export default function ResetPage() {
     }, 100);
   }
 
-  function handleResetPassword(e: React.FormEvent) {
+  async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
     let err = false;
     if (password.length < 8) { setPasswordError('At least 8 characters'); err = true; }
@@ -102,6 +113,21 @@ export default function ResetPage() {
     else { setConfirmError(''); }
 
     if (err) return;
+
+    if (authService.usesResetLink && resetToken) {
+      setBusy(true);
+      setServerError('');
+      try {
+        await authService.resetPassword(resetToken, password);
+        setDone(true);
+      } catch (ex) {
+        setServerError((ex as Error)?.message || 'This reset link is invalid or expired. Request a new one.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     setDone(true);
   }
 
@@ -204,6 +230,21 @@ export default function ResetPage() {
             </div>
           )}
 
+          {/* Step 3 — connected mode: the reset continues from the emailed link */}
+          {step === 3 && !done && (
+            <div className="sf-enter">
+              <h2 className="display" style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Check your email</h2>
+              <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+                If an account exists for <strong style={{ color: 'var(--ink)' }}>{email}</strong>,
+                we&apos;ve sent a password reset link. Open it on this device to choose a new password.
+              </p>
+              <Button type="button" fullWidth variant="ghost" onClick={() => setStep(0)}>Use a different email</Button>
+              <p style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: 'var(--ink-faint)' }}>
+                <Link to="/login" style={{ color: 'var(--blue)', fontWeight: 600, textDecoration: 'none' }}>Back to sign in</Link>
+              </p>
+            </div>
+          )}
+
           {/* Step 2 — New password */}
           {step === 2 && !done && (
             <div className="sf-enter">
@@ -223,6 +264,9 @@ export default function ResetPage() {
                   error={confirmError}
                   leftIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
                 />
+                {serverError && (
+                  <p role="alert" style={{ fontSize: 12.5, color: 'var(--red)', margin: '0 0 12px' }}>{serverError}</p>
+                )}
                 <Button type="submit" fullWidth isLoading={busy}>Reset password</Button>
               </form>
               <p style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: 'var(--ink-faint)' }}>

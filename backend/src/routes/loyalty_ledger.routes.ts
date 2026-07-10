@@ -10,20 +10,59 @@ import {
     deleteLoyaltyLedger,
 } from "../controllers/loyalty_ledger.controller";
 
+import { validate } from "../middleware/validate.middleware";
+
+import {
+    loyaltyLedgerIdParamSchema,
+    loyaltyCustomerIdParamSchema,
+    loyaltyLedgerQuerySchema,
+    earnPointsSchema,
+    redeemPointsSchema,
+    adjustPointsSchema,
+} from "../validators/loyaltyLedger.validator";
+
 const router = express.Router();
 
-router.get("/", getLoyaltyLedgers);
+router.get(
+    "/",
+    validate(loyaltyLedgerQuerySchema),
+    getLoyaltyLedgers
+);
 
-router.get("/customer/:customerId", getCustomerLoyaltyLedger);
+router.get(
+    "/customer/:customerId",
+    validate(loyaltyCustomerIdParamSchema),
+    getCustomerLoyaltyLedger
+);
 
-router.get("/:id", getLoyaltyLedgerById);
+router.post(
+    "/earn",
+    validate(earnPointsSchema),
+    earnPoints
+);
 
-router.post("/earn", earnPoints);
+router.post(
+    "/redeem",
+    validate(redeemPointsSchema),
+    redeemPoints
+);
 
-router.post("/redeem", redeemPoints);
+router.post(
+    "/adjust",
+    validate(adjustPointsSchema),
+    adjustPoints
+);
 
-router.post("/adjust", adjustPoints);
+router.get(
+    "/:id",
+    validate(loyaltyLedgerIdParamSchema),
+    getLoyaltyLedgerById
+);
 
-router.delete("/:id", deleteLoyaltyLedger);
+router.delete(
+    "/:id",
+    validate(loyaltyLedgerIdParamSchema),
+    deleteLoyaltyLedger
+);
 
 export default router;

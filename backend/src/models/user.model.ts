@@ -8,9 +8,13 @@ export interface IUser {
   email: string;
   passwordHash: string;
   role: UserRole;
-  storeId: Types.ObjectId | null; // null only for platform_admin
+  storeId: Types.ObjectId | null;
   isActive: boolean;
 
+  // --- Email verification state ---
+  isEmailVerified: boolean;
+  emailVerificationCodeHash: string | null;
+  emailVerificationCodeExpires: Date | null;
   phone: {
     countryCode: string;
     number: string;
@@ -38,6 +42,7 @@ export interface IUser {
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: true, trim: true },
+
     email: {
       type: String,
       required: true,
@@ -46,16 +51,42 @@ const userSchema = new Schema<IUser>(
       trim: true,
       index: true,
     },
-    // select: false -> never returned by default; must .select('+passwordHash') explicitly.
+
     passwordHash: { type: String, required: true, select: false },
+
     role: {
       type: String,
       enum: ['platform_admin', 'owner', 'manager', 'cashier'],
       required: true,
     },
-    storeId: { type: Schema.Types.ObjectId, ref: 'Store', default: null, index: true },
+
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      default: null,
+      index: true,
+    },
+
     isActive: { type: Boolean, default: true },
 
+    // --- Email verification state ---
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    emailVerificationCodeHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    emailVerificationCodeExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
     phone: {
       countryCode: { type: String, required: true },
       number: { type: String, required: true },
@@ -73,10 +104,20 @@ const userSchema = new Schema<IUser>(
     emailVerified: { type: Boolean, default: false},
 
     failedLoginAttempts: { type: Number, default: 0 },
+
     lockUntil: { type: Date, default: null },
 
-    passwordResetTokenHash: { type: String, default: null, select: false },
-    passwordResetExpires: { type: Date, default: null, select: false },
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true }
 );

@@ -7,14 +7,32 @@ import {
     resetStoreSetting,
 } from "../controllers/store_setting.controller";
 
+import { validate } from "../middleware/validate.middleware";
+
+import {
+    createStoreSettingSchema,
+    updateStoreSettingSchema,
+} from "../validators/storeSetting.validator";
+
 const router = express.Router();
 
 router.get("/", getStoreSetting);
 
-router.post("/", createStoreSetting);
+router.post(
+    "/",
+    validate(createStoreSettingSchema),
+    createStoreSetting
+);
 
-router.put("/", updateStoreSetting);
+router.put(
+    "/",
+    validate(updateStoreSettingSchema),
+    updateStoreSetting
+);
 
-router.patch("/reset", resetStoreSetting);
+router.patch(
+    "/reset",
+    resetStoreSetting
+);
 
 export default router;

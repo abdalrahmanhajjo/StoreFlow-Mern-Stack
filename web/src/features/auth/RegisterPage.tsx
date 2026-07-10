@@ -3,8 +3,9 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
 import { registerSchema, type RegisterInput } from './schemas';
-import { useRegister } from './hooks';
-import { Button, Input, Logo, PhoneCodeSelect } from '@/components/ui';
+import { useRegister, useVerifyEmail } from './hooks';
+import { authService } from './authService';
+import { Button, Input, Logo, PhoneCodeSelect, toast } from '@/components/ui';
 
 const STEPS = ['Business', 'Owner identity', 'Account', 'Verify'] as const;
 
@@ -53,6 +54,7 @@ const selBase: CSSProperties = {
 
 export default function RegisterPage() {
   const reg = useRegister();
+  const verify = useVerifyEmail();
   const [step, setStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const topRef = useRef<HTMLDivElement>(null);
@@ -64,7 +66,6 @@ export default function RegisterPage() {
 
   const {
     register: regField,
-    handleSubmit,
     trigger,
     watch,
     setFocus,
@@ -102,7 +103,14 @@ export default function RegisterPage() {
     const fields = stepFields[step];
     if (fields.length === 0) return;
     const valid = await trigger(fields as (keyof RegisterInput)[]);
-    if (valid) advance();
+    if (!valid) return;
+    // Leaving the Account step submits the registration — the server creates
+    // the store + owner and emails the 6-digit code the Verify step asks for.
+    if (step === 2) {
+      reg.mutate(vals, { onSuccess: () => advance() });
+      return;
+    }
+    advance();
   }
 
   function advance() {
@@ -165,7 +173,18 @@ export default function RegisterPage() {
       setOtpError('Enter the complete 6-digit code');
       return;
     }
-    reg.mutate({ ...vals, otp: code });
+    verify.mutate(
+      { email: vals.email, code },
+      { onError: (err) => setOtpError(err.message || 'Verification failed — check the code and try again') }
+    );
+  }
+
+  function handleResendCode() {
+    startResendTimer();
+    authService
+      .resendVerificationCode(vals.email)
+      .then(() => toast.success('New code sent', vals.email))
+      .catch(() => toast.error('Could not resend the code. Please try again.'));
   }
 
   const selStyle = { ...selBase, outline: 'none' } as CSSProperties;
@@ -440,7 +459,7 @@ export default function RegisterPage() {
                       <>Resend code in <strong>{resendTimer}s</strong></>
                     ) : (
                       <button
-                        type="button" onClick={startResendTimer}
+                        type="button" onClick={handleResendCode}
                         style={{ background: 'none', border: 'none', color: 'var(--blue)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', padding: 0 }}
                       >
                         Resend code
@@ -472,7 +491,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Navigation */}
-          <form onSubmit={handleSubmit((v) => reg.mutate(v))} noValidate>
+          <form onSubmit={(e) => { e.preventDefault(); if (step < STEPS.length - 1) next(); else handleVerifyOtp(); }} noValidate>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
               {step > 0 ? (
                 <Button type="button" variant="ghost" onClick={goBack} style={{ flex: 1 }}>
@@ -485,15 +504,15 @@ export default function RegisterPage() {
                 <div style={{ flex: 1 }} />
               )}
               {step < STEPS.length - 1 ? (
-                <Button type="button" onClick={next} style={{ flex: 1, letterSpacing: '0.01em' }}>
-                  Continue
+                <Button type="button" onClick={next} isLoading={reg.isPending} style={{ flex: 1, letterSpacing: '0.01em' }}>
+                  {reg.isPending ? 'Creating store…' : 'Continue'}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
                 </Button>
               ) : (
-                <Button type="button" onClick={handleVerifyOtp} fullWidth isLoading={reg.isPending} style={{ letterSpacing: '0.01em' }}>
-                  {reg.isPending ? 'Creating store…' : 'Create store'}
+                <Button type="button" onClick={handleVerifyOtp} fullWidth isLoading={verify.isPending} style={{ letterSpacing: '0.01em' }}>
+                  {verify.isPending ? 'Verifying…' : 'Create store'}
                 </Button>
               )}
             </div>

@@ -25,16 +25,28 @@ export function useLogin(returnTo?: string) {
   });
 }
 
+/** Creates the store + owner and triggers the verification email. Navigation
+ * happens after the email code is confirmed (see useVerifyEmail). */
 export function useRegister() {
-  const navigate = useNavigate();
   return useMutation<void, ApiErr, RegisterInput>({
     mutationFn: (input) => authService.register(input),
-    onSuccess: (_data, input) => {
-      toast.success('Registration submitted', 'Application received');
-      navigate(`/pending-approval?email=${encodeURIComponent(input.email)}`, { replace: true });
+    onSuccess: () => {
+      toast.success('Verification code sent', 'Check your email');
     },
-    onError: () => {
-      toast.error('Registration failed. Please try again.');
+    onError: (err) => {
+      toast.error(err.message || 'Registration failed. Please try again.');
+    },
+  });
+}
+
+/** Confirms the 6-digit email code, then hands off to the approval screen. */
+export function useVerifyEmail() {
+  const navigate = useNavigate();
+  return useMutation<void, ApiErr, { email: string; code: string }>({
+    mutationFn: ({ email, code }) => authService.verifyEmailCode(email, code),
+    onSuccess: (_data, { email }) => {
+      toast.success('Email verified', 'Application received');
+      navigate(`/pending-approval?email=${encodeURIComponent(email)}`, { replace: true });
     },
   });
 }

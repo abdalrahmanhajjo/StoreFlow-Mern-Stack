@@ -44,23 +44,30 @@ api.interceptors.response.use(
     let code: ApiError['code'];
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') code = 'TIMEOUT';
     else if (status === 401) code = 'UNAUTHENTICATED';
-    else if (status === 403) code = 'FORBIDDEN';
+    // A 403 with a server code is a domain state (PENDING_APPROVAL,
+    // EMAIL_UNVERIFIED, …) the UI switches on — don't flatten it to FORBIDDEN.
+    else if (status === 403) code = data?.code ?? 'FORBIDDEN';
     else if (status === 429) code = 'RATE_LIMITED';
     else if (status && status >= 500) code = 'SERVER';
     else if (!error.response) code = 'NETWORK';
     else code = data?.code ?? 'NETWORK';
 
+    const domain403 = status === 403 && Boolean(data?.code) && Boolean(data?.message);
+
     const normalised: ApiError = {
       code,
       status,
       retryAfter,
-      // Prefer a safe status-based message; only trust a server message for 4xx validation errors.
+      // Prefer a safe status-based message; only trust a server message for 4xx
+      // validation errors and coded 403 domain states.
       message:
         code === 'TIMEOUT'
           ? 'The request timed out. Please check your connection and try again.'
-          : status && status < 500 && status !== 401 && status !== 403 && status !== 429
-            ? (data?.message ?? messageForStatus(status, 'Request failed'))
-            : messageForStatus(status, data?.message ?? 'Network error'),
+          : domain403
+            ? data!.message!
+            : status && status < 500 && status !== 401 && status !== 403 && status !== 429
+              ? (data?.message ?? messageForStatus(status, 'Request failed'))
+              : messageForStatus(status, data?.message ?? 'Network error'),
       fields: data?.fields,
     };
     return Promise.reject(normalised);

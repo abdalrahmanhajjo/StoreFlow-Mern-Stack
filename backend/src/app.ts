@@ -26,8 +26,26 @@ import storeRoutes from "./routes/store.routes";
 const app = express();
 
 app.use(cookieParser());
-// Middlewares
-app.use(cors());
+// Middlewares — credentials:true lets the browser send the HttpOnly refresh
+// cookie cross-origin, which requires an explicit origin (no wildcard).
+// Outside production any localhost port is accepted, since Vite hops ports
+// when 5173 is busy.
+const allowedOrigin = process.env.CLIENT_APP_URL ?? "http://localhost:5173";
+app.use(
+    cors({
+        origin:
+            process.env.NODE_ENV === "production"
+                ? allowedOrigin
+                : (origin, cb) =>
+                      cb(
+                          null,
+                          !origin ||
+                              origin === allowedOrigin ||
+                              /^http:\/\/localhost:\d+$/.test(origin)
+                      ),
+        credentials: true,
+    })
+);
 app.use(express.json());
 
 // Test route

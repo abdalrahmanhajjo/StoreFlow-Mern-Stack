@@ -75,7 +75,7 @@ export function Modal({
   return createPortal(
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', display: 'grid', placeItems: 'center', zIndex: 900, padding: 20 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(17,17,16,.5)', display: 'grid', placeItems: 'center', zIndex: 900, padding: 20 }}
     >
       <div
         ref={dialogRef}

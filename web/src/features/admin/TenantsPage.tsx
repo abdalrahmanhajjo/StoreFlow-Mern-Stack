@@ -150,7 +150,7 @@ export default function TenantsPage() {
                 style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
                 <div style={{ padding: isMobile ? 14 : 16 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? 10 : 12, marginBottom: 10 }}>
-                    <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: t.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>{t.initials}</div>
+                    <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: t.color, color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>{t.initials}</div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: isMobile ? 14 : 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
                       <div style={{ fontSize: isMobile ? 12 : 12, color: 'var(--ink-soft)' }}>{t.owner} · {t.type}</div>
@@ -210,7 +210,7 @@ export default function TenantsPage() {
             <div style={{ padding: isMobile ? '16px 18px' : '20px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 9, background: selected.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{selected.initials}</div>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: selected.color, color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{selected.initials}</div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: isMobile ? 16 : 17, fontWeight: 700, color: 'var(--ink)' }}>{selected.name}</h3>
                     <p style={{ margin: '1px 0 0', fontSize: isMobile ? 12 : 12.5, color: 'var(--ink-soft)' }}>{selected.owner} · {selected.type}</p>
@@ -327,7 +327,7 @@ function StaffTab({ tenant, users, isMobile }: { tenant: Tenant; users: { name: 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {storeUsers.map((u) => (
             <div key={u.email} style={{ background: 'var(--paper)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: isMobile ? '12px 14px' : '12px 16px', display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: u.role === 'Platform admin' ? '#8B5CF6' : u.role === 'Owner' ? '#D97706' : u.role === 'Manager' ? '#2563EB' : '#64748B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: u.role === 'Platform admin' ? '#6a5d78' : u.role === 'Owner' ? '#a8731d' : u.role === 'Manager' ? '#131312' : '#85857e', color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                 {u.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

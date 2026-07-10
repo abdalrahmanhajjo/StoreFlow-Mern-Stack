@@ -20,14 +20,15 @@ const base: React.CSSProperties = {
   borderRadius: 10,
   border: '1px solid transparent',
   fontWeight: 600,
-  transition: 'background .14s, box-shadow .14s, transform .05s',
+  letterSpacing: '.01em',
+  transition: 'background .14s, box-shadow .14s, transform .05s, border-color .14s',
 };
 
 const variants: Record<Variant, React.CSSProperties> = {
-  primary: { background: 'linear-gradient(180deg,#3B82F6,#2563EB)', color: '#fff', boxShadow: '0 4px 12px -3px rgba(37,99,235,.5)' },
-  ghost: { background: 'var(--card)', color: 'var(--ink)', borderColor: 'var(--line)' },
-  dark: { background: 'var(--navy)', color: '#fff' },
-  danger: { background: 'var(--red)', color: '#fff' },
+  primary: { background: 'var(--ink)', color: 'var(--card)' },
+  ghost: { background: 'var(--card)', color: 'var(--ink)', borderColor: 'var(--ink)' },
+  dark: { background: 'var(--ink)', color: 'var(--card)' },
+  danger: { background: 'var(--red)', color: 'var(--card)' },
 };
 
 const sizes: Record<Size, React.CSSProperties> = {

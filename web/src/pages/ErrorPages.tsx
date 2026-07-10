@@ -6,11 +6,11 @@ function Shell({ code, title, msg, icon }: { code: string; title: string; msg: s
     <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', textAlign: 'center', padding: 24, background: 'var(--paper)' }}>
       <div style={{ maxWidth: 380 }}>
         <div style={{ marginBottom: 8 }}>{icon}</div>
-        <div className="display" style={{ fontSize: 56, fontWeight: 800, color: code === '403' ? '#EF4444' : 'var(--blue)' }}>{code}</div>
+        <div className="display" style={{ fontSize: 56, fontWeight: 800, color: code === '403' ? 'var(--red-bright)' : 'var(--blue)' }}>{code}</div>
         <h1 className="display" style={{ color: 'var(--ink)', margin: '4px 0 8px', fontSize: 22 }}>{title}</h1>
         <p style={{ color: 'var(--ink-soft)', margin: '0 0 24px', fontSize: 14, lineHeight: 1.5 }}>{msg}</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <Link to="/dashboard" style={{ background: 'linear-gradient(180deg,#3B82F6,#2563EB)', color: '#fff', padding: '10px 20px', borderRadius: 10, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>
+          <Link to="/dashboard" style={{ background: 'var(--ink)', color: 'var(--card)', padding: '10px 20px', borderRadius: 10, fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>
             Go to dashboard
           </Link>
           {code !== '403' && (

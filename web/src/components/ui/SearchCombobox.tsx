@@ -64,7 +64,7 @@ export function SearchCombobox({ placeholder, label, options, onSearch, onSelect
         style={{ width: '100%', padding: '9px 11px', border: '1px solid var(--line)', borderRadius: 9, fontFamily: 'inherit', fontSize: 13, color: 'var(--ink)', background: 'var(--paper)' }}
       />
       {open && (query || options.length > 0) && (
-        <div id={listId} role="listbox" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid var(--line)', borderRadius: 10, boxShadow: 'var(--shadow-md)', zIndex: 20, maxHeight: 224, overflow: 'auto' }}>
+        <div id={listId} role="listbox" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, boxShadow: 'var(--shadow-md)', zIndex: 20, maxHeight: 224, overflow: 'auto' }}>
           {options.map((o, i) => (
             <div
               key={o.value}

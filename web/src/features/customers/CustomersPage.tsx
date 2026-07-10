@@ -10,10 +10,10 @@ import { money, points as fmtPoints } from '@/lib/format';
 import { Modal, Button, TierBadge, toast, confirmDialog } from '@/components/ui';
 
 const TIER_COLORS: Record<string, string> = {
-  Bronze: '#b45309', Silver: '#64748b', Gold: '#ca8a04',
+  Bronze: 'var(--amber-deep)', Silver: 'var(--ink-faint)', Gold: 'var(--amber-deep)',
 };
 const TIER_BG: Record<string, string> = {
-  Bronze: '#fef3c7', Silver: '#f1f5f9', Gold: '#fef9c3',
+  Bronze: 'var(--amber-soft)', Silver: 'var(--paper)', Gold: 'var(--amber-soft)',
 };
 
 const TIER_THRESHOLDS = [
@@ -137,7 +137,7 @@ export default function CustomersPage() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or phone…" style={{ padding: isMobile ? '11px 14px' : '9px 14px', border: '1px solid var(--line)', borderRadius: 9, fontSize: isMobile ? 16 : 13, fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--card)', width: isMobile ? '100%' : undefined, flex: isMobile ? undefined : '1 1 200px', minWidth: isMobile ? undefined : 160 }} />
         <div style={{ display: 'flex', gap: 3, width: isMobile ? '100%' : undefined }}>
           {(['all', 'Bronze', 'Silver', 'Gold'] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setTierFilter(t)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '10px 0' : '7px 14px', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: tierFilter === t ? '#0f172a' : '#fff', color: tierFilter === t ? '#fff' : 'var(--ink-soft)' }}>
+            <button key={t} type="button" onClick={() => setTierFilter(t)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '10px 0' : '7px 14px', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: tierFilter === t ? 'var(--ink)' : 'var(--card)', color: tierFilter === t ? 'var(--card)' : 'var(--ink-soft)' }}>
               {t === 'all' ? 'All' : t}
             </button>
           ))}

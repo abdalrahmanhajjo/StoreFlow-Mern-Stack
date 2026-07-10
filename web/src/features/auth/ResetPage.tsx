@@ -6,7 +6,7 @@ import { Button, Input, Logo } from '@/components/ui';
 const s: Record<string, CSSProperties> = {
   page: {
     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'linear-gradient(135deg, #f0f5ff 0%, #f7f9fc 50%, #eef2f8 100%)',
+    background: 'var(--paper)',
     padding: 24,
   },
   card: {
@@ -169,7 +169,7 @@ export default function ResetPage() {
                     style={{
                       width: 48, height: 54, textAlign: 'center', fontSize: 22, fontWeight: 700,
                       fontFamily: 'inherit', color: 'var(--ink)',
-                      border: `2px solid ${otpError ? '#dc2626' : otpCode[i] ? 'var(--blue)' : 'var(--line)'}`,
+                      border: `2px solid ${otpError ? 'var(--red)' : otpCode[i] ? 'var(--blue)' : 'var(--line)'}`,
                       borderRadius: 12, background: 'var(--card)', outline: 'none',
                       transition: 'border-color .15s, box-shadow .15s', caretColor: 'var(--blue)',
                     }}
@@ -179,7 +179,7 @@ export default function ResetPage() {
                 ))}
               </div>
 
-              {otpError && <p style={{ textAlign: 'center', fontSize: 12, color: '#dc2626', margin: '0 0 8px' }}>{otpError}</p>}
+              {otpError && <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: '0 0 8px' }}>{otpError}</p>}
 
               <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--ink-faint)', margin: '8px 0 0' }}>
                 {resendTimer > 0 ? (
@@ -238,12 +238,12 @@ export default function ResetPage() {
               <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)' }}>Your password has been updated successfully.</p>
               <div style={{
                 padding: 16, borderRadius: 12, background: 'var(--green-soft)',
-                border: '1px solid #bbf7d0', marginBottom: 24, display: 'flex', gap: 10, alignItems: 'flex-start',
+                border: '1px solid #c4d9c8', marginBottom: 24, display: 'flex', gap: 10, alignItems: 'flex-start',
               }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2e7d43" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                <p style={{ fontSize: 13, color: '#166534', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13, color: 'var(--green-deep)', margin: 0, lineHeight: 1.5 }}>
                   You can now sign in with your new password.
                 </p>
               </div>

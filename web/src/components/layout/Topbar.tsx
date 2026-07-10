@@ -1,11 +1,20 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '@/store/session';
 import { authService } from '@/features/auth/authService';
+import { getTheme, setTheme, type Theme } from '@/lib/theme';
 import { Button } from '@/components/ui';
 
 export function Topbar({ title, onMenu, showMenu, isOpen }: { title: string; onMenu: () => void; showMenu: boolean; isOpen?: boolean }) {
   const clear = useSession((s) => s.clear);
   const navigate = useNavigate();
+  const [theme, setThemeState] = useState<Theme>(getTheme);
+
+  const toggleTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    setThemeState(next);
+  };
 
   const logout = async () => {
     await authService.logout();
@@ -28,9 +37,9 @@ export function Topbar({ title, onMenu, showMenu, isOpen }: { title: string; onM
         }
       `}</style>
       <header className="sf-topbar" style={{
-        height: 62, background: 'rgba(255,255,255,.82)',
-        backdropFilter: 'saturate(1.4) blur(10px)',
-        WebkitBackdropFilter: 'saturate(1.4) blur(10px)',
+        height: 62, background: 'var(--topbar-glass)',
+        backdropFilter: 'saturate(1.1) blur(10px)',
+        WebkitBackdropFilter: 'saturate(1.1) blur(10px)',
         borderBottom: '1px solid var(--line)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 16px 0 20px', position: 'sticky', top: 0, zIndex: 5,
@@ -57,11 +66,39 @@ export function Topbar({ title, onMenu, showMenu, isOpen }: { title: string; onM
             </button>
           )}
           <div className="display" style={{
-            fontSize: 18, fontWeight: 700, color: 'var(--ink)',
+            fontSize: 19, fontWeight: 800, color: 'var(--ink)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
           }}>{title}</div>
         </div>
-        <Button variant="ghost" size="sm" onClick={logout} style={{ flexShrink: 0 }}>Log out</Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-pressed={theme === 'dark'}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            className="eyebrow"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              border: '1px solid var(--line)', background: 'var(--card)',
+              color: 'var(--ink-soft)', borderRadius: 10, padding: '8px 12px',
+              fontSize: 10.5, cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'background .15s, border-color .15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ink)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--line)'; }}
+          >
+            <span aria-hidden style={{
+              width: 12, height: 12, borderRadius: '50%', flexShrink: 0,
+              border: '1px solid var(--ink-soft)',
+              background: theme === 'dark'
+                ? 'var(--ink-soft)'
+                : 'linear-gradient(90deg, var(--ink-soft) 50%, transparent 50%)',
+              transition: 'background .2s',
+            }} />
+            {theme === 'dark' ? 'Dark' : 'Light'}
+          </button>
+          <Button variant="ghost" size="sm" onClick={logout}>Log out</Button>
+        </div>
       </header>
     </>
   );

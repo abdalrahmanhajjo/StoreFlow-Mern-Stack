@@ -13,12 +13,14 @@ body {
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
 
-.display { font-family: var(--font-display); letter-spacing: -0.022em; }
+.display { font-family: var(--font-display); letter-spacing: -0.03em; }
 .mono { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+/* uppercase micro-label (reference: PRODUCT / QTY / RETRIEVE SALE) */
+.eyebrow { text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
 
-/* SF-1601: visible focus ring — AA-compliant 3px outline with blue-soft */
+/* SF-1601: visible focus ring — AA-compliant outline */
 :focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -29,6 +31,19 @@ button { font-family: inherit; cursor: pointer; }
 
 /* Skip link visibility */
 #main-content { outline: none; }
+
+/* Theme-aware overrides for SVG presentation attributes (icons drawn with
+   palette hexes). CSS wins over presentation attributes, so these follow the
+   active theme; the Logo tile is intentionally not listed — it stays constant
+   on the dark sidebar. */
+[stroke="#131312"] { stroke: var(--ink); }
+[stroke="#2e7d43"] { stroke: var(--green); }
+[stroke="#c93d2e"] { stroke: var(--red); }
+[stroke="#a8731d"] { stroke: var(--amber); }
+[stroke="#9c3225"] { stroke: var(--red); }
+rect[fill="#e3e3df"], circle[fill="#e3e3df"] { fill: var(--line); }
+circle[fill="#c93d2e"] { fill: var(--red); }
+circle[fill="#efefec"] { fill: var(--paper); }
 
 /* SF-1601: ensure body text never drops below 16px on mobile (prevents iOS zoom) */
 @media (max-width: 768px) {

@@ -1,47 +1,147 @@
-/* SF-002: design tokens ported from the StoreFlow prototype */
+/* SF-002: design tokens — monochrome editorial theme (reference: dark-sidebar POS).
+   Light theme values live in :root; dark mode overrides the same variables
+   under [data-theme='dark'] (set on <html> by lib/theme.ts). Only CSS custom
+   property support is required, so this works in older browsers too. */
 :root {
-  --paper: #f7f9fc;
-  --paper-dim: #eef2f8;
+  color-scheme: light;
+
+  --paper: #efefec;
+  --paper-dim: #e7e7e3;
+  --paper-raise: #f4f4f1;
   --card: #ffffff;
-  --ink: #0f172a;
-  --ink-soft: #475569;
-  --ink-faint: #6B7280;
-  --ink-faint-alt: #94a3b8;
-  --line: #e5eaf1;
-  --line-soft: #eef2f7;
+  --card-raise: #fafaf9;
+  --neutral-50: #fafafa;
+  --neutral-75: #f8f8f8;
+  --neutral-100: #f6f6f6;
+  --ink: #131312;
+  --ink-strong: #3a3a37;
+  --ink-soft: #4c4c48;
+  --ink-mid: #5c5c57;
+  --ink-faint: #85857e;
+  --ink-faint-alt: #a3a39c;
+  --line: #e3e3df;
+  --line-soft: #eeeeea;
+  --line-strong: #d6d6d1;
 
-  --blue: #2563eb;
-  --blue-deep: #1d4ed8;
-  --blue-soft: #eff5ff;
-  --blue-border: #bfd3fb;
+  /* accent — monochrome (legacy "blue" names kept so callers don't change) */
+  --blue: #131312;
+  --blue-deep: #000000;
+  --blue-soft: #f0f0ed;
+  --blue-border: #cfcfc9;
 
-  --green: #16a34a;
-  --green-soft: #dcfce7;
-  --red: #dc2626;
-  --red-soft: #fee2e2;
-  --amber: #d97706;
-  --navy: #1e293b;
+  --green: #2e7d43;
+  --green-bright: #3f8f54;
+  --green-vivid: #4caf6d;
+  --green-deep: #25603a;
+  --green-soft: #e6efe7;
+  --green-border: #c4d9c8;
+  --red: #c93d2e;
+  --red-bright: #d65a4c;
+  --red-deep: #9c3225;
+  --red-soft: #f8e7e3;
+  --red-border: #e5c4bd;
+  --amber: #a8731d;
+  --amber-bright: #bd8a30;
+  --amber-strong: #7d5716;
+  --amber-deep: #8a6420;
+  --amber-soft: #f2ead3;
+  --amber-faint: #f7f2e4;
+  --amber-border: #e0d1a8;
+  --navy: #131312;
 
-  --radius: 13px;
-  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.07);
-  --shadow-md: 0 10px 24px -8px rgba(15, 23, 42, 0.16), 0 3px 8px -3px rgba(15, 23, 42, 0.08);
+  /* translucent surfaces */
+  --topbar-glass: rgba(239, 239, 236, .88);
+  --overlay-card: rgba(255, 255, 255, .94);
+  --overlay-chip: rgba(255, 255, 255, .92);
+  --overlay-fade: rgba(255, 255, 255, .6);
 
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Bricolage Grotesque', 'Inter', sans-serif;
+  /* dark shell (sidebar / brand panels) — constant in both themes */
+  --shell: #111110;
+  --shell-raise: #1c1c1a;
+  --shell-line: #2a2a27;
+  --shell-text: #f4f4f1;
+  --shell-muted: #8f8f87;
 
-  /* loyalty tiers */
-  --tier-gold-bg: #fef3c7;
-  --tier-gold-fg: #b45309;
-  --tier-silver-bg: #e2e8f0;
-  --tier-silver-fg: #475569;
-  --tier-bronze-bg: #f1e4d6;
-  --tier-bronze-fg: #8a5a28;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(19, 19, 18, 0.04);
+  --shadow-md: 0 14px 30px -14px rgba(19, 19, 18, 0.22), 0 3px 8px -4px rgba(19, 19, 18, 0.08);
+
+  --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* loyalty tiers (desaturated to sit with the neutral palette) */
+  --tier-gold-bg: #f2ead3;
+  --tier-gold-fg: #8a6420;
+  --tier-silver-bg: #e8e8e4;
+  --tier-silver-fg: #55554f;
+  --tier-bronze-bg: #eee2d3;
+  --tier-bronze-fg: #7c5a30;
 }
 
-/* dark brand-panel gradient utility (auth screens) */
+/* dark theme — same variables, dark values; shell tokens stay constant */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #161615;
+  --paper-dim: #262625;
+  --paper-raise: #1a1a19;
+  --card: #1c1c1b;
+  --card-raise: #191918;
+  --neutral-50: #191918;
+  --neutral-75: #181817;
+  --neutral-100: #171716;
+  --ink: #f0f0ec;
+  --ink-strong: #d0d0c8;
+  --ink-soft: #c2c2ba;
+  --ink-mid: #b3b3ab;
+  --ink-faint: #93938b;
+  --ink-faint-alt: #6e6e67;
+  --line: #2c2c2a;
+  --line-soft: #242423;
+  --line-strong: #3b3b38;
+
+  --blue: #f0f0ec;
+  --blue-deep: #ffffff;
+  --blue-soft: #222221;
+  --blue-border: #454540;
+
+  --green: #7cc492;
+  --green-bright: #66b37d;
+  --green-vivid: #6fc287;
+  --green-deep: #9ad9ae;
+  --green-soft: #1f2c23;
+  --green-border: #33503c;
+  --red: #e57866;
+  --red-bright: #eb8a7a;
+  --red-deep: #f0a396;
+  --red-soft: #342019;
+  --red-border: #503028;
+  --amber: #d3a24d;
+  --amber-bright: #dcae5b;
+  --amber-strong: #e0b76a;
+  --amber-deep: #d3a24d;
+  --amber-soft: #332c1c;
+  --amber-faint: #2a251a;
+  --amber-border: #4d4128;
+  --navy: #f0f0ec;
+
+  --topbar-glass: rgba(22, 22, 21, .88);
+  --overlay-card: rgba(28, 28, 27, .94);
+  --overlay-chip: rgba(28, 28, 27, .92);
+  --overlay-fade: rgba(22, 22, 21, .65);
+
+  --tier-gold-bg: #332c1c;
+  --tier-gold-fg: #d3a24d;
+  --tier-silver-bg: #2a2a28;
+  --tier-silver-fg: #b8b8b0;
+  --tier-bronze-bg: #31281d;
+  --tier-bronze-fg: #c99a5b;
+}
+
+/* dark brand-panel utility (auth screens) — monochrome, constant in both themes */
 .sf-brand-gradient {
   background:
-    radial-gradient(1200px 600px at 18% -10%, rgba(96, 165, 250, 0.55), transparent 55%),
-    radial-gradient(900px 700px at 110% 120%, rgba(29, 78, 216, 0.65), transparent 50%),
-    linear-gradient(150deg, #1d4ed8 0%, #1e3a8a 60%, #172554 100%);
+    radial-gradient(1100px 560px at 16% -12%, rgba(255, 255, 255, 0.07), transparent 55%),
+    radial-gradient(900px 700px at 110% 120%, rgba(255, 255, 255, 0.05), transparent 50%),
+    linear-gradient(160deg, #1a1a18 0%, #111110 55%, #0a0a09 100%);
 }

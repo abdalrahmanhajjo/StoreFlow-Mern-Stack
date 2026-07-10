@@ -1,7 +1,56 @@
 [
-  { "id": "ph_1", "sku": "PH-PARA-500", "name": "Paracetamol 500mg (16)", "price": 12, "unit": "each", "categoryId": "otc", "stock": 200, "barcode": "6221031492013" },
-  { "id": "ph_2", "sku": "PH-AMOX-500", "name": "Amoxicillin 500mg (21)", "price": 45, "unit": "each", "categoryId": "antibiotic", "stock": 40, "prescriptionRequired": true },
-  { "id": "ph_3", "sku": "PH-VITC", "name": "Vitamin C 1000mg", "price": 30, "unit": "each", "categoryId": "supplement", "stock": 75 },
-  { "id": "ph_4", "sku": "PH-INSULIN", "name": "Insulin glargine pen", "price": 210, "unit": "each", "categoryId": "controlled", "stock": 12, "prescriptionRequired": true },
-  { "id": "ph_5", "sku": "PH-COUGH", "name": "Cough syrup 120ml", "price": 38, "unit": "each", "categoryId": "otc", "stock": 55, "ageRestricted": true }
+  {
+    "id": "ph_1",
+    "sku": "PH-PARA-500",
+    "name": "Paracetamol 500mg (16)",
+    "price": 12,
+    "unit": "each",
+    "categoryId": "otc",
+    "stock": 200,
+    "barcode": "6221031492013",
+    "imageUrl": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "ph_2",
+    "sku": "PH-AMOX-500",
+    "name": "Amoxicillin 500mg (21)",
+    "price": 45,
+    "unit": "each",
+    "categoryId": "antibiotic",
+    "stock": 40,
+    "prescriptionRequired": true,
+    "imageUrl": "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "ph_3",
+    "sku": "PH-VITC",
+    "name": "Vitamin C 1000mg",
+    "price": 30,
+    "unit": "each",
+    "categoryId": "supplement",
+    "stock": 75,
+    "imageUrl": "https://images.unsplash.com/photo-1550572017-edd951b55104?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "ph_4",
+    "sku": "PH-INSULIN",
+    "name": "Insulin glargine pen",
+    "price": 210,
+    "unit": "each",
+    "categoryId": "controlled",
+    "stock": 12,
+    "prescriptionRequired": true,
+    "imageUrl": "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "ph_5",
+    "sku": "PH-COUGH",
+    "name": "Cough syrup 120ml",
+    "price": 38,
+    "unit": "each",
+    "categoryId": "otc",
+    "stock": 55,
+    "ageRestricted": true,
+    "imageUrl": "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=640&h=480&fit=crop&auto=format"
+  }
 ]

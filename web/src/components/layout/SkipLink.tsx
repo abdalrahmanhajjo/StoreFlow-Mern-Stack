@@ -19,7 +19,7 @@ export function SkipLink() {
       href="#main-content"
       style={{
         position: 'fixed', top: -100, left: 8, zIndex: 9999,
-        background: '#fff', color: '#2563EB', fontWeight: 700, fontSize: 13,
+        background: 'var(--ink)', color: 'var(--card)', fontWeight: 700, fontSize: 13,
         padding: '10px 18px', borderRadius: 8, textDecoration: 'none',
         boxShadow: '0 4px 12px rgba(0,0,0,.15)',
         transition: 'top .15s',

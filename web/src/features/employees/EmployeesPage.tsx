@@ -6,9 +6,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Modal, Button, Badge, toast, confirmDialog } from '@/components/ui';
 
 const ROLE_COLORS: Record<StaffRole, { bg: string; text: string }> = {
-  owner: { bg: '#fef3c7', text: '#d97706' },
-  manager: { bg: '#dbeafe', text: '#2563eb' },
-  cashier: { bg: '#f1f5f9', text: '#64748b' },
+  owner: { bg: 'var(--amber-soft)', text: 'var(--amber)' },
+  manager: { bg: 'var(--paper-dim)', text: 'var(--ink)' },
+  cashier: { bg: 'var(--paper)', text: 'var(--ink-faint)' },
 };
 const ROLE_LABEL: Record<StaffRole, string> = {
   owner: 'Owner', manager: 'Manager', cashier: 'Cashier',
@@ -91,7 +91,7 @@ export default function EmployeesPage() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or email…" style={{ padding: isMobile ? '11px 14px' : '9px 14px', border: '1px solid var(--line)', borderRadius: 9, fontSize: isMobile ? 16 : 13, fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--card)', width: isMobile ? '100%' : undefined, flex: isMobile ? undefined : '1 1 200px' }} />
         <div style={{ display: 'flex', gap: 3, width: isMobile ? '100%' : undefined }}>
           {(['all', 'manager', 'cashier'] as const).map((r) => (
-            <button key={r} type="button" onClick={() => setRoleFilter(r)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '10px 0' : '7px 14px', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: roleFilter === r ? '#0f172a' : '#fff', color: roleFilter === r ? '#fff' : 'var(--ink-soft)' }}>
+            <button key={r} type="button" onClick={() => setRoleFilter(r)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '10px 0' : '7px 14px', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: roleFilter === r ? 'var(--ink)' : 'var(--card)', color: roleFilter === r ? 'var(--card)' : 'var(--ink-soft)' }}>
               {r === 'all' ? 'All' : ROLE_LABEL[r]}
             </button>
           ))}

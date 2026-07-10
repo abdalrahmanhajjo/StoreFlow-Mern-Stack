@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useProducts, statusFor, type Product } from '../products/productsStore';
-import { ProductThumb, Badge, confirmDialog } from '@/components/ui';
+import { Badge, confirmDialog } from '@/components/ui';
 import { money } from '@/lib/format';
 
 interface Props {
@@ -63,12 +63,13 @@ export function ProductGrid({ query, category, stockFilter, onEdit, writable }: 
     <>
       <style>{`
         .sf-prod-card {
-          transition: box-shadow .2s, transform .2s;
+          transition: border-color .2s, transform .2s;
         }
         .sf-prod-card:hover {
-          box-shadow: 0 8px 24px -8px rgba(0,0,0,.1);
+          border-color: var(--ink);
           transform: translateY(-2px);
         }
+        .sf-prod-card:hover .sf-prod-img { transform: scale(1.04); }
         .sf-prod-card-actions {
           opacity: 0; transition: opacity .15s;
         }
@@ -83,36 +84,41 @@ export function ProductGrid({ query, category, stockFilter, onEdit, writable }: 
         }
       `}</style>
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-        gap: 14,
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+        gap: 12,
       }}>
         {filtered.map((p) => (
           <div
             key={p.id}
             className="sf-prod-card"
             style={{
-              background: 'var(--card)', border: '1px solid var(--line-soft)',
-              borderRadius: 'var(--radius)', overflow: 'hidden',
-              boxShadow: 'var(--shadow)',
+              background: 'var(--card)', border: '1px solid var(--line)',
+              borderRadius: 8, overflow: 'hidden',
             }}
           >
-            <div style={{ padding: 16, paddingBottom: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-                <ProductThumb src={p.image} emoji={p.emoji} alt={p.name} size={52} radius={8} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--ink-faint)' }}>
-                    <span className="mono">{p.sku}</span>
-                    {p.barcode && <span className="mono" style={{ marginLeft: 8 }}>· {p.barcode}</span>}
-                    {p.category && <> · {p.category}</>}
-                  </div>
-                </div>
-              </div>
+            <div style={{ position: 'relative', background: 'var(--paper-dim)', aspectRatio: '4 / 3', overflow: 'hidden' }}>
+              <div aria-hidden style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>{p.emoji}</div>
+              {p.image && (
+                <img
+                  className="sf-prod-img"
+                  src={p.image.replace('w=160&h=160', 'w=480&h=360')}
+                  alt={p.name}
+                  loading="lazy"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform .35s ease' }}
+                />
+              )}
+              <span style={{ position: 'absolute', top: 10, left: 10 }}>{stockBadge(p)}</span>
+            </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span className="mono" style={{ fontSize: 17, fontWeight: 700, color: 'var(--ink)' }}>{money(p.price)}</span>
-                {stockBadge(p)}
+            <div style={{ padding: '12px 14px', borderTop: '1px solid var(--line-soft)' }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span className="mono">{p.sku}</span>
+                {p.barcode && <span className="mono"> · {p.barcode}</span>}
+                {p.category && <> · {p.category}</>}
               </div>
+              <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginTop: 8 }}>{money(p.price)}</div>
             </div>
 
             <div className="sf-prod-card-actions" style={{

@@ -30,7 +30,7 @@ export default function ReceiptPage() {
         </div>
       </div>
 
-      <div id="receipt" style={{ maxWidth: 340, margin: '0 auto', background: '#fff', border: '1px solid var(--line)', boxShadow: 'var(--shadow-md)', borderRadius: 8, padding: '26px 22px', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12, color: 'var(--ink)' }}>
+      <div id="receipt" style={{ maxWidth: 340, margin: '0 auto', background: 'var(--card)', border: '1px solid var(--line)', boxShadow: 'var(--shadow-md)', borderRadius: 8, padding: '26px 22px', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12, color: 'var(--ink)' }}>
         <h4 style={{ fontFamily: 'var(--font-display)', textAlign: 'center', margin: '0 0 2px', fontSize: 16 }}>{store}</h4>
         <div style={{ textAlign: 'center', color: 'var(--ink-soft)' }}>{new Date(sale.createdAt).toLocaleString()}</div>
         <hr style={{ border: 'none', borderTop: '1px dashed var(--ink-faint)', margin: '12px 0' }} />

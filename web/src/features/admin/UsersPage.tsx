@@ -48,7 +48,7 @@ export default function UsersPage() {
   };
 
   const roleColor = (r: string) =>
-    r === 'Platform admin' ? '#8B5CF6' : r === 'Owner' ? '#D97706' : r === 'Manager' ? '#2563EB' : '#64748B';
+    r === 'Platform admin' ? '#6a5d78' : r === 'Owner' ? '#a8731d' : r === 'Manager' ? '#131312' : '#85857e';
 
   return (
     <>
@@ -115,10 +115,10 @@ export default function UsersPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: isMobile ? 10 : 14 }}>
             {rows.map((u) => (
-              <div key={u.id} className="sf-user-card" style={{ background: 'var(--card)', border: u.root ? '1.5px solid #8B5CF6' : '1px solid var(--line-soft)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: u.root ? '0 0 0 2px rgba(139,92,246,.12)' : 'var(--shadow)', position: 'relative' }}>
+              <div key={u.id} className="sf-user-card" style={{ background: 'var(--card)', border: u.root ? '1.5px solid #6a5d78' : '1px solid var(--line-soft)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: u.root ? '0 0 0 2px rgba(139,92,246,.12)' : 'var(--shadow)', position: 'relative' }}>
                 <div style={{ padding: isMobile ? 14 : 16, paddingBottom: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? 10 : 12, marginBottom: 10 }}>
-                    <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: roleColor(u.role), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>
+                    <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: roleColor(u.role), color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>
                       {u.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
@@ -139,7 +139,7 @@ export default function UsersPage() {
                 </div>
 
                 {u.root ? (
-                  <div style={{ borderTop: '1px solid var(--line-soft)', background: 'rgba(139,92,246,.06)', padding: isMobile ? '10px 14px' : '8px 14px', marginTop: 8, fontSize: isMobile ? 12 : 11.5, color: '#7C3AED', fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <div style={{ borderTop: '1px solid var(--line-soft)', background: 'rgba(139,92,246,.06)', padding: isMobile ? '10px 14px' : '8px 14px', marginTop: 8, fontSize: isMobile ? 12 : 11.5, color: '#5c4f66', fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     Protected root admin
                   </div>

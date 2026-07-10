@@ -18,10 +18,10 @@ export interface StatusBannerProps {
 // - Status is conveyed by an icon + a text label, never colour alone (WCAG 1.4.1).
 // - Uses logical CSS properties so it mirrors correctly in RTL.
 const STYLES: Record<StatusVariant, { bg: string; border: string; fg: string; icon: string; label: string }> = {
-  info: { bg: 'var(--blue-soft)', border: 'var(--blue-border)', fg: '#1e3a8a', icon: 'ℹ', label: 'Information' },
-  success: { bg: 'var(--green-soft)', border: '#a7f3d0', fg: '#065f46', icon: '✓', label: 'Success' },
-  warning: { bg: '#fef3c7', border: '#fcd34d', fg: '#92400e', icon: '⚠', label: 'Warning' },
-  error: { bg: 'var(--red-soft)', border: '#f4c9c9', fg: '#991b1b', icon: '✕', label: 'Error' },
+  info: { bg: 'var(--blue-soft)', border: 'var(--blue-border)', fg: 'var(--ink)', icon: 'ℹ', label: 'Information' },
+  success: { bg: 'var(--green-soft)', border: 'var(--green-border)', fg: 'var(--green-deep)', icon: '✓', label: 'Success' },
+  warning: { bg: 'var(--amber-soft)', border: 'var(--amber-border)', fg: 'var(--amber-strong)', icon: '⚠', label: 'Warning' },
+  error: { bg: 'var(--red-soft)', border: 'var(--red-border)', fg: 'var(--red-deep)', icon: '✕', label: 'Error' },
   pending: { bg: 'var(--paper-dim)', border: 'var(--line)', fg: 'var(--ink-soft)', icon: '⏳', label: 'Pending' },
 };
 

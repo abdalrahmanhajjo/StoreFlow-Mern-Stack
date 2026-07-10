@@ -159,7 +159,7 @@ export default function ReportsPage() {
             <div style={{ padding: isMobile ? 8 : 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {cashiers.map((c, i) => (
                 <div key={c.cashier} className="sf-rpt-card" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12, padding: isMobile ? '10px 12px' : '10px 14px', borderRadius: 'var(--radius)', background: 'var(--paper)', border: '1px solid var(--line-soft)' }}>
-                  <div style={{ width: isMobile ? 32 : 34, height: isMobile ? 32 : 34, borderRadius: '50%', background: i === 0 ? '#fef3c7' : i === 1 ? '#f1f5f9' : i === 2 ? '#fef9c3' : 'var(--paper-dim)', color: i === 0 ? '#d97706' : i === 1 ? '#64748b' : i === 2 ? '#ca8a04' : 'var(--ink-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 12 : 13, fontWeight: 800, flexShrink: 0 }}>
+                  <div style={{ width: isMobile ? 32 : 34, height: isMobile ? 32 : 34, borderRadius: '50%', background: i === 0 ? 'var(--amber-soft)' : i === 1 ? 'var(--paper)' : i === 2 ? 'var(--amber-soft)' : 'var(--paper-dim)', color: i === 0 ? 'var(--amber)' : i === 1 ? 'var(--ink-faint)' : i === 2 ? 'var(--amber-deep)' : 'var(--ink-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 12 : 13, fontWeight: 800, flexShrink: 0 }}>
                     {c.cashier.charAt(0).toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>

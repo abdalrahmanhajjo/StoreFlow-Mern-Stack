@@ -1,5 +1,5 @@
 [
-  { "id": "ap1", "name": "Green Leaf Organics", "initials": "GL", "color": "#0EA5A4", "email": "priya@greenleaf.co", "type": "Grocery", "plan": "Pro", "submitted": "8h ago" },
-  { "id": "ap2", "name": "Tech Republic Store", "initials": "TR", "color": "#7C3AED", "email": "sam@techrepublic.io", "type": "Electronics", "plan": "Free", "submitted": "1d ago" },
-  { "id": "ap3", "name": "Quick Cash Mart", "initials": "??", "color": "#DC2626", "email": "noreply@tempmail.xyz", "type": "Unknown", "plan": "Free", "submitted": "2d ago", "flagged": true }
+  { "id": "ap1", "name": "Green Leaf Organics", "initials": "GL", "color": "#4f6d70", "email": "priya@greenleaf.co", "type": "Grocery", "plan": "Pro", "submitted": "8h ago" },
+  { "id": "ap2", "name": "Tech Republic Store", "initials": "TR", "color": "#5c4f66", "email": "sam@techrepublic.io", "type": "Electronics", "plan": "Free", "submitted": "1d ago" },
+  { "id": "ap3", "name": "Quick Cash Mart", "initials": "??", "color": "#c93d2e", "email": "noreply@tempmail.xyz", "type": "Unknown", "plan": "Free", "submitted": "2d ago", "flagged": true }
 ]

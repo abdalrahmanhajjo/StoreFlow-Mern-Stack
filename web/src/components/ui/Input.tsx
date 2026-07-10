@@ -5,6 +5,7 @@ interface Props extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   hint?: string;
   leftIcon?: ReactNode;
+  required?: boolean;
 }
 
 // SF-014b: Input with label, error, and password show/hide toggle.
@@ -29,7 +30,10 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
   return (
     <div style={{ marginBottom: 16 }}>
       {label && (
-        <label htmlFor={inputId} style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>{label}</label>
+        <label htmlFor={inputId} style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>
+          {label}
+          {rest.required && <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span>}
+        </label>
       )}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {leftIcon && <span aria-hidden style={{ position: 'absolute', left: 12, color: 'var(--ink-faint)', display: 'flex' }}>{leftIcon}</span>}

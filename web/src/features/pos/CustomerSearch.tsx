@@ -3,7 +3,7 @@ import { useCustomers, type Customer } from '@/features/customers/customersStore
 import { tierFor, TierBadge } from '@/components/ui';
 import { money, points as fmtPoints } from '@/lib/format';
 
-const AVATARS = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2'];
+const AVATARS = ['#131312', '#5c4f66', '#8a5560', '#c93d2e', '#9a6635', '#8a6420', '#2e7d43', '#4f6d70'];
 
 function initials(name: string): string {
   return name.split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2) || '?';
@@ -86,7 +86,7 @@ export function CustomerSearch({ onSelect, onCreate }: Props) {
         <div
           id={listId}
           role="listbox"
-          style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid var(--line)', borderRadius: 10, boxShadow: 'var(--shadow-md)', zIndex: 20, maxHeight: 280, overflow: 'auto', padding: 4 }}
+          style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, boxShadow: 'var(--shadow-md)', zIndex: 20, maxHeight: 280, overflow: 'auto', padding: 4 }}
         >
           {results.map((c, i) => {
             const tier = tierFor(c.points);
@@ -100,7 +100,7 @@ export function CustomerSearch({ onSelect, onCreate }: Props) {
                 onMouseEnter={() => setActive(i)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 8, cursor: 'pointer', background: i === active ? 'var(--paper)' : '' }}
               >
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: hashColor(c.name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: hashColor(c.name), color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                   {initials(c.name)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>

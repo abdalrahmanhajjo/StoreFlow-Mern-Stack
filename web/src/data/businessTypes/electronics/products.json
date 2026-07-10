@@ -1,7 +1,53 @@
 [
-  { "id": "el_1", "sku": "EL-PHONE-X", "name": "Aurora X smartphone 128GB", "price": 799, "unit": "each", "categoryId": "phones", "stock": 25 },
-  { "id": "el_2", "sku": "EL-LAPTOP-14", "name": "Nimbus 14\" laptop", "price": 1199, "unit": "each", "categoryId": "computers", "stock": 15 },
-  { "id": "el_3", "sku": "EL-HEADPH", "name": "Noise-cancelling headphones", "price": 249, "unit": "each", "categoryId": "audio", "stock": 60 },
-  { "id": "el_4", "sku": "EL-USBC-2M", "name": "USB-C cable 2m", "price": 15.9, "unit": "each", "categoryId": "accessories", "stock": 300, "barcode": "4056572000019" },
-  { "id": "el_5", "sku": "EL-WATCH", "name": "FitPulse smartwatch", "price": 199, "unit": "each", "categoryId": "wearables", "stock": 40 }
+  {
+    "id": "el_1",
+    "sku": "EL-PHONE-X",
+    "name": "Aurora X smartphone 128GB",
+    "price": 799,
+    "unit": "each",
+    "categoryId": "phones",
+    "stock": 25,
+    "imageUrl": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "el_2",
+    "sku": "EL-LAPTOP-14",
+    "name": "Nimbus 14\" laptop",
+    "price": 1199,
+    "unit": "each",
+    "categoryId": "computers",
+    "stock": 15,
+    "imageUrl": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "el_3",
+    "sku": "EL-HEADPH",
+    "name": "Noise-cancelling headphones",
+    "price": 249,
+    "unit": "each",
+    "categoryId": "audio",
+    "stock": 60,
+    "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "el_4",
+    "sku": "EL-USBC-2M",
+    "name": "USB-C cable 2m",
+    "price": 15.9,
+    "unit": "each",
+    "categoryId": "accessories",
+    "stock": 300,
+    "barcode": "4056572000019",
+    "imageUrl": "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "el_5",
+    "sku": "EL-WATCH",
+    "name": "FitPulse smartwatch",
+    "price": 199,
+    "unit": "each",
+    "categoryId": "wearables",
+    "stock": 40,
+    "imageUrl": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=640&h=480&fit=crop&auto=format"
+  }
 ]

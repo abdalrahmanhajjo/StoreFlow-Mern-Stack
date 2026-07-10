@@ -26,7 +26,7 @@ export function OfflineBanner() {
           @media (prefers-reduced-motion: reduce) { .sf-offline-banner { animation: none; } }
         `}</style>
       )}
-      <div role="status" className="sf-offline-banner" style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'var(--red)', color: '#fff', textAlign: 'center', padding: '8px 12px', fontSize: 12.5, fontWeight: 600, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <div role="status" className="sf-offline-banner" style={{ position: 'fixed', top: 0, left: 0, right: 0, background: 'var(--red)', color: 'var(--card)', textAlign: 'center', padding: '8px 12px', fontSize: 12.5, fontWeight: 600, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
           <line x1="1" y1="1" x2="23" y2="23" />
           <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />

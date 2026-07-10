@@ -3,9 +3,9 @@ import type { ReactNode } from 'react';
 type Tone = 'green' | 'red' | 'amber' | 'grey' | 'blue';
 
 const tones: Record<Tone, React.CSSProperties> = {
-  green: { background: 'var(--green-soft)', color: '#15803d' },
-  red: { background: 'var(--red-soft)', color: '#b91c1c' },
-  amber: { background: '#fef3c7', color: '#b45309' },
+  green: { background: 'var(--green-soft)', color: 'var(--green)' },
+  red: { background: 'var(--red-soft)', color: 'var(--red)' },
+  amber: { background: 'var(--amber-soft)', color: 'var(--amber)' },
   grey: { background: 'var(--paper-dim)', color: 'var(--ink-soft)' },
   blue: { background: 'var(--blue-soft)', color: 'var(--blue-deep)' },
 };

@@ -144,7 +144,7 @@ export default function InventoryPage() {
         {[
           { label: 'Total', value: products.length, color: 'var(--ink)' },
           { label: 'In stock', value: products.length - lowStock.length, color: 'var(--green)' },
-          { label: 'Low stock', value: warnCount, color: '#d97706' },
+          { label: 'Low stock', value: warnCount, color: 'var(--amber)' },
           { label: 'Out of stock', value: outCount, color: 'var(--red)' },
         ].map((s) => (
           <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: isMobile ? '10px 12px' : '14px 16px', boxShadow: 'var(--shadow)' }}>
@@ -191,11 +191,11 @@ export default function InventoryPage() {
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: isMobile ? 10.5 : 11, color: 'var(--ink-soft)' }}>Stock</span>
-                    <span className="mono" style={{ fontSize: isMobile ? 12 : 13, fontWeight: 800, color: st === 'Out of stock' ? 'var(--red)' : '#d97706' }}>{p.stock} <span style={{ fontWeight: 400, color: 'var(--ink-faint)' }}>/ {p.reorderPoint}</span></span>
+                    <span className="mono" style={{ fontSize: isMobile ? 12 : 13, fontWeight: 800, color: st === 'Out of stock' ? 'var(--red)' : 'var(--amber)' }}>{p.stock} <span style={{ fontWeight: 400, color: 'var(--ink-faint)' }}>/ {p.reorderPoint}</span></span>
                   </div>
 
                   <div style={{ height: 6, background: 'var(--line-soft)', borderRadius: 3, marginBottom: 12, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: st === 'Out of stock' ? 'var(--red)' : '#d97706', transition: 'width .3s' }} />
+                    <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: st === 'Out of stock' ? 'var(--red)' : 'var(--amber)', transition: 'width .3s' }} />
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -223,7 +223,7 @@ export default function InventoryPage() {
             <input value={histQuery} onChange={(e) => setHistQuery(e.target.value)} placeholder="Search product…" style={{ flex: 1, padding: isMobile ? '10px 12px' : '7px 12px', border: '1px solid var(--line)', borderRadius: 8, fontSize: isMobile ? 14 : 12.5, fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--paper)' }} />
             <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
               {(['all', ...REASONS] as const).map((r) => (
-                <button key={r} type="button" onClick={() => setHistReason(r)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '8px 0' : '4px 10px', borderRadius: 6, fontSize: isMobile ? 12 : 11, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: histReason === r ? '#0f172a' : '#fff', color: histReason === r ? '#fff' : 'var(--ink-soft)' }}>
+                <button key={r} type="button" onClick={() => setHistReason(r)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '8px 0' : '4px 10px', borderRadius: 6, fontSize: isMobile ? 12 : 11, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: histReason === r ? 'var(--ink)' : 'var(--card)', color: histReason === r ? 'var(--card)' : 'var(--ink-soft)' }}>
                   {r === 'all' ? 'All' : r}
                 </button>
               ))}
@@ -328,7 +328,7 @@ export default function InventoryPage() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: isMobile ? 9 : 10, color: 'var(--ink-faint)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Current</div>
-                <div className="mono" style={{ fontSize: isMobile ? 20 : 22, fontWeight: 800, color: selectedProduct.stock <= selectedProduct.reorderPoint ? '#d97706' : 'var(--green)' }}>{selectedProduct.stock}</div>
+                <div className="mono" style={{ fontSize: isMobile ? 20 : 22, fontWeight: 800, color: selectedProduct.stock <= selectedProduct.reorderPoint ? 'var(--amber)' : 'var(--green)' }}>{selectedProduct.stock}</div>
               </div>
             </div>
           )}
@@ -339,7 +339,7 @@ export default function InventoryPage() {
               <input type="number" value={delta} onChange={(e) => setDelta(Number(e.target.value))} placeholder="0" style={{ width: '100%', padding: '12px 13px', border: '1px solid var(--line)', borderRadius: 11, fontFamily: 'inherit', fontSize: isMobile ? 16 : 14, color: 'var(--ink)', background: 'var(--card)', marginBottom: 8 }} />
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {[10, 25, 50, 100].map((n) => (
-                  <button key={n} type="button" onClick={() => setDelta(n)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '8px 0' : '3px 10px', borderRadius: 5, border: '1px solid var(--line)', fontSize: isMobile ? 13 : 11, fontWeight: 600, cursor: 'pointer', background: delta === n ? 'var(--blue-soft)' : '#fff', color: delta === n ? 'var(--blue-deep)' : 'var(--ink-soft)' }}>+{n}</button>
+                  <button key={n} type="button" onClick={() => setDelta(n)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '8px 0' : '3px 10px', borderRadius: 5, border: '1px solid var(--line)', fontSize: isMobile ? 13 : 11, fontWeight: 600, cursor: 'pointer', background: delta === n ? 'var(--blue-soft)' : 'var(--card)', color: delta === n ? 'var(--blue-deep)' : 'var(--ink-soft)' }}>+{n}</button>
                 ))}
               </div>
             </div>
@@ -363,7 +363,7 @@ export default function InventoryPage() {
           {selectedProduct && delta !== 0 && (
             <div style={{ marginTop: isMobile ? 12 : 14, padding: '10px 14px', borderRadius: 9, background: 'var(--paper)', border: '1px solid var(--line-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: isMobile ? 12 : 12, color: 'var(--ink-soft)', fontWeight: 600 }}>Result</span>
-              <span className="mono" style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: selectedProduct.stock + delta <= selectedProduct.reorderPoint ? '#d97706' : 'var(--green)' }}>
+              <span className="mono" style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: selectedProduct.stock + delta <= selectedProduct.reorderPoint ? 'var(--amber)' : 'var(--green)' }}>
                 {selectedProduct.stock} → {Math.max(0, selectedProduct.stock + delta)}
               </span>
             </div>

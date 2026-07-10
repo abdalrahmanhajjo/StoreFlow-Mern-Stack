@@ -178,9 +178,9 @@ export default function SalesPage() {
                 <span style={{ color: 'var(--ink-soft)' }}>{s.cashier}</span>
                 <Badge tone={s.payment === 'Cash' ? 'amber' : s.payment === 'Card' ? 'blue' : 'grey'}>{s.payment}</Badge>
                 <span className="mono" style={{ fontWeight: 800, color: 'var(--ink)', textAlign: 'right' }}>{money(s.total)}</span>
-                <button type="button" onClick={(e) => { e.stopPropagation(); navigate(`/sales/${s.invoiceNo}/receipt`); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--line)', background: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--ink-soft)' }}
+                <button type="button" onClick={(e) => { e.stopPropagation(); navigate(`/sales/${s.invoiceNo}/receipt`); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--line)', background: 'var(--card)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: 'var(--ink-soft)' }}
                   onMouseEnter={(e2) => e2.currentTarget.style.background = 'var(--paper)'}
-                  onMouseLeave={(e2) => e2.currentTarget.style.background = '#fff'}
+                  onMouseLeave={(e2) => e2.currentTarget.style.background = 'var(--card)'}
                 >View →</button>
               </div>
             ))}

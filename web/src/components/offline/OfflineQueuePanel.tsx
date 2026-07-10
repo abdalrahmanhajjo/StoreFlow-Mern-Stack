@@ -6,8 +6,8 @@ import type { OfflineMutationStatus } from '@/lib/contracts/types';
 const STATUS_LABEL: Record<OfflineMutationStatus, { text: string; bg: string; fg: string }> = {
   queued: { text: 'Queued', bg: 'var(--paper-dim)', fg: 'var(--ink-soft)' },
   syncing: { text: 'Syncing…', bg: 'var(--blue-soft)', fg: 'var(--blue-deep)' },
-  synced: { text: 'Synced', bg: 'var(--green-soft)', fg: '#065f46' },
-  failed: { text: 'Failed', bg: 'var(--red-soft)', fg: '#991b1b' },
+  synced: { text: 'Synced', bg: 'var(--green-soft)', fg: 'var(--green-deep)' },
+  failed: { text: 'Failed', bg: 'var(--red-soft)', fg: 'var(--red-deep)' },
 };
 
 // Shows the offline write queue with clear queued/synced markers and a manual

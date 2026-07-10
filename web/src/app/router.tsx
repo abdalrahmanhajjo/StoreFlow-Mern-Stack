@@ -7,6 +7,10 @@ import { Forbidden, NotFound } from '@/pages/ErrorPages';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 
 const HomePage = lazy(() => import('@/features/home/HomePage'));
+const TermsPage = lazy(() => import('@/features/legal/TermsPage'));
+const PrivacyPage = lazy(() => import('@/features/legal/PrivacyPage'));
+const SecurityLegalPage = lazy(() => import('@/features/legal/SecurityPage'));
+const LegalNoticePage = lazy(() => import('@/features/legal/LegalNoticePage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
 const ResetPage = lazy(() => import('@/features/auth/ResetPage'));
@@ -59,6 +63,10 @@ export function AppRouter() {
         <Routes>
           {/* public */}
           <Route path="/" element={<HomePage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/security" element={<SecurityLegalPage />} />
+          <Route path="/legal" element={<LegalNoticePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset" element={<ResetPage />} />

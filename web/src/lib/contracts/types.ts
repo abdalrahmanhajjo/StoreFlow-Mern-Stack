@@ -83,7 +83,7 @@ export interface ComplianceFlags {
 }
 
 export interface StoreTheme {
-  /** CSS custom-property accent, e.g. "#2563eb". Validated as a hex colour. */
+  /** CSS custom-property accent, e.g. "#131312". Validated as a hex colour. */
   accent?: string;
   mode?: 'light' | 'dark';
 }

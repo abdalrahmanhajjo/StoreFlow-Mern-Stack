@@ -56,19 +56,19 @@ const VARIANT: Record<ToastVariant, {
   block: string; bar: string; icon: string;
 }> = {
   success: {
-    block: '#059669', bar: '#10B981',
+    block: 'var(--green)', bar: 'var(--green-bright)',
     icon: 'M20 6L9 17l-5-5',
   },
   error: {
-    block: '#DC2626', bar: '#EF4444',
+    block: 'var(--red)', bar: 'var(--red-bright)',
     icon: 'M18 6L6 18M6 6l12 12',
   },
   info: {
-    block: '#2563EB', bar: '#3B82F6',
+    block: 'var(--ink)', bar: 'var(--ink-strong)',
     icon: 'M12 16v-4M12 8h.01',
   },
   warning: {
-    block: '#D97706', bar: '#F59E0B',
+    block: 'var(--amber)', bar: 'var(--amber-bright)',
     icon: 'M12 9v4M12 17h.01',
   },
 };
@@ -114,12 +114,12 @@ function ToastItem({ t }: { t: Toast }) {
       onClick={dismiss}
       style={{
         display: 'flex', alignItems: 'stretch',
-        background: '#fff', color: '#111827',
+        background: 'var(--card)', color: 'var(--ink)',
         borderRadius: 10, fontSize: 13, fontWeight: 500,
         maxWidth: 400, width: '100%',
         position: 'relative', overflow: 'hidden',
         boxShadow: '0 6px 20px -8px rgba(0,0,0,0.2), 0 1px 4px -2px rgba(0,0,0,0.08)',
-        border: '1px solid #E5E7EB',
+        border: '1px solid var(--line)',
         cursor: 'pointer',
         opacity: exiting ? 0 : 1,
         transform: exiting ? 'translateY(-6px) scale(.97)' : 'translateY(0) scale(1)',
@@ -144,11 +144,11 @@ function ToastItem({ t }: { t: Toast }) {
         display: 'flex', flexDirection: 'column', gap: 1,
       }}>
         {t.title && (
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', letterSpacing: '-.01em' }}>{t.title}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', letterSpacing: '-.01em' }}>{t.title}</div>
         )}
         <div style={{
           fontSize: t.title ? 12 : 12.5,
-          color: t.title ? '#6B7280' : '#374151',
+          color: t.title ? 'var(--ink-faint)' : 'var(--ink-soft)',
           lineHeight: 1.45,
         }}>
           {t.message}
@@ -175,14 +175,14 @@ function ToastItem({ t }: { t: Toast }) {
         onClick={(e) => { e.stopPropagation(); dismiss(); }}
         aria-label="Dismiss"
         style={{
-          background: 'none', border: 'none', color: '#D1D5DB',
+          background: 'none', border: 'none', color: 'var(--ink-faint-alt)',
           cursor: 'pointer', width: 28, height: 28,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, margin: 8, borderRadius: 6,
           transition: 'background .12s, color .12s',
         }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#F3F4F6'; (e.currentTarget as HTMLButtonElement).style.color = '#6B7280'; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#D1D5DB'; }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--paper-dim)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-faint)'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-faint-alt)'; }}
       >
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -192,7 +192,7 @@ function ToastItem({ t }: { t: Toast }) {
       {/* Progress bar at bottom */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
-        background: '#F3F4F6',
+        background: 'var(--paper-dim)',
       }}>
         <div style={{
           height: '100%', width: `${pct}%`,

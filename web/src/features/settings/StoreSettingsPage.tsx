@@ -114,8 +114,8 @@ export default function StoreSettingsPage() {
           </Field>
           <Field label="Accent color">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input type="color" defaultValue="#2563EB" onChange={mark} style={{ width: 40, height: 40, padding: 2, border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', background: 'transparent' }} />
-              <span className="mono" style={{ fontSize: isMobile ? 13 : 13, color: 'var(--ink-soft)' }}>#2563EB</span>
+              <input type="color" defaultValue="#131312" onChange={mark} style={{ width: 40, height: 40, padding: 2, border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', background: 'transparent' }} />
+              <span className="mono" style={{ fontSize: isMobile ? 13 : 13, color: 'var(--ink-soft)' }}>#131312</span>
             </div>
           </Field>
         </div>

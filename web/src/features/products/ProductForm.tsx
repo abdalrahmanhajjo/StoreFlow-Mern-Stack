@@ -187,12 +187,12 @@ export function ProductForm({ open, onClose, editing }: Props) {
 
       {erroredFields.length > 0 && (
         <div role="alert" style={{
-          background: 'var(--red-soft)', border: '1px solid #f4c9c9',
+          background: 'var(--red-soft)', border: '1px solid #e5c4bd',
           borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13,
-          color: '#b91c1c',
+          color: 'var(--red-deep)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: erroredFields.length > 1 ? 8 : 0 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9c3225" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <span style={{ fontWeight: 600 }}>Please fix {erroredFields.length} field{erroredFields.length > 1 ? 's' : ''}:</span>
@@ -206,7 +206,7 @@ export function ProductForm({ open, onClose, editing }: Props) {
                 onClick={() => scrollToError([key])}
                 style={{
                   background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                  fontSize: 12.5, color: '#b91c1c', display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 12.5, color: 'var(--red-deep)', display: 'inline-flex', alignItems: 'center', gap: 4,
                   fontFamily: 'inherit',
                 }}
               >

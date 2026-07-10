@@ -25,7 +25,7 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
           width: 16,
           height: 16,
           borderRadius: '50%',
-          background: '#fff',
+          background: 'var(--card)',
           boxShadow: '0 1px 2px rgba(0,0,0,.25)',
           transition: '.18s',
         }}

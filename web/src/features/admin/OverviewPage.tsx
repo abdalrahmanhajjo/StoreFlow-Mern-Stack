@@ -10,7 +10,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
 const ACTIVITY = [
   { dot: 'var(--green)', title: 'Store approved', desc: 'Sunrise Pharmacy activated on Pro plan', when: '2m ago' },
   { dot: 'var(--red)', title: 'Store suspended', desc: 'Northbridge Mini-Mart — payment failed ×3', when: '1h ago' },
-  { dot: '#D97706', title: 'Suspicious logins', desc: '14 failed attempts from 41.92.x.x — IP blocked', when: '3h ago' },
+  { dot: 'var(--amber)', title: 'Suspicious logins', desc: '14 failed attempts from 41.92.x.x — IP blocked', when: '3h ago' },
   { dot: 'var(--green)', title: 'Plan upgraded', desc: 'Casa Pasta moved Free → Pro', when: '5h ago' },
   { dot: 'var(--blue)', title: 'New store registered', desc: 'Al Madina Grocers joined the platform', when: '8h ago' },
   { dot: 'var(--green)', title: 'Payment recovered', desc: 'Northbridge Mini-Mart — payment retry succeeded', when: '12h ago' },
@@ -85,7 +85,7 @@ export default function OverviewPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: isMobile ? 10 : 10, height: isMobile ? 140 : 170, paddingTop: isMobile ? 14 : 20 }}>
             {BARS.map((h, i) => (
-              <div key={i} style={{ flex: 1, position: 'relative', height: `${h}%`, background: 'linear-gradient(180deg,#3B82F6,#2563EB)', borderRadius: '6px 6px 0 0', minHeight: 14, display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+              <div key={i} style={{ flex: 1, position: 'relative', height: `${h}%`, background: 'var(--ink)', borderRadius: '6px 6px 0 0', minHeight: 14, display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
                 <span style={{ position: 'absolute', bottom: -18, left: 0, right: 0, textAlign: 'center', fontSize: isMobile ? 10 : 10.5, color: 'var(--ink-faint)' }}>{MONTHS[i]}</span>
               </div>
             ))}
@@ -113,7 +113,7 @@ export default function OverviewPage() {
               {top.map((t, i) => (
                 <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 12, padding: isMobile ? '13px 14px' : '12px 14px', borderRadius: 'var(--radius)', background: 'var(--paper)', border: '1px solid var(--line-soft)' }}>
                   <span style={{ fontSize: isMobile ? 14 : 13, fontWeight: 700, color: 'var(--ink-faint)', minWidth: isMobile ? 26 : 26, textAlign: 'center', flexShrink: 0 }}>{rankIcon(i)}</span>
-                  <div style={{ width: isMobile ? 36 : 30, height: isMobile ? 36 : 30, borderRadius: 9, background: t.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 12 : 11, fontWeight: 700, flexShrink: 0 }}>{t.initials}</div>
+                  <div style={{ width: isMobile ? 36 : 30, height: isMobile ? 36 : 30, borderRadius: 9, background: t.color, color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 12 : 11, fontWeight: 700, flexShrink: 0 }}>{t.initials}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: isMobile ? 14 : 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
                     <div style={{ fontSize: isMobile ? 12 : 11.5, color: 'var(--ink-faint)' }}>{t.owner} · {t.plan}</div>
@@ -156,7 +156,7 @@ function Health({ label, pct, text, isMobile }: { label: string; pct: number; te
         <span className="mono" style={{ fontSize: isMobile ? 13 : 13, fontWeight: 700, color: 'var(--ink)' }}>{text}</span>
       </div>
       <div style={{ height: isMobile ? 8 : 7, borderRadius: 6, background: 'var(--paper-dim)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 6, background: 'linear-gradient(90deg,#16A34A,#4ADE80)', transition: 'width .4s ease' }} />
+        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 6, background: 'var(--green)', transition: 'width .4s ease' }} />
       </div>
     </div>
   );

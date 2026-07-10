@@ -57,12 +57,12 @@ export default function DashboardPage() {
             <span style={{ fontSize: isMobile ? 11.5 : 12, color: 'var(--ink-faint)' }}>{doneCount} of {CHECKLIST.length} done</span>
           </div>
           <div style={{ height: 6, borderRadius: 6, background: 'var(--paper-dim)', overflow: 'hidden', marginBottom: isMobile ? 10 : 12 }}>
-            <div style={{ height: '100%', width: `${(doneCount / CHECKLIST.length) * 100}%`, background: 'linear-gradient(90deg,#3B82F6,#2563EB)', borderRadius: 6, transition: 'width .3s' }} />
+            <div style={{ height: '100%', width: `${(doneCount / CHECKLIST.length) * 100}%`, background: 'var(--ink)', borderRadius: 6, transition: 'width .3s' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit,minmax(220px,1fr))', gap: isMobile ? 6 : 8 }}>
             {CHECKLIST.map((c, i) => (
               <label key={c} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 9, fontSize: isMobile ? 12.5 : 13, color: done[i] ? 'var(--ink-faint)' : 'var(--ink)', cursor: 'pointer', padding: isMobile ? '5px 0' : 0 }}>
-                <input type="checkbox" checked={done[i]} onChange={() => toggle(i)} style={{ width: isMobile ? 16 : 15, height: isMobile ? 16 : 15, accentColor: '#2563EB' }} />
+                <input type="checkbox" checked={done[i]} onChange={() => toggle(i)} style={{ width: isMobile ? 16 : 15, height: isMobile ? 16 : 15, accentColor: 'var(--ink)' }} />
                 <span style={{ textDecoration: done[i] ? 'line-through' : 'none' }}>{c}</span>
               </label>
             ))}
@@ -101,8 +101,8 @@ export default function DashboardPage() {
 
       {/* Low-stock alert */}
       {lowStock.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#FFF8EC', color: '#B45309', border: '1px solid #FBE3B3', padding: isMobile ? '11px 14px' : '12px 16px', borderRadius: 10, fontSize: isMobile ? 12.5 : 13, marginBottom: isMobile ? 14 : 18, fontWeight: 500 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--amber-faint)', color: 'var(--amber-deep)', border: '1px solid #e0d1a8', padding: isMobile ? '11px 14px' : '12px 16px', borderRadius: 10, fontSize: isMobile ? 12.5 : 13, marginBottom: isMobile ? 14 : 18, fontWeight: 500 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a8731d" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span><b>{lowStock.length}</b> product{lowStock.length > 1 ? 's need' : ' needs'} restocking.</span>
           <Button variant="ghost" size="sm" onClick={() => navigate('/inventory')} style={{ marginLeft: 'auto', flexShrink: 0 }}>View inventory</Button>
         </div>
@@ -118,7 +118,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: isMobile ? 8 : 10, height: isMobile ? 100 : 120, paddingTop: isMobile ? 10 : 14 }}>
             {trend.map((v, i) => (
-              <div key={i} style={{ flex: 1, position: 'relative', height: `${(v / maxTrend) * 100}%`, minHeight: 8, background: 'linear-gradient(180deg,#3B82F6,#2563EB)', borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+              <div key={i} style={{ flex: 1, position: 'relative', height: `${(v / maxTrend) * 100}%`, minHeight: 8, background: 'var(--ink)', borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
                 <span style={{ position: 'absolute', bottom: -16, left: 0, right: 0, textAlign: 'center', fontSize: isMobile ? 9 : 10, color: 'var(--ink-faint)' }}>{DAYS[i]}</span>
               </div>
             ))}

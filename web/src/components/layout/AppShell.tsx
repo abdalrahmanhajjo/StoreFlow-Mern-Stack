@@ -75,7 +75,7 @@ export function AppShell() {
               className="sf-overlay"
               onClick={() => setDrawer(false)}
               style={{
-                position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)',
+                position: 'fixed', inset: 0, background: 'rgba(17,17,16,.55)',
                 backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
                 zIndex: 40,
               }}

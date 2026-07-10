@@ -6,7 +6,7 @@ import { Button, Logo } from '@/components/ui';
 const s: Record<string, CSSProperties> = {
   page: {
     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'linear-gradient(135deg, #f0f5ff 0%, #f7f9fc 50%, #eef2f8 100%)',
+    background: 'var(--paper)',
     padding: 24,
   },
   card: {
@@ -122,20 +122,20 @@ export default function PendingApprovalPage() {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
               <div style={{
                 width: 72, height: 72, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: phase === 'pending' ? '#eff5ff' : phase === 'approved' ? '#dcfce7' : '#fee2e2',
+                background: phase === 'pending' ? 'var(--blue-soft)' : phase === 'approved' ? 'var(--green-soft)' : 'var(--red-soft)',
                 transition: 'background .4s',
               }}>
                 {phase === 'pending' ? (
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sf-pulse">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#131312" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sf-pulse">
                     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                   </svg>
                 ) : phase === 'approved' ? (
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2e7d43" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     <polyline className="sf-draw" points="16 8 10 16 7 13"/>
                   </svg>
                 ) : (
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#c93d2e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     <line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
                   </svg>
@@ -190,7 +190,7 @@ export default function PendingApprovalPage() {
                       width: 26, height: 26, borderRadius: '50%', display: 'flex',
                       alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       background: done ? 'var(--green)' : active ? 'var(--blue)' : 'var(--paper-dim)',
-                      color: done || active ? '#fff' : 'var(--ink-faint)',
+                      color: done || active ? 'var(--card)' : 'var(--ink-faint)',
                       fontSize: 12, fontWeight: 700, position: 'relative', zIndex: 1,
                       animation: active && phase === 'pending' ? 'sf-pulse 2s ease-in-out infinite' : done ? 'sf-check-pop .35s ease-out' : undefined,
                       boxShadow: active && phase === 'pending' ? '0 0 0 4px var(--blue-soft)' : 'none',
@@ -203,7 +203,7 @@ export default function PendingApprovalPage() {
                         </svg>
                       ) : active && phase === 'pending' ? (
                         <div style={{
-                          width: 8, height: 8, borderRadius: '50%', background: '#fff',
+                          width: 8, height: 8, borderRadius: '50%', background: 'var(--card)',
                         }} />
                       ) : (
                         <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ink-faint)' }} />

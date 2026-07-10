@@ -31,36 +31,40 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+const PHONE_RE = /^[\d\s\-()+]{4,20}$/;
+const PHONE_ERR = 'Enter a valid phone number (e.g. 555 123 4567)';
+
 export const registerSchema = z.object({
-  storeName: z.string().min(2, 'Store name is too short').max(60),
-  businessType: z.string().min(1),
-  currency: z.string().min(1),
-  businessPhoneCode: z.string().min(1, 'Select a code'),
+  storeName: z.string().min(2, 'Store name must be at least 2 characters').max(60, 'Store name is too long'),
+  businessType: z.string().min(1, 'Select a business type'),
+  currency: z.string().min(1, 'Select a currency'),
+  businessPhoneCode: z.string().min(1, 'Select a country code'),
   businessPhone: z
     .string()
-    .regex(/^[\d\s\-()]{4,15}$/, 'Enter a valid phone number')
-    .optional()
-    .or(z.literal('')),
-  businessAddress: z.string().min(5, 'Address is too short').max(200),
+    .min(4, PHONE_ERR)
+    .regex(PHONE_RE, PHONE_ERR),
+  businessAddress: z.string().min(5, 'Enter your full street address (at least 5 characters)').max(200, 'Address is too long'),
   businessTaxId: z
     .string()
-    .min(3, 'Tax ID is too short')
-    .max(30)
+    .max(30, 'Tax ID is too long')
     .optional()
     .or(z.literal('')),
-  ownerName: z.string().min(2, 'Name is required'),
-  ownerPhoneCode: z.string().min(1, 'Select a code'),
-  ownerPhone: z.string().regex(/^[\d\s\-()]{4,15}$/, 'Enter a valid phone number'),
-  ownerIdType: z.enum(['national_id', 'passport', 'drivers_license'], 'Select an ID type'),
-  ownerIdNumber: z.string().min(3, 'ID number is too short').max(40),
-  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+  ownerName: z.string().min(2, 'Enter the owner full name (at least 2 characters)').max(100, 'Name is too long'),
+  ownerPhoneCode: z.string().min(1, 'Select a country code'),
+  ownerPhone: z
+    .string()
+    .min(4, PHONE_ERR)
+    .regex(PHONE_RE, PHONE_ERR),
+  ownerIdType: z.enum(['national_id', 'passport', 'drivers_license'], 'Select a valid ID type'),
+  ownerIdNumber: z.string().min(3, 'ID number must be at least 3 characters').max(40, 'ID number is too long'),
+  email: z.string().min(1, 'Email is required').email('Enter a valid email address (e.g. you@store.com)'),
   password: z
     .string()
-    .min(8, 'At least 8 characters')
-    .regex(/[a-z]/, 'Include a lowercase letter')
-    .regex(/[A-Z]/, 'Include an uppercase letter')
-    .regex(/\d/, 'Include a number')
-    .regex(/[^a-zA-Z0-9]/, 'Include a special character'),
-  otp: z.string().length(6, 'Enter the complete code').regex(/^\d{6}$/, 'Code must be 6 digits').optional().or(z.literal('')),
+    .min(8, 'At least 8 characters required')
+    .regex(/[a-z]/, 'Must include a lowercase letter')
+    .regex(/[A-Z]/, 'Must include an uppercase letter')
+    .regex(/\d/, 'Must include a number')
+    .regex(/[^a-zA-Z0-9]/, 'Must include a special character (!@#$ etc.)'),
+  otp: z.string().length(6, 'Enter the full 6-digit code').regex(/^\d{6}$/, 'Code must be exactly 6 digits').optional().or(z.literal('')),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;

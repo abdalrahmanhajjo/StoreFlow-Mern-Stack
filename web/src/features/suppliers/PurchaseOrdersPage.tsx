@@ -115,7 +115,7 @@ export default function PurchaseOrdersPage() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search PO # or supplier…" style={{ padding: isMobile ? '11px 14px' : '9px 14px', border: '1px solid var(--line)', borderRadius: 9, fontSize: isMobile ? 16 : 13, fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--card)', width: isMobile ? '100%' : undefined, flex: isMobile ? undefined : '1 1 200px' }} />
         <div style={{ display: 'flex', gap: 3, width: isMobile ? '100%' : undefined }}>
           {(['all', 'pending', 'received'] as const).map((s) => (
-            <button key={s} type="button" onClick={() => setStatusFilter(s)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '10px 0' : '7px 14px', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: statusFilter === s ? '#0f172a' : '#fff', color: statusFilter === s ? '#fff' : 'var(--ink-soft)' }}>
+            <button key={s} type="button" onClick={() => setStatusFilter(s)} style={{ flex: isMobile ? 1 : undefined, padding: isMobile ? '10px 0' : '7px 14px', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 600, border: '1px solid var(--line)', cursor: 'pointer', background: statusFilter === s ? 'var(--ink)' : 'var(--card)', color: statusFilter === s ? 'var(--card)' : 'var(--ink-soft)' }}>
               {s === 'all' ? 'All' : s === 'pending' ? 'Pending' : 'Received'}
             </button>
           ))}
@@ -160,8 +160,8 @@ export default function PurchaseOrdersPage() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   {po.status === 'pending' ? (
                     <>
-                      <button type="button" onClick={() => onReceive(po)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid var(--green)', background: '#f0fdf4', color: '#16a34a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Receive</button>
-                      <button type="button" onClick={() => onDeletePO(po)} style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--line)', background: '#fff', color: 'var(--ink-faint)', fontSize: 13, cursor: 'pointer' }}>✕</button>
+                      <button type="button" onClick={() => onReceive(po)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid var(--green)', background: 'var(--green-soft)', color: 'var(--green)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Receive</button>
+                      <button type="button" onClick={() => onDeletePO(po)} style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-faint)', fontSize: 13, cursor: 'pointer' }}>✕</button>
                     </>
                   ) : (
                     <span style={{ fontSize: 12, color: 'var(--ink-faint)', padding: '10px 0' }}>Completed</span>
@@ -193,9 +193,9 @@ export default function PurchaseOrdersPage() {
                 <span className="mono" style={{ color: 'var(--ink-faint)', fontSize: 12 }}>{po.expected}</span>
                 <span style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                   {po.status === 'pending' ? (
-                    <button type="button" onClick={() => onReceive(po)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--green)', background: '#f0fdf4', color: '#16a34a', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#dcfce7'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = '#f0fdf4'}
+                    <button type="button" onClick={() => onReceive(po)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--green)', background: 'var(--green-soft)', color: 'var(--green)', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--green-soft)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'var(--green-soft)'}
                     >Receive</button>
                   ) : (
                     <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>done</span>
@@ -213,9 +213,9 @@ export default function PurchaseOrdersPage() {
       {/* PO Form Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title="New purchase order">
         {lowStock.length > 0 && poLines.length === 0 && (
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 10, background: '#FFF8EC', border: '1px solid #FBE3B3', borderRadius: 9, padding: '10px 14px', marginBottom: 16, fontSize: isMobile ? 12 : 12, color: '#B45309' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 10, background: 'var(--amber-faint)', border: '1px solid #e0d1a8', borderRadius: 9, padding: '10px 14px', marginBottom: 16, fontSize: isMobile ? 12 : 12, color: 'var(--amber-deep)' }}>
             <span>⚠️ {lowStock.length} product{lowStock.length !== 1 ? 's are' : ' is'} low on stock.</span>
-            <button type="button" onClick={prefillLowStock} style={{ padding: isMobile ? '8px 0' : '5px 12px', borderRadius: 6, border: '1px solid #fde68a', background: '#fff', fontSize: isMobile ? 12 : 11, fontWeight: 700, color: '#92400e', cursor: 'pointer', whiteSpace: 'nowrap', width: isMobile ? '100%' : undefined }}>Prefill from low stock</button>
+            <button type="button" onClick={prefillLowStock} style={{ padding: isMobile ? '8px 0' : '5px 12px', borderRadius: 6, border: '1px solid #e0d1a8', background: 'var(--card)', fontSize: isMobile ? 12 : 11, fontWeight: 700, color: 'var(--amber-strong)', cursor: 'pointer', whiteSpace: 'nowrap', width: isMobile ? '100%' : undefined }}>Prefill from low stock</button>
           </div>
         )}
 

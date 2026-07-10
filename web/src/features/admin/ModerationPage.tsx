@@ -123,14 +123,14 @@ export default function ModerationPage() {
               return (
                 <div key={m.id} className="sf-mod-card" style={{ background: 'var(--card)', border: isFlagged ? '1.5px solid var(--red)' : '1px solid var(--line-soft)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: isFlagged ? '0 0 0 2px rgba(220,38,38,.08)' : 'var(--shadow)' }}>
                   {isFlagged && (
-                    <div style={{ background: 'var(--red)', color: '#fff', fontSize: isMobile ? 10 : 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '4px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ background: 'var(--red)', color: 'var(--card)', fontSize: isMobile ? 10 : 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '4px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/></svg>
                       Flagged · {m.flags} report{m.flags !== 1 ? 's' : ''}
                     </div>
                   )}
                   <div style={{ padding: isMobile ? 14 : 16 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? 10 : 12, marginBottom: isMobile ? 10 : 12 }}>
-                      <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: m.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>{m.initials}</div>
+                      <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: m.color, color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>{m.initials}</div>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontSize: isMobile ? 14 : 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.storeName}</div>
                         <div className="mono" style={{ fontSize: isMobile ? 12 : 12, color: 'var(--ink-soft)' }}>{m.email}</div>

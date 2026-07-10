@@ -62,7 +62,7 @@ export function CategoryPills({ categories, selected, counts, onChange }: Props)
                 cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                 transition: 'background .15s, color .15s, border-color .15s',
                 background: isActive ? 'var(--blue)' : 'var(--card)',
-                color: isActive ? '#fff' : 'var(--ink-soft)',
+                color: isActive ? 'var(--card)' : 'var(--ink-soft)',
                 borderColor: isActive ? 'var(--blue)' : 'var(--line)',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
@@ -73,7 +73,7 @@ export function CategoryPills({ categories, selected, counts, onChange }: Props)
                 minWidth: 18, height: 18, borderRadius: 9,
                 fontSize: 10, fontWeight: 700,
                 background: isActive ? 'rgba(255,255,255,.25)' : 'var(--paper-dim)',
-                color: isActive ? '#fff' : 'var(--ink-faint)',
+                color: isActive ? 'var(--card)' : 'var(--ink-faint)',
                 padding: '0 5px',
               }}>{count}</span>
             </button>

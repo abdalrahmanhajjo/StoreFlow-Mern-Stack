@@ -130,7 +130,7 @@ export default function SuppliersPage() {
                         {count} product{count !== 1 ? 's' : ''}
                       </span>
                       {openOrders > 0 && (
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 9px', borderRadius: 6, background: '#fef3c7', color: '#d97706' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 9px', borderRadius: 6, background: 'var(--amber-soft)', color: 'var(--amber)' }}>
                           {openOrders} PO open
                         </span>
                       )}

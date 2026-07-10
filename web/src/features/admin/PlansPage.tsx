@@ -133,7 +133,7 @@ export default function PlansPage() {
           return (
             <div key={p.key} className="sf-plan-card" style={{ background: 'var(--card)', border: isPopular ? '1.5px solid var(--amber)' : '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: isMobile ? 16 : 20, boxShadow: isPopular ? '0 0 0 2px rgba(217,119,6,.1)' : 'var(--shadow)', position: 'relative', overflow: 'hidden' }}>
               {isPopular && (
-                <div style={{ position: 'absolute', top: 12, right: -28, background: 'var(--amber)', color: '#fff', fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', padding: '3px 32px', transform: 'rotate(45deg)' }}>
+                <div style={{ position: 'absolute', top: 12, right: -28, background: 'var(--amber)', color: 'var(--card)', fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', padding: '3px 32px', transform: 'rotate(45deg)' }}>
                   Popular
                 </div>
               )}
@@ -204,7 +204,7 @@ export default function PlansPage() {
             {matrixEdit ? (
               <div style={{ display: 'flex', gap: 6 }}>
                 <button type="button" onClick={() => { setMatrixEdit(false); toast('Matrix saved'); }}
-                  style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: '#0f172a', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+                  style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: 'var(--ink)', color: 'var(--card)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
                 <button type="button" onClick={() => { setMatrix(MATRIX); setMatrixEdit(false); }}
                   style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--line)', background: 'transparent', color: 'var(--ink-soft)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               </div>

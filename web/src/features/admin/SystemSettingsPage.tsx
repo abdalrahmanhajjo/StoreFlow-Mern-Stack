@@ -42,7 +42,7 @@ export default function SystemSettingsPage() {
     <button type="button" role="switch" aria-checked={checked} onClick={() => { onChange(!checked); setDirty(true); }}
       style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', padding: 0, position: 'relative', background: checked ? 'var(--green)' : 'var(--line)', transition: 'background .15s', flexShrink: 0 }}
     >
-      <span style={{ display: 'block', width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.15)', transition: 'transform .15s', transform: checked ? 'translateX(20px)' : 'translateX(2px)' }} />
+      <span style={{ display: 'block', width: 20, height: 20, borderRadius: '50%', background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,.15)', transition: 'transform .15s', transform: checked ? 'translateX(20px)' : 'translateX(2px)' }} />
     </button>
   );
 
@@ -112,8 +112,8 @@ export default function SystemSettingsPage() {
               { label: 'Platform name', desc: 'Shown across the app and emails.', el: <input aria-label="Platform name" defaultValue="StoreFlow" onChange={() => setDirty(true)} style={stlInput} /> },
               { label: 'Accent color', desc: 'Primary brand color.', el: (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: isMobile ? 28 : 22, height: isMobile ? 28 : 22, borderRadius: 6, background: '#2563EB', border: '1px solid var(--line)' }} />
-                  <span className="mono" style={{ color: 'var(--ink-soft)', fontSize: isMobile ? 13 : 12.5 }}>#2563EB</span>
+                  <span style={{ width: isMobile ? 28 : 22, height: isMobile ? 28 : 22, borderRadius: 6, background: 'var(--ink)', border: '1px solid var(--line)' }} />
+                  <span className="mono" style={{ color: 'var(--ink-soft)', fontSize: isMobile ? 13 : 12.5 }}>#131312</span>
                 </span>
               )},
               { label: 'Maintenance mode', desc: 'Temporarily disable tenant logins.', key: 'maintenance' as const },

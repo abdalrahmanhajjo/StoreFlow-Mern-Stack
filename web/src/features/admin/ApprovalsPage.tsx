@@ -49,8 +49,8 @@ export default function ApprovalsPage() {
 
       {/* Status banner */}
       {applications.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#FFF8EC', color: '#B45309', border: '1px solid #FBE3B3', padding: isMobile ? '11px 14px' : '12px 16px', borderRadius: 10, fontSize: isMobile ? 12.5 : 13, marginBottom: isMobile ? 14 : 18, fontWeight: 500 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--amber-faint)', color: 'var(--amber-deep)', border: '1px solid #e0d1a8', padding: isMobile ? '11px 14px' : '12px 16px', borderRadius: 10, fontSize: isMobile ? 12.5 : 13, marginBottom: isMobile ? 14 : 18, fontWeight: 500 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a8731d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <b>{applications.length} store{applications.length > 1 ? 's' : ''}</b> pending review. Approve to provision an isolated workspace, or reject the application.
         </div>
       )}
@@ -82,13 +82,13 @@ export default function ApprovalsPage() {
               return (
                 <div key={a.id} className="sf-app-card" style={{ background: 'var(--card)', border: a.flagged ? '1.5px solid var(--red)' : '1px solid var(--line-soft)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: a.flagged ? '0 0 0 2px rgba(220,38,38,.08)' : 'var(--shadow)', position: 'relative' }}>
                   {a.flagged && (
-                    <div style={{ background: 'var(--red)', color: '#fff', fontSize: isMobile ? 10 : 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '4px 14px', textAlign: 'center' }}>
+                    <div style={{ background: 'var(--red)', color: 'var(--card)', fontSize: isMobile ? 10 : 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '4px 14px', textAlign: 'center' }}>
                       ⚑ Flagged — review carefully
                     </div>
                   )}
                   <div style={{ padding: isMobile ? '14px 16px' : '16px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? 10 : 12, marginBottom: isMobile ? 10 : 12 }}>
-                      <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: a.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>{a.initials}</div>
+                      <div style={{ width: isMobile ? 38 : 40, height: isMobile ? 38 : 40, borderRadius: 10, background: a.color, color: '#f4f4f1', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 13 : 14, fontWeight: 800, flexShrink: 0 }}>{a.initials}</div>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontSize: isMobile ? 14 : 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
                         <div className="mono" style={{ fontSize: isMobile ? 12 : 12, color: 'var(--ink-soft)' }}>{a.email}</div>

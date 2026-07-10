@@ -38,7 +38,7 @@ export function Error500({ message, onReset }: { message?: string; onReset?: () 
         )}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           {onReset && (
-            <button type="button" onClick={onReset} style={{ background: 'linear-gradient(180deg,#3B82F6,#2563EB)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            <button type="button" onClick={onReset} style={{ background: 'var(--ink)', color: 'var(--card)', border: 'none', padding: '10px 20px', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
               Try again
             </button>
           )}

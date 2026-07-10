@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
-import { registerSchema, COUNTRY_CODES, type RegisterInput } from './schemas';
+import { registerSchema, type RegisterInput } from './schemas';
 import { useRegister } from './hooks';
-import { Button, Input, Logo } from '@/components/ui';
+import { Button, Input, Logo, PhoneCodeSelect } from '@/components/ui';
 
 const STEPS = ['Business', 'Owner identity', 'Account', 'Verify'] as const;
 
@@ -30,11 +30,11 @@ function strength(pw: string): { label: string; pct: number; color: string } {
   if (/\d/.test(pw)) score++;
   if (/[^a-zA-Z0-9]/.test(pw)) score++;
   const map = [
-    { label: 'Weak', pct: 18, color: '#dc2626' },
-    { label: 'Fair', pct: 36, color: '#ea580c' },
-    { label: 'Good', pct: 58, color: '#ca8a04' },
-    { label: 'Strong', pct: 78, color: '#16a34a' },
-    { label: 'Very strong', pct: 100, color: '#16a34a' },
+    { label: 'Weak', pct: 18, color: 'var(--red)' },
+    { label: 'Fair', pct: 36, color: '#9a6635' },
+    { label: 'Good', pct: 58, color: 'var(--amber-deep)' },
+    { label: 'Strong', pct: 78, color: 'var(--green)' },
+    { label: 'Very strong', pct: 100, color: 'var(--green)' },
   ];
   return map[Math.min(score, 4)];
 }
@@ -68,12 +68,15 @@ export default function RegisterPage() {
     trigger,
     watch,
     setFocus,
+    control,
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       businessType: 'Grocery / Supermarket', currency: 'USD',
       ownerIdType: 'national_id', businessPhoneCode: '+1', ownerPhoneCode: '+1',
+      storeName: '', businessPhone: '', businessAddress: '', businessTaxId: '',
+      ownerName: '', ownerPhone: '', ownerIdNumber: '', email: '', password: '', otp: '',
     },
   });
 
@@ -184,7 +187,7 @@ export default function RegisterPage() {
 
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f0f5ff 0%, #f7f9fc 50%, #eef2f8 100%)',
+        background: 'var(--paper)',
         padding: 24,
       }}>
         <div id="sf-card" style={{
@@ -219,7 +222,7 @@ export default function RegisterPage() {
                       width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 13, fontWeight: 700, transition: 'background .3s, color .3s, box-shadow .3s, transform .2s',
                       background: i < step ? 'var(--green)' : i === step ? 'var(--blue)' : 'var(--paper-dim)',
-                      color: i <= step ? '#fff' : 'var(--ink-faint)',
+                      color: i <= step ? 'var(--card)' : 'var(--ink-faint)',
                       boxShadow: i <= step ? '0 3px 8px -2px rgba(37,99,235,.4)' : 'none',
                       transform: i === step ? 'scale(1.05)' : 'scale(1)',
                     }}>
@@ -262,32 +265,43 @@ export default function RegisterPage() {
                 <div>
                   <h2 className="display" style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Business details</h2>
                   <p style={{ margin: '0 0 20px', fontSize: 13.5, color: 'var(--ink-soft)' }}>Tell us about your store.</p>
-                  <Input label="Store name" placeholder="Blue Palm Grocers" error={errors.storeName?.message} {...regField('storeName')} />
+                  <Input label="Store name" placeholder="Blue Palm Grocers" error={errors.storeName?.message} {...regField('storeName')} required />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Business type</label>
-                      <select aria-label="Business type" className="sf-select" style={selStyle} {...regField('businessType')}>
+                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Business type <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+                      <select aria-label="Business type" required className="sf-select" style={selStyle} {...regField('businessType')}>
                         <option>Grocery / Supermarket</option><option>Restaurant</option><option>Pharmacy</option><option>Retail shop</option>
                       </select>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Currency</label>
-                      <select aria-label="Currency" className="sf-select" style={selStyle} {...regField('currency')}>
+                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Currency <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+                      <select aria-label="Currency" required className="sf-select" style={selStyle} {...regField('currency')}>
                         <option>USD</option><option>EUR</option><option>EGP</option>
                       </select>
                     </div>
                   </div>
-                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Business phone</label>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                    <select aria-label="Country code" className="sf-select" style={{ ...selStyle, width: 130, flexShrink: 0, marginBottom: 0 }} {...regField('businessPhoneCode')}>
-                      {COUNTRY_CODES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
-                    </select>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Business phone <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: errors.businessPhone ? 2 : 16 }}>
+                    <Controller
+                      name="businessPhoneCode"
+                      control={control}
+                      render={({ field }) => (
+                        <PhoneCodeSelect
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          error={errors.businessPhoneCode?.message}
+                        />
+                      )}
+                    />
                     <div style={{ flex: 1 }}>
-                      <input type="tel" placeholder="555 123 4567" className="sf-select" style={{ ...selStyle, marginBottom: 0 }} {...regField('businessPhone')} />
-                      {errors.businessPhone && <p style={{ fontSize: 12, color: '#e11d48', margin: '4px 0 0' }}>{errors.businessPhone.message}</p>}
+                      <input type="tel" placeholder="555 123 4567" className="sf-select" style={{ ...selStyle, marginBottom: 0, borderColor: errors.businessPhone ? 'var(--red)' : undefined }} {...regField('businessPhone')} />
                     </div>
                   </div>
-                  <Input label="Business address" placeholder="123 Main St, City, State, ZIP" error={errors.businessAddress?.message} {...regField('businessAddress')} />
+                  {(errors.businessPhoneCode || errors.businessPhone) && (
+                    <p style={{ fontSize: 12, color: 'var(--red)', margin: '0 0 12px' }}>{errors.businessPhoneCode?.message || errors.businessPhone?.message}</p>
+                  )}
+                  <Input label="Business address" placeholder="123 Main St, City, State, ZIP" error={errors.businessAddress?.message} {...regField('businessAddress')} required />
                   <Input label="Tax registration ID (optional)" placeholder="12-3456789" error={errors.businessTaxId?.message} {...regField('businessTaxId')} />
                 </div>
               )}
@@ -297,28 +311,39 @@ export default function RegisterPage() {
                 <div>
                   <h2 className="display" style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Owner identification</h2>
                   <p style={{ margin: '0 0 20px', fontSize: 13.5, color: 'var(--ink-soft)' }}>Verify your identity to comply with KYC requirements.</p>
-                  <Input label="Owner full name" placeholder="Amara Reyes" error={errors.ownerName?.message} {...regField('ownerName')} />
-                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Owner phone</label>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                    <select aria-label="Country code" className="sf-select" style={{ ...selStyle, width: 130, flexShrink: 0, marginBottom: 0 }} {...regField('ownerPhoneCode')}>
-                      {COUNTRY_CODES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
-                    </select>
+                  <Input label="Owner full name" placeholder="Amara Reyes" error={errors.ownerName?.message} {...regField('ownerName')} required />
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Owner phone <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: errors.ownerPhoneCode || errors.ownerPhone ? 2 : 16 }}>
+                    <Controller
+                      name="ownerPhoneCode"
+                      control={control}
+                      render={({ field }) => (
+                        <PhoneCodeSelect
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          error={errors.ownerPhoneCode?.message}
+                        />
+                      )}
+                    />
                     <div style={{ flex: 1 }}>
-                      <input type="tel" placeholder="555 987 6543" className="sf-select" style={{ ...selStyle, marginBottom: 0 }} {...regField('ownerPhone')} />
-                      {errors.ownerPhone && <p style={{ fontSize: 12, color: '#e11d48', margin: '4px 0 0' }}>{errors.ownerPhone.message}</p>}
+                      <input type="tel" placeholder="555 987 6543" className="sf-select" style={{ ...selStyle, marginBottom: 0, borderColor: errors.ownerPhone ? 'var(--red)' : undefined }} {...regField('ownerPhone')} />
                     </div>
                   </div>
+                  {(errors.ownerPhoneCode || errors.ownerPhone) && (
+                    <p style={{ fontSize: 12, color: 'var(--red)', margin: '0 0 12px' }}>{errors.ownerPhoneCode?.message || errors.ownerPhone?.message}</p>
+                  )}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>ID type</label>
-                      <select aria-label="ID type" className="sf-select" style={selStyle} {...regField('ownerIdType')}>
+                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>ID type <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+                      <select aria-label="ID type" required className="sf-select" style={selStyle} {...regField('ownerIdType')}>
                         <option value="national_id">National ID</option><option value="passport">Passport</option><option value="drivers_license">Driver's license</option>
                       </select>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>ID number</label>
-                      <input aria-label="ID number" className="sf-select" style={selStyle} placeholder="e.g. AB123456" {...regField('ownerIdNumber')} />
-                      {errors.ownerIdNumber && <p style={{ fontSize: 12, color: '#e11d48', margin: '-12px 0 8px' }}>{errors.ownerIdNumber.message}</p>}
+                      <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>ID number <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
+                      <input aria-label="ID number" className="sf-select" style={{ ...selStyle, borderColor: errors.ownerIdNumber ? 'var(--red)' : undefined }} placeholder="e.g. AB123456" {...regField('ownerIdNumber')} />
+                      {errors.ownerIdNumber && <p style={{ fontSize: 12, color: 'var(--red)', margin: '4px 0 0' }}>{errors.ownerIdNumber.message}</p>}
                     </div>
                   </div>
                 </div>
@@ -329,9 +354,9 @@ export default function RegisterPage() {
                 <div>
                   <h2 className="display" style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Create account</h2>
                   <p style={{ margin: '0 0 20px', fontSize: 13.5, color: 'var(--ink-soft)' }}>Secure your account with an email and password.</p>
-                  <Input label="Work email" type="email" placeholder="you@store.com" error={errors.email?.message} {...regField('email')} />
+                  <Input label="Work email" type="email" placeholder="you@store.com" error={errors.email?.message} {...regField('email')} required />
                   <div style={{ marginBottom: 16 }}>
-                    <Input label="Password" type="password" placeholder="Create a strong password" error={errors.password?.message} {...regField('password')} />
+                    <Input label="Password" type="password" placeholder="Create a strong password" error={errors.password?.message} {...regField('password')} required />
                     {pw && (
                       <div style={{ marginTop: 8 }}>
                         <div style={{ height: 6, borderRadius: 3, background: 'var(--paper-dim)', overflow: 'hidden' }}>
@@ -393,7 +418,7 @@ export default function RegisterPage() {
                         style={{
                           width: 48, height: 54, textAlign: 'center', fontSize: 22, fontWeight: 700,
                           fontFamily: 'inherit', color: 'var(--ink)',
-                          border: `2px solid ${otpError ? '#dc2626' : digit ? 'var(--blue)' : 'var(--line)'}`,
+                          border: `2px solid ${otpError ? 'var(--red)' : digit ? 'var(--blue)' : 'var(--line)'}`,
                           borderRadius: 12, background: 'var(--card)',
                           outline: 'none', transition: 'border-color .15s, box-shadow .15s',
                           caretColor: 'var(--blue)',
@@ -407,7 +432,7 @@ export default function RegisterPage() {
                   </div>
 
                   {otpError && (
-                    <p style={{ textAlign: 'center', fontSize: 12, color: '#dc2626', margin: '0 0 8px' }}>{otpError}</p>
+                    <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: '0 0 8px' }}>{otpError}</p>
                   )}
 
                   <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--ink-faint)', margin: '8px 0 20px' }}>

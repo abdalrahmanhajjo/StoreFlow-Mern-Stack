@@ -1,7 +1,54 @@
 [
-  { "id": "sm_1", "sku": "SM-MILK-2L", "name": "Semi-skimmed milk 2L", "price": 1.45, "unit": "each", "categoryId": "dairy", "stock": 120, "barcode": "5000112637922" },
-  { "id": "sm_2", "sku": "SM-BANANA", "name": "Bananas (loose)", "price": 0.98, "unit": "kg", "categoryId": "produce", "stock": 60 },
-  { "id": "sm_3", "sku": "SM-BREAD", "name": "Sourdough loaf", "price": 2.2, "unit": "each", "categoryId": "bakery", "stock": 34 },
-  { "id": "sm_4", "sku": "SM-EGGS-12", "name": "Free-range eggs (12)", "price": 3.1, "unit": "each", "categoryId": "dairy", "stock": 48 },
-  { "id": "sm_5", "sku": "SM-IPA-4", "name": "Craft IPA 4-pack", "price": 6.5, "unit": "each", "categoryId": "alcohol", "stock": 22, "ageRestricted": true }
+  {
+    "id": "sm_1",
+    "sku": "SM-MILK-2L",
+    "name": "Semi-skimmed milk 2L",
+    "price": 1.45,
+    "unit": "each",
+    "categoryId": "dairy",
+    "stock": 120,
+    "barcode": "5000112637922",
+    "imageUrl": "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "sm_2",
+    "sku": "SM-BANANA",
+    "name": "Bananas (loose)",
+    "price": 0.98,
+    "unit": "kg",
+    "categoryId": "produce",
+    "stock": 60,
+    "imageUrl": "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "sm_3",
+    "sku": "SM-BREAD",
+    "name": "Sourdough loaf",
+    "price": 2.2,
+    "unit": "each",
+    "categoryId": "bakery",
+    "stock": 34,
+    "imageUrl": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "sm_4",
+    "sku": "SM-EGGS-12",
+    "name": "Free-range eggs (12)",
+    "price": 3.1,
+    "unit": "each",
+    "categoryId": "dairy",
+    "stock": 48,
+    "imageUrl": "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "sm_5",
+    "sku": "SM-IPA-4",
+    "name": "Craft IPA 4-pack",
+    "price": 6.5,
+    "unit": "each",
+    "categoryId": "alcohol",
+    "stock": 22,
+    "ageRestricted": true,
+    "imageUrl": "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=640&h=480&fit=crop&auto=format"
+  }
 ]

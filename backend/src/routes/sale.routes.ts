@@ -9,19 +9,46 @@ import {
     getSaleReceipt,
 } from "../controllers/sale.controller";
 
+import { validate } from "../middleware/validate.middleware";
+
+import {
+    createSaleSchema,
+    saleIdParamSchema,
+    invoiceNumberParamSchema,
+} from "../validators/sale.validator";
 
 const router = express.Router();
 
 router.get("/", getSales);
 
-router.get("/invoice/:invoiceNumber", getInvoiceByNumber);
+router.get(
+    "/invoice/:invoiceNumber",
+    validate(invoiceNumberParamSchema),
+    getInvoiceByNumber
+);
 
-router.get("/:id/receipt", getSaleReceipt);
+router.get(
+    "/:id/receipt",
+    validate(saleIdParamSchema),
+    getSaleReceipt
+);
 
-router.get("/:id", getSaleById);
+router.get(
+    "/:id",
+    validate(saleIdParamSchema),
+    getSaleById
+);
 
-router.post("/", createSale);
+router.post(
+    "/",
+    validate(createSaleSchema),
+    createSale
+);
 
-router.patch("/:id/void", voidSale);
+router.patch(
+    "/:id/void",
+    validate(saleIdParamSchema),
+    voidSale
+);
 
 export default router;

@@ -25,8 +25,6 @@ export interface IUser {
     number: string;
   };
 
-  emailVerified: boolean;
-
   // --- Login lockout state (BS-202) ---
   failedLoginAttempts: number;
   lockUntil: Date | null;
@@ -100,8 +98,6 @@ const userSchema = new Schema<IUser>(
       },
       number: {type: String, required: true },
     },
-
-    emailVerified: { type: Boolean, default: false},
 
     failedLoginAttempts: { type: Number, default: 0 },
 

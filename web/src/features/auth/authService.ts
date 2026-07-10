@@ -1,3 +1,4 @@
+import { api } from '@/lib/axios';
 import type { Role, SessionUser } from '@/store/session';
 import type { BusinessType } from '@/lib/contracts/types';
 import { BUSINESS_TYPES } from '@/lib/contracts/types';
@@ -16,7 +17,47 @@ export interface ApprovalStatus {
   step: number;
 }
 
-const USE_MOCK = true;
+/** Real API whenever a base URL is configured; otherwise the built-in demo
+ * mocks keep the app fully usable without a backend. */
+const USE_MOCK = !import.meta.env.VITE_API_BASE_URL;
+
+/** Register form labels → backend businessType enum. */
+const BUSINESS_TYPE_TO_API: Record<string, string> = {
+  'Grocery / Supermarket': 'grocery',
+  Restaurant: 'restaurant',
+  Pharmacy: 'pharmacy',
+  'Retail shop': 'retail',
+};
+
+/** Backend businessType enum → the store template the frontend renders. */
+const API_BUSINESS_TYPE_TO_TEMPLATE: Record<string, BusinessType> = {
+  grocery: 'supermarket',
+  restaurant: 'restaurant',
+  pharmacy: 'pharmacy',
+  retail: 'boutique',
+};
+
+interface ApiUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  storeId: string | null;
+  businessType: string | null;
+}
+
+function sessionUserFromApi(u: ApiUser): SessionUser {
+  return {
+    id: String(u.id),
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    storeId: u.storeId ? String(u.storeId) : null,
+    businessType: u.businessType
+      ? (API_BUSINESS_TYPE_TO_TEMPLATE[u.businessType] ?? 'supermarket')
+      : null,
+  };
+}
 
 const REFRESH_COOKIE = 'sf_refresh';
 function writeMockRefresh(email: string) {
@@ -113,7 +154,12 @@ export const authService = {
       const user = userFor(input.email, pending.name);
       return delay({ accessToken: mintAccessToken(user), user });
     }
-    throw new Error('not implemented');
+
+    const { data } = await api.post('/auth/login', {
+      email: input.email,
+      password: input.password,
+    });
+    return { accessToken: data.accessToken, user: sessionUserFromApi(data.user) };
   },
 
   async register(input: RegisterInput): Promise<void> {
@@ -125,7 +171,40 @@ export const authService = {
       });
       return delay(undefined);
     }
-    throw new Error('not implemented');
+
+    await api.post('/auth/register', {
+      storeName: input.storeName,
+      address: input.businessAddress,
+      businessType: BUSINESS_TYPE_TO_API[input.businessType] ?? 'retail',
+      currency: input.currency,
+      taxRegistrationId: input.businessTaxId || undefined,
+      ownerName: input.ownerName,
+      email: input.email,
+      password: input.password,
+      phone: {
+        countryCode: input.ownerPhoneCode,
+        number: input.ownerPhone.replace(/\D/g, ''),
+      },
+      idVerification: {
+        type: input.ownerIdType,
+        number: input.ownerIdNumber,
+      },
+    });
+  },
+
+  /** Confirms the 6-digit email code. Demo mode accepts any code. */
+  async verifyEmailCode(email: string, code: string): Promise<void> {
+    if (USE_MOCK) {
+      return delay(undefined, 500);
+    }
+    await api.post('/auth/verify-email-code', { email, code });
+  },
+
+  async resendVerificationCode(email: string): Promise<void> {
+    if (USE_MOCK) {
+      return delay(undefined, 300);
+    }
+    await api.post('/auth/resend-verification-code', { email });
   },
 
   async checkApproval(email: string): Promise<ApprovalStatus> {
@@ -145,7 +224,9 @@ export const authService = {
         step: pending.step,
       }, 600);
     }
-    throw new Error('not implemented');
+
+    const { data } = await api.get('/auth/approval-status', { params: { email } });
+    return data as ApprovalStatus;
   },
 
   async refresh(): Promise<AuthResult> {
@@ -155,7 +236,14 @@ export const authService = {
       const user = userFor(email);
       return delay({ accessToken: mintAccessToken(user), user }, 200);
     }
-    throw new Error('not implemented');
+
+    // The refresh endpoint only rotates tokens; the session user comes from
+    // /me using the fresh token (the interceptor hasn't stored it yet).
+    const { data } = await api.post('/auth/refresh');
+    const me = await api.get('/auth/me', {
+      headers: { Authorization: `Bearer ${data.accessToken}` },
+    });
+    return { accessToken: data.accessToken, user: sessionUserFromApi(me.data) };
   },
 
   async logout(): Promise<void> {
@@ -163,9 +251,15 @@ export const authService = {
       clearMockRefresh();
       return delay(undefined, 100);
     }
+    // Best-effort: the server revokes the refresh token and clears the cookie,
+    // but a network failure must never block signing out locally.
+    await api.post('/auth/logout').catch(() => undefined);
   },
 
-  async requestReset(_email: string): Promise<void> {
-    return delay(undefined);
+  async requestReset(email: string): Promise<void> {
+    if (USE_MOCK) {
+      return delay(undefined);
+    }
+    await api.post('/auth/forgot-password', { email });
   },
 };

@@ -85,6 +85,7 @@ export const register = async (req: Request, res: Response) => {
 
     const passwordHash = await hashPassword(input.password);
 
+    // Create owner with phone and ID verification
     const owner = await User.create({
       name: input.ownerName,
       email: input.email,
@@ -92,15 +93,43 @@ export const register = async (req: Request, res: Response) => {
       role: 'owner',
       storeId: null,
       isEmailVerified: false,
+      phone: {
+        countryCode: input.phone.countryCode,
+        number: input.phone.number,
+      },
+      idVerification: {
+        type: input.idVerification.type,
+        number: input.idVerification.number,
+      },
+      emailVerified: false,
     });
 
     try {
-      const store = await Store.create({
+      // Create store with all required fields
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14-day trial
+
+      // Ensure currency is one of the allowed values
+      const validCurrencies = ['USD', 'EUR', 'EGP'];
+      const currency = (validCurrencies.includes(input.currency) ? input.currency : 'USD') as 'USD' | 'EUR' | 'EGP';
+
+      const storeData = {
         storeName: input.storeName,
-        currency: input.currency,
-        status: 'pending',
+        address: input.address,
+        businessType: input.businessType,
+        currency,
+        taxRegistrationId: input.taxRegistrationId || undefined,
+        status: 'pending' as const,
         ownerId: owner._id,
-      });
+        subscription: {
+          plan: 'trial',
+          trialEndsAt,
+          status: 'trial' as const,
+        },
+        isVerified: false,
+      };
+
+      const store = await Store.create(storeData) as any;
 
       const verificationCode = generateEmailVerificationCode();
 

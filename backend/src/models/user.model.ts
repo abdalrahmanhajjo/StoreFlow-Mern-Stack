@@ -15,6 +15,17 @@ export interface IUser {
   isEmailVerified: boolean;
   emailVerificationCodeHash: string | null;
   emailVerificationCodeExpires: Date | null;
+  phone: {
+    countryCode: string;
+    number: string;
+  };
+
+  idVerification: {
+    type: "national_id" | "passport" | "drivers_license";
+    number: string;
+  };
+
+  emailVerified: boolean;
 
   // --- Login lockout state (BS-202) ---
   failedLoginAttempts: number;
@@ -26,8 +37,6 @@ export interface IUser {
 
   createdAt: Date;
   updatedAt: Date;
-
-  save: (options?: { session?: any }) => Promise<IUser>;
 }
 
 const userSchema = new Schema<IUser>(
@@ -78,6 +87,21 @@ const userSchema = new Schema<IUser>(
       default: null,
       select: false,
     },
+    phone: {
+      countryCode: { type: String, required: true },
+      number: { type: String, required: true },
+    },
+
+    idVerification: {
+      type: {
+        type: String,
+        enum: ["national_id", "passport", "drivers_license"],
+        required: true,
+      },
+      number: {type: String, required: true },
+    },
+
+    emailVerified: { type: Boolean, default: false},
 
     failedLoginAttempts: { type: Number, default: 0 },
 

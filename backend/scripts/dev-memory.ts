@@ -16,6 +16,15 @@ async function main() {
 
   await import('../src/server');
 
+  // Seed the platform admin once the app's connectDB() has finished, so the
+  // throwaway database always has a working admin login.
+  const { default: mongooseInstance } = await import('mongoose');
+  while (mongooseInstance.connection.readyState !== 1) {
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const { seedAdmin } = await import('./seed-admin');
+  await seedAdmin();
+
   const stop = async () => {
     await mongo.stop();
     process.exit(0);

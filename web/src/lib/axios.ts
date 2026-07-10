@@ -43,6 +43,9 @@ api.interceptors.response.use(
 
     let code: ApiError['code'];
     if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') code = 'TIMEOUT';
+    // A 401 from an /auth/ call is a credentials problem ("Invalid email or
+    // password"), not an expired session — keep the server's story.
+    else if (status === 401 && isAuthCall) code = data?.code ?? 'AUTH_INVALID';
     else if (status === 401) code = 'UNAUTHENTICATED';
     // A 403 with a server code is a domain state (PENDING_APPROVAL,
     // EMAIL_UNVERIFIED, …) the UI switches on — don't flatten it to FORBIDDEN.
@@ -53,6 +56,7 @@ api.interceptors.response.use(
     else code = data?.code ?? 'NETWORK';
 
     const domain403 = status === 403 && Boolean(data?.code) && Boolean(data?.message);
+    const authInvalid401 = status === 401 && isAuthCall && Boolean(data?.message);
 
     const normalised: ApiError = {
       code,
@@ -63,7 +67,7 @@ api.interceptors.response.use(
       message:
         code === 'TIMEOUT'
           ? 'The request timed out. Please check your connection and try again.'
-          : domain403
+          : domain403 || authInvalid401
             ? data!.message!
             : status && status < 500 && status !== 401 && status !== 403 && status !== 429
               ? (data?.message ?? messageForStatus(status, 'Request failed'))

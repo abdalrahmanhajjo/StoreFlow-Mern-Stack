@@ -263,4 +263,15 @@ export const authService = {
     }
     await api.post('/auth/forgot-password', { email });
   },
+
+  /** Completes a reset using the token from the emailed link. */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    if (USE_MOCK) {
+      return delay(undefined);
+    }
+    await api.post('/auth/reset-password', { token, newPassword });
+  },
+
+  /** Connected mode sends a reset *link* by email; the demo flow fakes a code. */
+  usesResetLink: !USE_MOCK,
 };

@@ -487,6 +487,21 @@ export default function HomePage() {
           </div>
           <span className="sf-belt-scanner" />
         </div>
+
+        {/* Tonal water under the counter: one filled swell + two hairline sines,
+            drifting at different speeds and directions. Inline SVG so the
+            strokes/fills pick up theme tokens in both light and dark. */}
+        <div className="sf-hero-waves" aria-hidden>
+          <svg className="w1" viewBox="0 0 1440 160" preserveAspectRatio="none">
+            <path d="M0,80 C120,40 240,40 360,80 C480,120 600,120 720,80 C840,40 960,40 1080,80 C1200,120 1320,120 1440,80 L1440,160 0,160 Z" />
+          </svg>
+          <svg className="w2" viewBox="0 0 1440 160" preserveAspectRatio="none">
+            <path vectorEffect="non-scaling-stroke" d="M0,84 C120,124 240,124 360,84 C480,44 600,44 720,84 C840,124 960,124 1080,84 C1200,44 1320,44 1440,84" />
+          </svg>
+          <svg className="w3" viewBox="0 0 1440 160" preserveAspectRatio="none">
+            <path vectorEffect="non-scaling-stroke" d="M0,110 C120,86 240,86 360,110 C480,134 600,134 720,110 C840,86 960,86 1080,110 C1200,134 1320,134 1440,110" />
+          </svg>
+        </div>
       </section>
 
       <section id="features" className="sf-features">

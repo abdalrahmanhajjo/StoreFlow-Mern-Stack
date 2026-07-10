@@ -39,8 +39,14 @@
   animation: sf-rise .45s cubic-bezier(.22, 1, .36, 1);
 }
 
+/* hero entrance: rise + blur-to-focus, like a camera pulling the counter sharp */
+@keyframes sf-hero-in {
+  from { opacity: 0; transform: translateY(22px); filter: blur(10px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
 .sf-hero > * {
-  animation: sf-rise .8s cubic-bezier(.22, 1, .36, 1) both;
+  animation: sf-hero-in .95s cubic-bezier(.22, 1, .36, 1) both;
 }
 .sf-hero > *:nth-child(2) { animation-delay: .08s; }
 .sf-hero > *:nth-child(3) { animation-delay: .16s; }
@@ -185,11 +191,32 @@
 /* ---------- hero (centered, evolvion composition) ---------- */
 
 .sf-hero {
+  position: relative;
+  overflow: hidden;
   padding: clamp(48px, 8vw, 96px) clamp(20px, 4vw, 48px) 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+}
+
+/* soft halo behind the headline */
+.sf-hero::before {
+  content: '';
+  position: absolute;
+  top: -18%;
+  left: 50%;
+  width: min(920px, 92%);
+  aspect-ratio: 2.2;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--paper-raise), transparent);
+  pointer-events: none;
+}
+
+/* content floats above the wave field */
+.sf-hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .sf-hero-badge {
@@ -231,9 +258,20 @@
   max-width: 18ch;
 }
 
+/* the accent words carry a slow ink sweep — light catching wet paint */
 .sf-hero h1 em {
   font-style: normal;
   color: var(--ink-faint);
+  background: linear-gradient(100deg, var(--ink-faint) 20%, var(--ink) 50%, var(--ink-faint) 80%) 0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: sf-ink-sweep 7s ease-in-out infinite;
+}
+
+@keyframes sf-ink-sweep {
+  0%, 100% { background-position: 0% 0; }
+  50% { background-position: 100% 0; }
 }
 
 .sf-hero-sub {
@@ -407,6 +445,76 @@
 @media (prefers-reduced-motion: reduce) {
   .sf-belt-track { animation: none; }
   .sf-belt-scanner::before { animation: none; opacity: .5; }
+}
+
+/* ---------- hero waves: tonal water rising behind the belt ---------- */
+
+/* each svg holds two full periods at 200% width, so a -50% translate loops
+   seamlessly; strokes stay hairline via vector-effect while the path stretches */
+.sf-hero > .sf-hero-waves {
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 0 0;
+  height: min(46%, 300px);
+  pointer-events: none;
+  animation: sf-waves-in 1.8s ease .5s both;
+  mask-image: linear-gradient(180deg, transparent, #000 60%);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 60%);
+}
+
+@keyframes sf-waves-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sf-hero-waves svg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+}
+
+.sf-hero-waves .w1 {
+  fill: var(--paper-dim);
+  animation: sf-wave-l 64s linear infinite;
+}
+
+.sf-hero-waves .w2 { animation: sf-wave-r 42s linear infinite; }
+
+.sf-hero-waves .w2 path {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+
+.sf-hero-waves .w3 { animation: sf-wave-l 28s linear infinite; }
+
+.sf-hero-waves .w3 path {
+  fill: none;
+  stroke: var(--ink-faint-alt);
+  stroke-width: 1;
+  opacity: .55;
+}
+
+@keyframes sf-wave-l {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes sf-wave-r {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-hero-waves svg { animation: none !important; }
+  .sf-hero h1 em {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--ink-faint);
+  }
 }
 
 /* ---------- storefront gallery (expanding panels under the hero) ---------- */

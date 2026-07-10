@@ -101,7 +101,6 @@ export const register = async (req: Request, res: Response) => {
         type: input.idVerification.type,
         number: input.idVerification.number,
       },
-      emailVerified: false,
     });
 
     try {

@@ -17,10 +17,14 @@ const buildStoreFilter = (req: Request, baseFilter: any = {}) => {
 // 1. CREATE A NEW STORE (Strictly platform_admin)
 export const createStore = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { storeName, address, currency, taxRate, ownerId } = req.body;
+        const { storeName, address, businessType, currency, taxRate, taxRegistrationId, ownerId } = req.body;
 
         if (!ownerId || !mongoose.Types.ObjectId.isValid(ownerId)) {
             return next(new AppError("A valid ownerId is required to instantiate a store tenant.", 400));
+        }
+
+        if (!businessType || !['grocery', 'restaurant', 'pharmacy', 'retail'].includes(businessType)) {
+            return next(new AppError("A valid businessType is required (grocery, restaurant, pharmacy, retail).", 400));
         }
 
         // 1. Verify the owner exists and holds the proper role
@@ -37,18 +41,30 @@ export const createStore = async (req: Request, res: Response, next: NextFunctio
             return next(new AppError("This user is already linked to an existing store tenant.", 400));
         }
 
-        // 2. Instantiate the new store record
+        // 2. Initialize trial subscription
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14-day trial
+
+        // 3. Instantiate the new store record
         const newStore = await Store.create({
             storeName,
             address,
-            currency,
-            taxRate,
+            businessType,
+            currency: currency || 'USD',
+            taxRate: taxRate || 0,
+            taxRegistrationId: taxRegistrationId || undefined,
             ownerId,
-            status: "pending", 
+            status: "pending",
+            subscription: {
+                plan: 'trial',
+                trialEndsAt,
+                status: 'trial',
+            },
+            isVerified: false,
         });
 
         try {
-            // 3. Connect the store's ID back to the owner's profile (Two-way sync)
+            // 4. Connect the store's ID back to the owner's profile (Two-way sync)
             ownerUser.storeId = newStore._id as any;
             await ownerUser.save();
 

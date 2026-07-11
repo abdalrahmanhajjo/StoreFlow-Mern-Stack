@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { User } from "../models/user.model";
 import { AppError } from "../utils/error.utils";
 import { hashPassword } from "../utils/auth.utils";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // 1. CREATE USER
 export const createUser = async (
@@ -12,9 +13,17 @@ export const createUser = async (
 ) => {
     try {
         const { password, ...userData } = req.body;
-        
+
         if (!password) {
             return next(new AppError("Password is required to create a user account.", 400));
+        }
+
+        // Owners create staff for their own store only, never elevated roles.
+        if (req.user!.role !== "platform_admin") {
+            userData.storeId = req.storeId;
+            if (!["manager", "cashier"].includes(userData.role)) {
+                return next(new AppError("Owners can only create manager or cashier accounts", 403));
+            }
         }
         
         // 1. Hash the incoming password string using your utility function
@@ -41,7 +50,7 @@ export const getUsers = async (
     next: NextFunction
 ) => {
     try {
-        const users = await User.find();
+        const users = await User.find({ ...tenantFilter(req) });
         
         res.status(200).json({
             success: true,
@@ -66,7 +75,7 @@ export const getUserById = async (
             return next(new AppError("Invalid User ID format", 400));
         }
 
-        const user = await User.findById(id);
+        const user = await User.findOne({ _id: id, ...tenantFilter(req) });
         if (!user) {
             return next(new AppError("User not found", 404));
         }
@@ -94,13 +103,21 @@ export const updateUser = async (
         }
 
         const updateData = { ...req.body };
-        
-        // Guardrail: Never let passwords or hash strings leak into a general profile update endpoint
-        delete updateData.passwordHash; 
-        delete updateData.password; 
 
-        const user = await User.findByIdAndUpdate(
-            id,
+        // Guardrail: Never let passwords or hash strings leak into a general profile update endpoint
+        delete updateData.passwordHash;
+        delete updateData.password;
+
+        // Owners can't move users between stores or mint elevated roles.
+        if (req.user!.role !== "platform_admin") {
+            delete updateData.storeId;
+            if (updateData.role && !["manager", "cashier"].includes(updateData.role)) {
+                return next(new AppError("Owners can only assign manager or cashier roles", 403));
+            }
+        }
+
+        const user = await User.findOneAndUpdate(
+            { _id: id, ...tenantFilter(req) },
             updateData,
             { new: true, runValidators: true }
         );
@@ -132,7 +149,7 @@ export const deleteUser = async (
             return next(new AppError("Invalid User ID format", 400));
         }
 
-        const user = await User.findByIdAndDelete(id);
+        const user = await User.findOneAndDelete({ _id: id, ...tenantFilter(req) });
         if (!user) {
             return next(new AppError("User not found", 404));
         }

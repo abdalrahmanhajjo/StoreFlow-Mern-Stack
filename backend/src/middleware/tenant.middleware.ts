@@ -1,11 +1,10 @@
-import { ObjectId } from "mongoose";
 import { Request, Response, NextFunction } from "express";
 import { UserRole } from "../models/user.model";
 
 declare global {
     namespace Express {
         interface Request {
-            storeId?: string | ObjectId | null;
+            storeId?: string | null;
         }
     }
 }

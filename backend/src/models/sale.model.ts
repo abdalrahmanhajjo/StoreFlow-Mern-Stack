@@ -13,6 +13,7 @@ export interface ISaleItem {
 }
 
 export interface ISale extends Document {
+    storeId: mongoose.Types.ObjectId;
     invoiceNumber: string;
     customerId?: mongoose.Types.ObjectId;
     cashierName?: string;
@@ -76,6 +77,12 @@ const saleItemSchema = new Schema<ISaleItem>(
 
 const saleSchema = new Schema<ISale>(
     {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
         invoiceNumber: {
             type: String,
             required: true,

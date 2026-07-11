@@ -2,11 +2,12 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Product from "../models/product.model";
 import StockAdjustment from "../models/stock_adjustment.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all stock adjustments
 export const getStockAdjustments = async (req: Request, res: Response) => {
     try {
-        const adjustments = await StockAdjustment.find({ isActive: true })
+        const adjustments = await StockAdjustment.find({ ...tenantFilter(req), isActive: true })
             .populate("productId", "name sku quantity price")
             .sort({ createdAt: -1 });
 
@@ -37,7 +38,7 @@ export const getStockAdjustmentById = async (req: Request, res: Response) => {
             return;
         }
 
-        const adjustment = await StockAdjustment.findOne({
+        const adjustment = await StockAdjustment.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         }).populate("productId", "name sku quantity price");
@@ -79,7 +80,7 @@ export const getProductStockAdjustments = async (
             return;
         }
 
-        const product = await Product.findOne({
+        const product = await Product.findOne({ ...tenantFilter(req),
             _id: productId,
             isActive: true,
         });
@@ -92,7 +93,7 @@ export const getProductStockAdjustments = async (
             return;
         }
 
-        const adjustments = await StockAdjustment.find({
+        const adjustments = await StockAdjustment.find({ ...tenantFilter(req),
             productId,
             isActive: true,
         }).sort({ createdAt: -1 });
@@ -167,7 +168,7 @@ export const createStockAdjustment = async (req: Request, res: Response) => {
             return;
         }
 
-        const product = await Product.findOne({
+        const product = await Product.findOne({ ...tenantFilter(req),
             _id: productId,
             isActive: true,
         });
@@ -206,7 +207,7 @@ export const createStockAdjustment = async (req: Request, res: Response) => {
         product.quantity = newQuantity;
         await product.save();
 
-        const adjustment = await StockAdjustment.create({
+        const adjustment = await StockAdjustment.create({ storeId: req.storeId!, 
             productId: product._id,
             productName: product.name,
             sku: product.sku,
@@ -255,7 +256,7 @@ export const deleteStockAdjustment = async (req: Request, res: Response) => {
         }
 
         const adjustment = await StockAdjustment.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },

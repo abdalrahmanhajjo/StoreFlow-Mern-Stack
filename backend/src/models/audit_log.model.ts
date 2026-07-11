@@ -15,6 +15,7 @@ export type AuditAction =
     | "PO_STOCK_INCREASE";
 
 export interface IAuditLog extends Document {
+    storeId: mongoose.Types.ObjectId;
     action: AuditAction;
     entity: string;
     entityId?: mongoose.Types.ObjectId;
@@ -26,6 +27,12 @@ export interface IAuditLog extends Document {
 
 const auditLogSchema = new Schema<IAuditLog>(
     {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
         action: {
             type: String,
             required: [true, "Action is required"],

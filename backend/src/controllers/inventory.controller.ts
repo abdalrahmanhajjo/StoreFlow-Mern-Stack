@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Product from "../models/product.model";
 import StockAdjustment from "../models/stock_adjustment.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 class AppError extends Error {
     statusCode: number;
@@ -31,7 +32,7 @@ export const adjustInventory = async (req: Request, res: Response) => {
             throw new AppError("Reason is required for inventory adjustment", 400);
         }
 
-        const productBeforeUpdate = await Product.findOne({
+        const productBeforeUpdate = await Product.findOne({ ...tenantFilter(req),
             _id: productId,
             isActive: true,
         });
@@ -51,7 +52,7 @@ export const adjustInventory = async (req: Request, res: Response) => {
         }
 
         const updatedProduct = await Product.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: productId,
                 isActive: true,
                 quantity: {
@@ -78,7 +79,7 @@ export const adjustInventory = async (req: Request, res: Response) => {
 
         const adjustmentType = numericDelta > 0 ? "increase" : "decrease";
 
-        const adjustment = await StockAdjustment.create({
+        const adjustment = await StockAdjustment.create({ storeId: req.storeId!, 
             productId: updatedProduct._id,
             productName: updatedProduct.name,
             sku: updatedProduct.sku,
@@ -115,7 +116,7 @@ export const adjustInventory = async (req: Request, res: Response) => {
 // GET /api/inventory/low-stock
 export const getLowStockInventory = async (req: Request, res: Response) => {
     try {
-        const products = await Product.find({
+        const products = await Product.find({ ...tenantFilter(req),
             isActive: true,
             $expr: {
                 $lte: ["$quantity", "$reorderThreshold"],

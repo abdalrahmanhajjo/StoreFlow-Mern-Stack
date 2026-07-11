@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Product from "../models/product.model";
 import Category from "../models/category.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all products with filters and pagination
 export const getProducts = async (req: Request, res: Response) => {
@@ -18,7 +19,7 @@ export const getProducts = async (req: Request, res: Response) => {
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const filter: any = {};
+    const filter: any = { ...tenantFilter(req) };
 
     // Status filter
     // status=active → active products
@@ -151,7 +152,7 @@ export const getProductById = async (req: Request, res: Response) => {
       return;
     }
 
-    const product = await Product.findOne({
+    const product = await Product.findOne({ ...tenantFilter(req),
       _id: id,
       isActive: true,
     }).populate("categoryId", "name description");
@@ -209,7 +210,7 @@ export const createProduct = async (req: Request, res: Response) => {
       return;
     }
 
-    const category = await Category.findOne({
+    const category = await Category.findOne({ ...tenantFilter(req),
       _id: categoryId,
       isActive: true,
     });
@@ -222,7 +223,7 @@ export const createProduct = async (req: Request, res: Response) => {
       return;
     }
 
-    const product = await Product.create({
+    const product = await Product.create({ storeId: req.storeId!, 
       name,
       sku,
       barcode,
@@ -271,7 +272,7 @@ export const updateProduct = async (req: Request, res: Response) => {
         return;
       }
 
-      const category = await Category.findOne({
+      const category = await Category.findOne({ ...tenantFilter(req),
         _id: req.body.categoryId,
         isActive: true,
       });
@@ -286,7 +287,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     const product = await Product.findOneAndUpdate(
-      {
+            { ...tenantFilter(req),
         _id: id,
         isActive: true,
       },
@@ -333,7 +334,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
     }
 
     const product = await Product.findOneAndUpdate(
-      {
+            { ...tenantFilter(req),
         _id: id,
         isActive: true,
       },
@@ -369,7 +370,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
 // GET low stock products
 export const getLowStockProducts = async (req: Request, res: Response) => {
   try {
-    const products = await Product.find({
+    const products = await Product.find({ ...tenantFilter(req),
       isActive: true,
       $expr: {
         $lte: ["$quantity", "$reorderThreshold"],
@@ -415,7 +416,7 @@ export const updateProductStock = async (req: Request, res: Response) => {
     }
 
     const product = await Product.findOneAndUpdate(
-      {
+            { ...tenantFilter(req),
         _id: id,
         isActive: true,
       },

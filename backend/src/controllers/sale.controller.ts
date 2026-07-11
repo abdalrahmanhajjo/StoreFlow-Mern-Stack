@@ -8,6 +8,7 @@ import AuditLog from "../models/audit_log.model";
 import { calculateLoyaltyTier } from "../utils/loyalty_tier.utils";
 import StoreSetting from "../models/store_setting.model";
 import { tenantFilter } from "../utils/tenant.utils";
+import { roundMoney, lineAmount } from "../utils/money.utils";
 class AppError extends Error {
     statusCode: number;
 
@@ -215,7 +216,7 @@ export const createSale = async (req: Request, res: Response) => {
             }
 
             const unitPrice = product.price;
-            const itemSubtotal = unitPrice * quantity;
+            const itemSubtotal = lineAmount(unitPrice, quantity);
 
             subtotal += itemSubtotal;
 
@@ -228,6 +229,8 @@ export const createSale = async (req: Request, res: Response) => {
                 subtotal: itemSubtotal,
             });
         }
+
+        subtotal = roundMoney(subtotal);
 
         const numericDiscount = Number(discount);
 
@@ -251,18 +254,20 @@ export const createSale = async (req: Request, res: Response) => {
             throw new AppError("Tax rate cannot be negative", 400);
         }
 
-        const afterDiscount = subtotal - numericDiscount;
-        const taxAmount = afterDiscount * (numericTaxRate / 100);
-        const total = afterDiscount + taxAmount;
+        // Every monetary result is rounded to whole cents (see money.utils),
+        // matching the register step-for-step so the receipt agrees exactly.
+        const afterDiscount = roundMoney(subtotal - numericDiscount);
+        const taxAmount = roundMoney(afterDiscount * (numericTaxRate / 100));
+        const total = roundMoney(afterDiscount + taxAmount);
 
         const finalPaidAmount =
-            paidAmount === undefined ? total : Number(paidAmount);
+            paidAmount === undefined ? total : roundMoney(Number(paidAmount));
 
         if (Number.isNaN(finalPaidAmount) || finalPaidAmount < total) {
             throw new AppError("Paid amount cannot be less than total", 400);
         }
 
-        const changeAmount = finalPaidAmount - total;
+        const changeAmount = roundMoney(finalPaidAmount - total);
         const invoiceNumber = generateInvoiceNumber();
 
         let loyaltyPointsEarned = 0;

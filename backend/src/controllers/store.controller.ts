@@ -148,6 +148,7 @@ export const updateStore = async (req: Request, res: Response, next: NextFunctio
         if (req.user?.role !== "platform_admin") {
             delete updateData.status;
             delete updateData.ownerId;
+            delete updateData.subscription; // no self-service plan upgrades
         }
 
         const updatedStore = await Store.findByIdAndUpdate(

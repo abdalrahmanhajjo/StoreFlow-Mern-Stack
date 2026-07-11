@@ -147,6 +147,8 @@ if (isConnected) {
     }
     if (!key && state.status === 'unauthenticated') {
       hydratedForUser = null;
+      // Next sign-in may be a different store — drop the cached identity.
+      void import('./storeIdentity').then((m) => m.useStoreIdentity.getState().clear());
     }
   });
 }

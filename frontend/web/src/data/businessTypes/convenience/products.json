@@ -1,0 +1,54 @@
+[
+  {
+    "id": "cv_1",
+    "sku": "CV-COLA",
+    "name": "Cola 500ml",
+    "price": 1.99,
+    "unit": "each",
+    "categoryId": "drinks",
+    "stock": 300,
+    "barcode": "049000028911",
+    "imageUrl": "https://images.unsplash.com/photo-1554866585-cd94860890b7?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "cv_2",
+    "sku": "CV-CHIPS",
+    "name": "Salted chips",
+    "price": 2.49,
+    "unit": "each",
+    "categoryId": "snacks",
+    "stock": 180,
+    "imageUrl": "https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "cv_3",
+    "sku": "CV-CIG-20",
+    "name": "Cigarettes (20)",
+    "price": 11.99,
+    "unit": "each",
+    "categoryId": "tobacco",
+    "stock": 90,
+    "ageRestricted": true,
+    "imageUrl": "https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "cv_4",
+    "sku": "CV-TOPUP",
+    "name": "Mobile top-up $20",
+    "price": 20,
+    "unit": "each",
+    "categoryId": "services",
+    "stock": 9999,
+    "imageUrl": "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=640&h=480&fit=crop&auto=format"
+  },
+  {
+    "id": "cv_5",
+    "sku": "CV-COFFEE",
+    "name": "Hot coffee 12oz",
+    "price": 1.75,
+    "unit": "each",
+    "categoryId": "drinks",
+    "stock": 500,
+    "imageUrl": "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=640&h=480&fit=crop&auto=format"
+  }
+]

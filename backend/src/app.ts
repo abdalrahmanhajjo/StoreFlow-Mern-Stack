@@ -22,12 +22,15 @@ import userRoutes from "./routes/user.routes";
 import cookieParser from 'cookie-parser';
 import storeRoutes from "./routes/store.routes";
 
-
+const CLIENT_APP_URL = process.env.CLIENT_APP_URL;
 const app = express();
 
 app.use(cookieParser());
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: CLIENT_APP_URL,
+  credentials: true,               // Allows cookies and authorization headers
+}));
 app.use(express.json());
 
 // Test route

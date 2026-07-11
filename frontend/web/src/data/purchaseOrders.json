@@ -1,0 +1,5 @@
+[
+  { "id": "po1", "poNo": "PO-0418", "supplier": "Coastal Beverages Co.", "lines": [{ "productId": "p1", "name": "Coca-Cola 330ml", "qty": 48 }], "status": "pending", "ordered": "Jun 28", "expected": "Jul 3" },
+  { "id": "po2", "poNo": "PO-0417", "supplier": "Provence Dairy Collective", "lines": [{ "productId": "p3", "name": "Whole Milk 1L", "qty": 60 }, { "productId": "p7", "name": "Eggs (12-pack)", "qty": 60 }], "status": "pending", "ordered": "Jun 27", "expected": "Jul 1" },
+  { "id": "po3", "poNo": "PO-0416", "supplier": "Le Moulin Bakery Supply", "lines": [{ "productId": "p2", "name": "Brioche Loaf", "qty": 60 }], "status": "received", "ordered": "Jun 21", "expected": "Jun 24" }
+]

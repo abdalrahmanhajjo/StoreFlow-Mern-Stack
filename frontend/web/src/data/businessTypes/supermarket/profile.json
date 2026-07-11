@@ -1,0 +1,35 @@
+{
+  "id": "store_bluepalm",
+  "tenantId": "tenant_bluepalm",
+  "name": "Blue Palm Market",
+  "businessType": "supermarket",
+  "locale": "en-GB",
+  "currency": "GBP",
+  "direction": "ltr",
+  "theme": {
+    "accent": "#2563eb",
+    "mode": "light"
+  },
+  "taxProfile": {
+    "inclusive": true,
+    "defaultRate": 0.2,
+    "label": "VAT"
+  },
+  "hardwareProfile": {
+    "barcodeScanner": true,
+    "receiptPrinter": true,
+    "cashDrawer": true,
+    "scale": true,
+    "cardTerminal": true,
+    "kitchenDisplay": false
+  },
+  "featureFlags": {
+    "loyalty": true,
+    "offlineQueue": true,
+    "ageVerification": true
+  },
+  "complianceFlags": {
+    "ageRestrictedSales": true
+  },
+  "timezone": "Europe/London"
+}

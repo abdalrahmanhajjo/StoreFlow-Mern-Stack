@@ -18,6 +18,8 @@ router.post('/logout', authController.logout);
 
 router.get('/me', authenticate, authController.me);
 
+router.get('/approval-status', authController.approvalStatus);
+
 router.post('/forgot-password', authController.forgotPassword);
 
 router.post('/reset-password', authController.resetPassword);

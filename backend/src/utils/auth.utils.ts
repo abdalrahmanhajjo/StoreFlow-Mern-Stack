@@ -48,10 +48,20 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Without SMTP configured (local dev), print instead of send — otherwise
+// registration would 500 and roll back before the code ever reaches anyone.
+const emailConfigured = () =>
+  Boolean(process.env.EMAIL_HOST && process.env.EMAIL_USER);
+
 export const sendPasswordResetEmail = async (
   to: string,
   resetUrl: string
 ) => {
+  if (!emailConfigured()) {
+    console.log(`[dev mail] Password reset for ${to}: ${resetUrl}`);
+    return;
+  }
+
   await transporter.sendMail({
     from: `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`,
     to,
@@ -71,6 +81,11 @@ export const sendEmailVerificationCode = async (
   to: string,
   code: string
 ) => {
+  if (!emailConfigured()) {
+    console.log(`[dev mail] Email verification code for ${to}: ${code}`);
+    return;
+  }
+
   await transporter.sendMail({
     from: `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`,
     to,

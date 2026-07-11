@@ -358,25 +358,34 @@ export const login = async (req: Request, res: Response) => {
 
     if (!user.isEmailVerified) {
       return res.status(403).json({
+        code: 'EMAIL_UNVERIFIED',
         message: 'Please verify your email before logging in.',
       });
     }
-  
-    // platform_admin has no storeId and bypasses store-status checks entirely.
-    if (user.role !== 'platform_admin' && user.storeId) {
-      const store = await Store.findById(user.storeId);
-      if (!store || store.status !== 'active') {
-        await LoginAttempt.create({
-          email: input.email,
-          ip,
-          success: false,
-        });
 
+    const store = user.storeId ? await Store.findById(user.storeId) : null;
+
+    // Store owners/staff can't sign in until a platform admin approves the
+    // store. Blocked sign-ins still land in the login-attempt log.
+    if (store && store.status !== 'active') {
+      await LoginAttempt.create({
+        email: input.email,
+        ip,
+        success: false,
+      });
+
+      if (store.status === 'pending') {
         return res.status(403).json({
-          code: 'STORE_NOT_ACTIVE',
-          message: 'Your store is awaiting admin approval.',
+          code: 'PENDING_APPROVAL',
+          message:
+            "Your account is still under review. We'll notify you once approved.",
         });
       }
+
+      return res.status(403).json({
+        code: 'STORE_SUSPENDED',
+        message: 'This store is suspended. Contact support for help.',
+      });
     }
 
     user.failedLoginAttempts = 0;
@@ -403,6 +412,7 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         storeId: user.storeId,
+        businessType: store?.businessType ?? null,
         isEmailVerified: user.isEmailVerified,
       },
     });
@@ -529,13 +539,53 @@ export const me = async (req: Request, res: Response) => {
     });
   }
 
+  const store = user.storeId ? await Store.findById(user.storeId) : null;
+
   res.json({
     id: user._id,
     name: user.name,
     email: user.email,
     role: user.role,
     storeId: user.storeId,
+    businessType: store?.businessType ?? null,
     isEmailVerified: user.isEmailVerified,
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Approval status — polled by the registration pending screen (public).
+// Step mirrors the review pipeline: 0=submitted, 1=identity, 2=business,
+// 3=activated, 4=approved.
+// ---------------------------------------------------------------------------
+export const approvalStatus = async (req: Request, res: Response) => {
+  const email = String(req.query.email ?? '').trim().toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ message: 'email query param is required' });
+  }
+
+  const user = await User.findOne({ email });
+  const store = user?.storeId ? await Store.findById(user.storeId) : null;
+
+  // Unknown emails read as approved so the endpoint can't be used to
+  // enumerate which addresses have an account.
+  if (!user || !store) {
+    return res.json({ status: 'approved', name: '', step: 4 });
+  }
+
+  if (store.status === 'suspended') {
+    return res.json({ status: 'rejected', name: user.name, step: 0 });
+  }
+
+  if (store.status === 'active') {
+    return res.json({ status: 'approved', name: user.name, step: 4 });
+  }
+
+  // Pending: email verification is the first concrete milestone we can show.
+  return res.json({
+    status: 'pending',
+    name: user.name,
+    step: user.isEmailVerified ? 2 : 1,
   });
 };
 

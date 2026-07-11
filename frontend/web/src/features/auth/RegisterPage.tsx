@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { registerSchema, type RegisterInput } from './schemas';
-import { useRegister, useVerifyEmailCode, useResendVerificationCode } from './hooks';
-import { Button, Input, Logo, PhoneCodeSelect } from '@/components/ui';
-import { toast } from '@/components/ui';
+import { useRegister, useVerifyEmail } from './hooks';
+import { authService } from './authService';
+import { Button, Input, Logo, PhoneCodeSelect, toast } from '@/components/ui';
 
 const STEPS = ['Business', 'Owner identity', 'Account', 'Verify'] as const;
 
@@ -54,9 +54,7 @@ const selBase: CSSProperties = {
 
 export default function RegisterPage() {
   const reg = useRegister();
-  const verify = useVerifyEmailCode();
-  const resend = useResendVerificationCode();
-  const navigate = useNavigate();
+  const verify = useVerifyEmail();
   const [step, setStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const topRef = useRef<HTMLDivElement>(null);
@@ -64,20 +62,19 @@ export default function RegisterPage() {
   const [otpError, setOtpError] = useState('');
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [resendTimer, setResendTimer] = useState(0);
-  const resendInterval = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const resendInterval = useRef<ReturnType<typeof setInterval>>();
 
   const {
     register: regField,
     trigger,
     watch,
-    getValues,
     setFocus,
     control,
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      businessType: 'grocery', currency: 'USD',
+      businessType: 'Grocery / Supermarket', currency: 'USD',
       ownerIdType: 'national_id', businessPhoneCode: '+1', ownerPhoneCode: '+1',
       storeName: '', businessPhone: '', businessAddress: '', businessTaxId: '',
       ownerName: '', ownerPhone: '', ownerIdNumber: '', email: '', password: '', otp: '',
@@ -107,17 +104,12 @@ export default function RegisterPage() {
     if (fields.length === 0) return;
     const valid = await trigger(fields as (keyof RegisterInput)[]);
     if (!valid) return;
-
+    // Leaving the Account step submits the registration — the server creates
+    // the store + owner and emails the 6-digit code the Verify step asks for.
     if (step === 2) {
-      // Last data step — register now so the backend creates the account and
-      // sends the first verification code, then move to the Verify step.
-      reg.mutate(getValues(), {
-        onSuccess: () => advance(),
-        onError: (err) => toast.error(err.message || 'Registration failed. Please try again.'),
-      });
+      reg.mutate(vals, { onSuccess: () => advance() });
       return;
     }
-
     advance();
   }
 
@@ -183,21 +175,16 @@ export default function RegisterPage() {
     }
     verify.mutate(
       { email: vals.email, code },
-      {
-        onSuccess: () => {
-          toast.success('Email verified', 'You can now sign in');
-          navigate('/login');
-        },
-        onError: (err) => setOtpError(err.message || 'Invalid verification code'),
-      }
+      { onError: (err) => setOtpError(err.message || 'Verification failed — check the code and try again') }
     );
   }
 
   function handleResendCode() {
-    resend.mutate(vals.email, {
-      onSuccess: () => startResendTimer(),
-      onError: (err) => toast.error(err.message || 'Could not resend code'),
-    });
+    startResendTimer();
+    authService
+      .resendVerificationCode(vals.email)
+      .then(() => toast.success('New code sent', vals.email))
+      .catch(() => toast.error('Could not resend the code. Please try again.'));
   }
 
   const selStyle = { ...selBase, outline: 'none' } as CSSProperties;
@@ -302,10 +289,7 @@ export default function RegisterPage() {
                     <div>
                       <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Business type <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
                       <select aria-label="Business type" required className="sf-select" style={selStyle} {...regField('businessType')}>
-                        <option value="grocery">Grocery / Supermarket</option>
-                        <option value="restaurant">Restaurant</option>
-                        <option value="pharmacy">Pharmacy</option>
-                        <option value="retail">Retail shop</option>
+                        <option>Grocery / Supermarket</option><option>Restaurant</option><option>Pharmacy</option><option>Retail shop</option>
                       </select>
                     </div>
                     <div>
@@ -475,10 +459,10 @@ export default function RegisterPage() {
                       <>Resend code in <strong>{resendTimer}s</strong></>
                     ) : (
                       <button
-                        type="button" onClick={handleResendCode} disabled={resend.isPending}
+                        type="button" onClick={handleResendCode}
                         style={{ background: 'none', border: 'none', color: 'var(--blue)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', padding: 0 }}
                       >
-                        {resend.isPending ? 'Sending…' : 'Resend code'}
+                        Resend code
                       </button>
                     )}
                   </p>
@@ -507,7 +491,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Navigation */}
-          <form onSubmit={(e) => e.preventDefault()} noValidate>
+          <form onSubmit={(e) => { e.preventDefault(); if (step < STEPS.length - 1) next(); else handleVerifyOtp(); }} noValidate>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
               {step > 0 ? (
                 <Button type="button" variant="ghost" onClick={goBack} style={{ flex: 1 }}>
@@ -520,15 +504,15 @@ export default function RegisterPage() {
                 <div style={{ flex: 1 }} />
               )}
               {step < STEPS.length - 1 ? (
-                <Button type="button" onClick={next} isLoading={step === 2 && reg.isPending} style={{ flex: 1, letterSpacing: '0.01em' }}>
-                  {step === 2 && reg.isPending ? 'Creating account…' : 'Continue'}
+                <Button type="button" onClick={next} isLoading={reg.isPending} style={{ flex: 1, letterSpacing: '0.01em' }}>
+                  {reg.isPending ? 'Creating store…' : 'Continue'}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
                 </Button>
               ) : (
                 <Button type="button" onClick={handleVerifyOtp} fullWidth isLoading={verify.isPending} style={{ letterSpacing: '0.01em' }}>
-                  {verify.isPending ? 'Verifying…' : 'Verify email'}
+                  {verify.isPending ? 'Verifying…' : 'Create store'}
                 </Button>
               )}
             </div>

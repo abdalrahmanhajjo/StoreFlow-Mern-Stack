@@ -70,6 +70,8 @@ export function AppRouter() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset" element={<ResetPage />} />
+          {/* Target of the emailed reset link (?token=…) */}
+          <Route path="/reset-password" element={<ResetPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/403" element={<Forbidden />} />
           <Route path="/500" element={<Error500 />} />

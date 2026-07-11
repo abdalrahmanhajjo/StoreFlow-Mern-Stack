@@ -1,35 +1,44 @@
 import { create } from 'zustand';
+import type { BusinessType } from '@/lib/contracts/types';
 
-// Mirrors backend UserRole (user.model.ts)
 export type Role = 'platform_admin' | 'owner' | 'manager' | 'cashier';
 
-// Mirrors the shape returned by GET /auth/me and the `user` field of
-// POST /auth/login (auth.controller.ts)
 export interface SessionUser {
   id: string;
   name: string;
   email: string;
   role: Role;
   storeId: string | null;
-  isEmailVerified: boolean;
+  /** Which store template the signed-in user operates; null for platform admins. */
+  businessType: BusinessType | null;
 }
 
-type Status = 'idle' | 'authenticated' | 'unauthenticated';
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 interface SessionState {
   user: SessionUser | null;
+  /**
+   * Access token is kept in memory ONLY — never in localStorage/sessionStorage.
+   * This avoids XSS token theft. On reload it is re-obtained via silent refresh
+   * (the refresh token lives in an HttpOnly cookie the JS can't read).
+   */
   accessToken: string | null;
-  // 'idle' until the first refresh attempt (on app load) resolves either way.
-  // Route guards should treat 'idle' as "still checking", not "logged out".
-  status: Status;
+  status: AuthStatus;
   setSession: (user: SessionUser, accessToken: string) => void;
+  setToken: (accessToken: string) => void;
+  setStatus: (status: AuthStatus) => void;
   clear: () => void;
 }
 
+// NOTE: no `persist` middleware — the token must not touch web storage.
 export const useSession = create<SessionState>((set) => ({
   user: null,
   accessToken: null,
-  status: 'idle',
+  status: 'loading', // until the initial silent-refresh resolves
   setSession: (user, accessToken) => set({ user, accessToken, status: 'authenticated' }),
+  setToken: (accessToken) => set({ accessToken }),
+  setStatus: (status) => set({ status }),
   clear: () => set({ user: null, accessToken: null, status: 'unauthenticated' }),
 }));
+
+export const useRole = (): Role | null => useSession((s) => s.user?.role ?? null);

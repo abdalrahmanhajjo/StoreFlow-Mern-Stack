@@ -32,11 +32,11 @@ describe('employee rules (SF-1101/1102)', () => {
     expect(can('owner', 'employee.editRole', 'cashier')).toBe(true);
   });
 
-  it('manager manages cashiers only, never resets passwords', () => {
-    expect(can('manager', 'employee.manage')).toBe(true);
+  it('staff management is owner-only (matches the /api/users authorization)', () => {
+    expect(can('manager', 'employee.manage')).toBe(false);
     expect(can('manager', 'employee.reset')).toBe(false);
-    expect(can('manager', 'employee.delete', 'cashier')).toBe(true);
-    expect(can('manager', 'employee.delete', 'manager')).toBe(false);
-    expect(can('manager', 'employee.editRole', 'manager')).toBe(false);
+    expect(can('manager', 'employee.delete', 'cashier')).toBe(false);
+    expect(can('manager', 'employee.editRole', 'cashier')).toBe(false);
+    expect(can('cashier', 'employee.manage')).toBe(false);
   });
 });

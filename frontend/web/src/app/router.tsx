@@ -83,18 +83,18 @@ export function AppRouter() {
           <Route element={<RequireAuth><AppShell /></RequireAuth>}>
             {/* store */}
             <Route path="/dashboard" element={<RequireRole roles={['owner', 'manager']}><DashboardPage /></RequireRole>} />
-            <Route path="/pos" element={<RequireRole roles={['owner', 'cashier']}><PosPage /></RequireRole>} />
+            <Route path="/pos" element={<RequireRole roles={['owner', 'manager', 'cashier']}><PosPage /></RequireRole>} />
             <Route path="/sales" element={<RequireRole roles={[...STORE]}><SalesPage /></RequireRole>} />
             <Route path="/sales/:invoiceNo/receipt" element={<RequireRole roles={[...STORE]}><ReceiptPage /></RequireRole>} />
             <Route path="/products" element={<RequireRole roles={['owner', 'manager']}><ProductsPage /></RequireRole>} />
-            <Route path="/categories" element={<RequireRole roles={['owner']}><CategoriesPage /></RequireRole>} />
+            <Route path="/categories" element={<RequireRole roles={['owner', 'manager']}><CategoriesPage /></RequireRole>} />
             <Route path="/inventory" element={<RequireRole roles={['owner', 'manager']}><InventoryPage /></RequireRole>} />
             <Route path="/customers" element={<RequireRole roles={[...STORE]}><CustomersPage /></RequireRole>} />
             <Route path="/customers/:id" element={<RequireRole roles={[...STORE]}><CustomerProfile /></RequireRole>} />
-            <Route path="/suppliers" element={<RequireRole roles={['owner']}><SuppliersPage /></RequireRole>} />
-            <Route path="/purchase-orders" element={<RequireRole roles={['owner']}><PurchaseOrdersPage /></RequireRole>} />
+            <Route path="/suppliers" element={<RequireRole roles={['owner', 'manager']}><SuppliersPage /></RequireRole>} />
+            <Route path="/purchase-orders" element={<RequireRole roles={['owner', 'manager']}><PurchaseOrdersPage /></RequireRole>} />
             <Route path="/reports" element={<RequireRole roles={['owner', 'manager']}><ReportsPage /></RequireRole>} />
-            <Route path="/employees" element={<RequireRole roles={['owner', 'manager']}><EmployeesPage /></RequireRole>} />
+            <Route path="/employees" element={<RequireRole roles={['owner']}><EmployeesPage /></RequireRole>} />
             <Route path="/settings" element={<RequireRole roles={['owner']}><StoreSettingsPage /></RequireRole>} />
             {/* platform admin */}
             <Route path="/admin/overview" element={<RequireRole roles={['platform_admin']}><OverviewPage /></RequireRole>} />

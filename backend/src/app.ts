@@ -113,6 +113,19 @@ const storeWrites = (req: Request, res: Response, next: NextFunction) => {
     });
 };
 
+/** Reads open to any store user, but writes are owner-only — used for
+ * finance/business config (store settings) that managers must not change. */
+const ownerWrites = (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === "GET") return next();
+    if (!req.storeId) {
+        return res.status(403).json({
+            success: false,
+            message: "A store-scoped account is required for this action",
+        });
+    }
+    return authorize("owner")(req, res, next);
+};
+
 // API routes
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes); // has its own authenticate/authorize chain
@@ -127,7 +140,7 @@ app.use("/api/sales", authenticate, tenantScope, storeWrites, saleRoutes);
 app.use("/api/stock-adjustments", authenticate, tenantScope, managerWrites, stockAdjustmentRoutes);
 app.use("/api/suppliers", authenticate, tenantScope, managerWrites, supplierRoutes);
 app.use("/api/purchase-orders", authenticate, tenantScope, managerWrites, purchaseOrderRoutes);
-app.use("/api/store-settings", authenticate, tenantScope, managerWrites, storeSettingRoutes);
+app.use("/api/store-settings", authenticate, tenantScope, ownerWrites, storeSettingRoutes);
 app.use("/api/audit-logs", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), auditLogRoutes);
 app.use("/api/inventory", authenticate, tenantScope, managerWrites, inventoryRoutes);
 app.use("/api/reports", authenticate, tenantScope, reportsRoutes);

@@ -230,7 +230,6 @@ export const createSale = async (req: Request, res: Response) => {
         }
 
         const numericDiscount = Number(discount);
-        const numericTaxRate = Number(taxRate);
 
         if (Number.isNaN(numericDiscount) || numericDiscount < 0) {
             throw new AppError("Discount cannot be negative", 400);
@@ -239,6 +238,14 @@ export const createSale = async (req: Request, res: Response) => {
         if (numericDiscount > subtotal) {
             throw new AppError("Discount cannot be greater than subtotal", 400);
         }
+
+        // Tax comes from THIS store's own settings — never trusted from the
+        // client — so a tampered request can't under- or over-charge tax.
+        // The client value is only a fallback if settings don't exist yet.
+        const storeSetting = await StoreSetting.findOne({ ...tenantFilter(req), isActive: true });
+        const numericTaxRate = storeSetting
+            ? Number(storeSetting.taxRate)
+            : Number(taxRate);
 
         if (Number.isNaN(numericTaxRate) || numericTaxRate < 0) {
             throw new AppError("Tax rate cannot be negative", 400);

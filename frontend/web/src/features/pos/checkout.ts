@@ -1,4 +1,4 @@
-import { useCart, computeTotals, TAX_RATE } from './cartStore';
+import { useCart, computeTotals } from './cartStore';
 import { useProducts } from '@/features/products/productsStore';
 import { useCustomers } from '@/features/customers/customersStore';
 import { useSales, nextInvoiceNo, type Sale } from '@/features/sales/salesStore';
@@ -42,7 +42,7 @@ export async function completeSale(cashierName: string): Promise<CheckoutResult>
           // The redeemed value is charged as discount; the points themselves
           // were deducted by the redemption above.
           discount: t.discount + t.redeem,
-          taxRate: TAX_RATE * 100,
+          taxRate: cart.taxRate * 100,
           paymentMethod: cart.payMethod === 'Card' ? 'card' : 'cash',
           customerId: cart.customer?.id,
           cashierName,

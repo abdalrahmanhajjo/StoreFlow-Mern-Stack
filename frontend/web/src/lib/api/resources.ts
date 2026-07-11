@@ -446,6 +446,8 @@ export interface RawStore {
   ownerEmail: string;
   businessType: string;
   currency: string;
+  /** Store's configured sales tax as a percent (e.g. 5.4 = 5.4%). */
+  taxRate: number;
   status: 'pending' | 'active' | 'suspended';
   createdAt?: string;
   plan: Plan;
@@ -460,6 +462,7 @@ function mapStoreDoc(doc: Doc): RawStore {
     ownerEmail: owner.email ?? '—',
     businessType: TYPE_LABELS[doc.businessType] ?? doc.businessType,
     currency: doc.currency ?? 'USD',
+    taxRate: doc.taxRate ?? 0,
     status: doc.status,
     createdAt: doc.createdAt,
     plan: planOf(doc),

@@ -32,12 +32,8 @@ export const supplierProductParamSchema = z.object({
 
 export const createSupplierSchema = z.object({
     body: z.object({
-        storeId: z
-            .string({
-                error: "Store ID is required",
-            })
-            .regex(objectIdRegex, "Invalid store ID"),
-
+        // storeId is injected from the authenticated tenant scope by the
+        // controller — clients neither send nor can override it.
         name: z
             .string({
                 error: "Supplier name is required",

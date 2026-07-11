@@ -6,10 +6,14 @@ export type PageKey =
   | 'inventory' | 'customers' | 'suppliers' | 'purchase-orders'
   | 'reports' | 'employees' | 'settings';
 
+// Single source of truth for page access. Manager runs all daily operations;
+// the two owner-only concerns are staff management (employees) and finance
+// config (settings). Kept in lockstep with navConfig, the router guards and
+// the backend middleware.
 const PAGE_ACCESS: Record<Role, PageKey[]> = {
   platform_admin: ['admin'],
   owner: ['dashboard', 'pos', 'sales', 'products', 'categories', 'inventory', 'customers', 'suppliers', 'purchase-orders', 'reports', 'employees', 'settings'],
-  manager: ['dashboard', 'sales', 'products', 'inventory', 'customers', 'reports', 'employees'],
+  manager: ['dashboard', 'pos', 'sales', 'products', 'categories', 'inventory', 'customers', 'suppliers', 'purchase-orders', 'reports'],
   cashier: ['pos', 'sales', 'customers'],
 };
 
@@ -22,21 +26,20 @@ export type Action =
   | 'product.write' | 'customer.create' | 'employee.manage'
   | 'employee.reset' | 'employee.editRole' | 'employee.delete';
 
-export function can(role: Role, action: Action, targetRole?: Role): boolean {
+export function can(role: Role, action: Action, _targetRole?: Role): boolean {
   switch (action) {
     case 'product.write':
-      return role === 'owner';
-    case 'customer.create':
-      return role === 'owner' || role === 'cashier';
-    case 'employee.manage':
+      // Managers run the catalog day-to-day (matches the backend managerWrites).
       return role === 'owner' || role === 'manager';
+    case 'customer.create':
+      // Any store role working the counter can add a customer.
+      return role === 'owner' || role === 'manager' || role === 'cashier';
+    // Staff management is owner-only, matching the /api/users authorization.
+    case 'employee.manage':
     case 'employee.reset':
-      return role === 'owner';
     case 'employee.editRole':
     case 'employee.delete':
-      if (role === 'owner') return true;
-      if (role === 'manager') return targetRole === 'cashier';
-      return false;
+      return role === 'owner';
     default:
       return false;
   }

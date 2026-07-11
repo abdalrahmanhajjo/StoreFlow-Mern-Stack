@@ -22,16 +22,16 @@ export const NAV: NavItem[] = [
 
   // Store
   { label: 'Dashboard', path: '/dashboard', roles: ['owner', 'manager'], group: 'Overview' },
-  { label: 'Point of sale', path: '/pos', roles: ['owner', 'cashier'], group: 'Sell' },
+  { label: 'Point of sale', path: '/pos', roles: ['owner', 'manager', 'cashier'], group: 'Sell' },
   { label: 'Sales & invoices', path: '/sales', roles: ['owner', 'manager', 'cashier'], group: 'Sell' },
   { label: 'Products', path: '/products', roles: ['owner', 'manager'], group: 'Catalog' },
-  { label: 'Categories', path: '/categories', roles: ['owner'], group: 'Catalog' },
+  { label: 'Categories', path: '/categories', roles: ['owner', 'manager'], group: 'Catalog' },
   { label: 'Inventory & stock', path: '/inventory', roles: ['owner', 'manager'], group: 'Catalog' },
   { label: 'Customers', path: '/customers', roles: ['owner', 'manager', 'cashier'], group: 'Relationships' },
-  { label: 'Suppliers', path: '/suppliers', roles: ['owner'], group: 'Relationships' },
-  { label: 'Purchase orders', path: '/purchase-orders', roles: ['owner'], group: 'Relationships' },
+  { label: 'Suppliers', path: '/suppliers', roles: ['owner', 'manager'], group: 'Relationships' },
+  { label: 'Purchase orders', path: '/purchase-orders', roles: ['owner', 'manager'], group: 'Relationships' },
   { label: 'Reports & analytics', path: '/reports', roles: ['owner', 'manager'], group: 'Business' },
-  { label: 'Employees', path: '/employees', roles: ['owner', 'manager'], group: 'Business' },
+  { label: 'Employees', path: '/employees', roles: ['owner'], group: 'Business' },
   { label: 'Store settings', path: '/settings', roles: ['owner'], group: 'Business' },
 ];
 

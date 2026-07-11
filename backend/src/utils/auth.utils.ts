@@ -53,12 +53,12 @@ const transporter = nodemailer.createTransport({
 const emailConfigured = () =>
   Boolean(process.env.EMAIL_HOST && process.env.EMAIL_USER);
 
-export const sendPasswordResetEmail = async (
+export const sendPasswordResetCode = async (
   to: string,
-  resetUrl: string
+  code: string
 ) => {
   if (!emailConfigured()) {
-    console.log(`[dev mail] Password reset for ${to}: ${resetUrl}`);
+    console.log(`[dev mail] Password reset code for ${to}: ${code}`);
     return;
   }
 
@@ -68,10 +68,9 @@ export const sendPasswordResetEmail = async (
     subject: 'Reset your StoreFlow password',
     html: `
       <h2>Password Reset</h2>
-      <p>You requested to reset your password.</p>
-      <p>Click the link below:</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-      <p>This link will expire soon.</p>
+      <p>You requested to reset your password. Your code is:</p>
+      <h1 style="letter-spacing: 4px;">${code}</h1>
+      <p>This code will expire in 10 minutes.</p>
       <p>If you did not request this, ignore this email.</p>
     `,
   });

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { authService } from './authService';
 import { Button, Input, Logo } from '@/components/ui';
 
@@ -19,15 +19,12 @@ const s: Record<string, CSSProperties> = {
 };
 
 // SF-104: neutral success, no account enumeration.
-// Two shapes of the same page:
-//  - demo: email → 6-digit code → new password (all local)
-//  - connected: email → "check your inbox"; the emailed link comes back here
-//    as /reset-password?token=… and opens straight on the new-password step.
+// Same OTP shape as registration: email → emailed 6-digit code → new
+// password. Demo mode accepts any code; connected mode verifies and resets
+// against the API.
 export default function ResetPage() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const resetToken = params.get('token');
-  const [step, setStep] = useState(resetToken ? 2 : 0);
+  const [step, setStep] = useState(0);
   const [serverError, setServerError] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -62,13 +59,14 @@ export default function ResetPage() {
     setBusy(true);
     await authService.requestReset(email).catch(() => undefined); // neutral either way
     setBusy(false);
-    if (authService.usesResetLink) {
-      setStep(3); // check-your-inbox screen; the emailed link continues the flow
-      return;
-    }
     setStep(1);
     startResendTimer();
     setTimeout(() => otpInputsRef.current[0]?.focus(), 100);
+  }
+
+  function handleResendCode() {
+    startResendTimer();
+    authService.requestReset(email).catch(() => undefined); // neutral either way
   }
 
   function handleOtpDigit(index: number, value: string) {
@@ -89,15 +87,23 @@ export default function ResetPage() {
     }
   }
 
-  function handleVerifyOtp() {
+  async function handleVerifyOtp() {
     if (otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
       setOtpError('Enter the complete code');
       return;
     }
-    setStep(2);
-    setTimeout(() => {
-      document.getElementById('new-pw')?.focus();
-    }, 100);
+    setBusy(true);
+    try {
+      await authService.verifyResetCode(email, otpCode);
+      setStep(2);
+      setTimeout(() => {
+        document.getElementById('new-pw')?.focus();
+      }, 100);
+    } catch (ex) {
+      setOtpError((ex as Error)?.message || 'Reset code is invalid or has expired');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleResetPassword(e: React.FormEvent) {
@@ -114,21 +120,16 @@ export default function ResetPage() {
 
     if (err) return;
 
-    if (authService.usesResetLink && resetToken) {
-      setBusy(true);
-      setServerError('');
-      try {
-        await authService.resetPassword(resetToken, password);
-        setDone(true);
-      } catch (ex) {
-        setServerError((ex as Error)?.message || 'This reset link is invalid or expired. Request a new one.');
-      } finally {
-        setBusy(false);
-      }
-      return;
+    setBusy(true);
+    setServerError('');
+    try {
+      await authService.resetPassword(email, otpCode, password);
+      setDone(true);
+    } catch (ex) {
+      setServerError((ex as Error)?.message || 'Reset code is invalid or has expired. Request a new one.');
+    } finally {
+      setBusy(false);
     }
-
-    setDone(true);
   }
 
   return (
@@ -211,7 +212,7 @@ export default function ResetPage() {
                 {resendTimer > 0 ? (
                   <>Resend code in <strong>{resendTimer}s</strong></>
                 ) : (
-                  <button type="button" onClick={startResendTimer}
+                  <button type="button" onClick={handleResendCode}
                     style={{ background: 'none', border: 'none', color: 'var(--blue)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', padding: 0 }}
                   >Resend code</button>
                 )}
@@ -222,7 +223,7 @@ export default function ResetPage() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                   Back
                 </Button>
-                <Button type="button" onClick={handleVerifyOtp} style={{ flex: 1, letterSpacing: '0.01em' }}>
+                <Button type="button" onClick={handleVerifyOtp} isLoading={busy} style={{ flex: 1, letterSpacing: '0.01em' }}>
                   Verify
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </Button>
@@ -230,22 +231,7 @@ export default function ResetPage() {
             </div>
           )}
 
-          {/* Step 3 — connected mode: the reset continues from the emailed link */}
-          {step === 3 && !done && (
-            <div className="sf-enter">
-              <h2 className="display" style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Check your email</h2>
-              <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.6 }}>
-                If an account exists for <strong style={{ color: 'var(--ink)' }}>{email}</strong>,
-                we&apos;ve sent a password reset link. Open it on this device to choose a new password.
-              </p>
-              <Button type="button" fullWidth variant="ghost" onClick={() => setStep(0)}>Use a different email</Button>
-              <p style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: 'var(--ink-faint)' }}>
-                <Link to="/login" style={{ color: 'var(--blue)', fontWeight: 600, textDecoration: 'none' }}>Back to sign in</Link>
-              </p>
-            </div>
-          )}
-
-          {/* Step 2 — New password */}
+                    {/* Step 2 — New password */}
           {step === 2 && !done && (
             <div className="sf-enter">
               <h2 className="display" style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Create new password</h2>

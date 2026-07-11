@@ -11,6 +11,7 @@ export interface IProduct extends Document {
   quantity: number;
   reorderThreshold: number;
   imageUrl?: string;
+  emoji?: string;
   categoryId: mongoose.Types.ObjectId;
   isActive: boolean;
 }
@@ -72,6 +73,12 @@ const productSchema = new Schema<IProduct>(
 
     imageUrl: {
       type: String,
+    },
+
+    emoji: {
+      type: String,
+      trim: true,
+      maxlength: [8, "Emoji is too long"],
     },
 
     categoryId: {

@@ -361,6 +361,23 @@ export const login = async (req: Request, res: Response) => {
         message: 'Please verify your email before logging in.',
       });
     }
+  
+    // platform_admin has no storeId and bypasses store-status checks entirely.
+    if (user.role !== 'platform_admin' && user.storeId) {
+      const store = await Store.findById(user.storeId);
+      if (!store || store.status !== 'active') {
+        await LoginAttempt.create({
+          email: input.email,
+          ip,
+          success: false,
+        });
+
+        return res.status(403).json({
+          code: 'STORE_NOT_ACTIVE',
+          message: 'Your store is awaiting admin approval.',
+        });
+      }
+    }
 
     user.failedLoginAttempts = 0;
     user.lockUntil = null;

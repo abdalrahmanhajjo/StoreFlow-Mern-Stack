@@ -1,0 +1,6 @@
+[
+  { "id": "e1", "name": "Amara Reyes", "email": "owner@bluepalm-grocers.com", "role": "owner", "status": "active" },
+  { "id": "e2", "name": "D. Okafor", "email": "d.okafor@bluepalm-grocers.com", "role": "manager", "status": "active" },
+  { "id": "e3", "name": "J. Mensah", "email": "j.mensah@bluepalm-grocers.com", "role": "cashier", "status": "active" },
+  { "id": "e4", "name": "P. Singh", "email": "p.singh@bluepalm-grocers.com", "role": "cashier", "status": "disabled" }
+]

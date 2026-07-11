@@ -1,0 +1,33 @@
+{
+  "id": "store_voltbyte",
+  "tenantId": "tenant_voltbyte",
+  "name": "VoltByte",
+  "businessType": "electronics",
+  "locale": "de-DE",
+  "currency": "EUR",
+  "direction": "ltr",
+  "theme": {
+    "accent": "#0f172a",
+    "mode": "light"
+  },
+  "taxProfile": {
+    "inclusive": true,
+    "defaultRate": 0.19,
+    "label": "MwSt"
+  },
+  "hardwareProfile": {
+    "barcodeScanner": true,
+    "receiptPrinter": true,
+    "cashDrawer": false,
+    "scale": false,
+    "cardTerminal": true,
+    "kitchenDisplay": false
+  },
+  "featureFlags": {
+    "serialTracking": true,
+    "loyalty": true,
+    "offlineQueue": false
+  },
+  "complianceFlags": {},
+  "timezone": "Asia/Tokyo"
+}

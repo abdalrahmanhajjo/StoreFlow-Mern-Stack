@@ -1,0 +1,7 @@
+[
+  { "id": "t1", "name": "Blue Palm Grocers", "initials": "BP", "color": "#2e7d43", "owner": "Amara Reyes", "type": "Grocery", "plan": "Pro", "users": 4, "salesMtd": 38140, "status": "active" },
+  { "id": "t2", "name": "Sunrise Pharmacy", "initials": "SP", "color": "#131312", "owner": "Noor Aziz", "type": "Pharmacy", "plan": "Pro", "users": 6, "salesMtd": 41920, "status": "active" },
+  { "id": "t3", "name": "Casa Pasta Restaurant", "initials": "CP", "color": "#a8731d", "owner": "Marco Vidal", "type": "Restaurant", "plan": "Free", "users": 3, "salesMtd": 22610, "status": "active" },
+  { "id": "t4", "name": "Urban Market", "initials": "UM", "color": "#5c4f66", "owner": "Lena Voss", "type": "Retail", "plan": "Free", "users": 2, "salesMtd": 17300, "status": "active" },
+  { "id": "t5", "name": "Northbridge Mini-Mart", "initials": "NM", "color": "#c93d2e", "owner": "Olu Bankole", "type": "Convenience", "plan": "Free", "users": 2, "salesMtd": 0, "status": "suspended" }
+]

@@ -1,0 +1,6 @@
+[
+  { "id": "ip1", "ip": "41.92.14.7", "reason": "14 failed logins", "blockedAt": "3h ago", "banCount": 1 },
+  { "id": "ip2", "ip": "185.220.101.4", "reason": "Credential stuffing", "blockedAt": "6h ago", "banCount": 3 },
+  { "id": "ip3", "ip": "203.0.113.45", "reason": "≥5 failed logins in 15m", "blockedAt": "1h ago", "banCount": 2 },
+  { "id": "ip4", "ip": "198.51.100.88", "reason": "Unknown account pattern", "banCount": 1 }
+]

@@ -1,0 +1,68 @@
+/* SF-002: global reset + base typography */
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; height: 100%; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+.display { font-family: var(--font-display); letter-spacing: -0.03em; }
+.mono { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
+/* uppercase micro-label (reference: PRODUCT / QTY / RETRIEVE SALE) */
+.eyebrow { text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+
+/* SF-1601: visible focus ring — AA-compliant outline */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Remove focus ring for mouse clicks (only keyboard focus) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip link visibility */
+#main-content { outline: none; }
+
+/* Theme-aware overrides for SVG presentation attributes (icons drawn with
+   palette hexes). CSS wins over presentation attributes, so these follow the
+   active theme; the Logo tile is intentionally not listed — it stays constant
+   on the dark sidebar. */
+[stroke="#131312"] { stroke: var(--ink); }
+[stroke="#2e7d43"] { stroke: var(--green); }
+[stroke="#c93d2e"] { stroke: var(--red); }
+[stroke="#a8731d"] { stroke: var(--amber); }
+[stroke="#9c3225"] { stroke: var(--red); }
+rect[fill="#e3e3df"], circle[fill="#e3e3df"] { fill: var(--line); }
+circle[fill="#c93d2e"] { fill: var(--red); }
+circle[fill="#efefec"] { fill: var(--paper); }
+
+/* SF-1601: ensure body text never drops below 16px on mobile (prevents iOS zoom) */
+@media (max-width: 768px) {
+  body, input, select, textarea, button { font-size: 16px; }
+}
+
+/* SF-1504: respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* SF-505: print only the receipt */
+@media print {
+  body * { visibility: hidden; }
+  #receipt, #receipt * { visibility: visible; }
+  #receipt { position: absolute; left: 0; top: 0; box-shadow: none; border: none; }
+  .no-print { display: none !important; }
+}

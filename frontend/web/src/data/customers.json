@@ -1,0 +1,5 @@
+[
+  { "id": "c1", "name": "Tariq Hassan", "phone": "+33 6 12 88 04", "points": 240, "spent": 1204.5 },
+  { "id": "c2", "name": "Lena Marsh", "phone": "+33 6 44 19 27", "points": 70, "spent": 388.1 },
+  { "id": "c3", "name": "Fatima Khoury", "phone": "+33 6 73 55 02", "points": 582, "spent": 2910 }
+]

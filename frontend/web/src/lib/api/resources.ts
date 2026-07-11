@@ -585,3 +585,63 @@ export async function apiListAuditLogs(): Promise<AuditEntry[]> {
     kind: AUDIT_KIND[doc.entity] ?? 'store',
   }));
 }
+
+// ---------------------------------------------------------------------------
+// Store settings (per-store singleton)
+// ---------------------------------------------------------------------------
+
+export interface StoreSettings {
+  storeName: string;
+  phone: string;
+  email: string;
+  address: string;
+  currency: string;
+  taxRate: number;
+  logoUrl: string;
+  lowStockThreshold: number;
+  invoicePrefix: string;
+  receiptFooter: string;
+}
+
+function mapSettings(doc: Doc): StoreSettings {
+  return {
+    storeName: doc.storeName ?? '',
+    phone: doc.phone ?? '',
+    email: doc.email ?? '',
+    address: doc.address ?? '',
+    currency: doc.currency ?? 'USD',
+    taxRate: doc.taxRate ?? 0,
+    logoUrl: doc.logoUrl ?? '',
+    lowStockThreshold: doc.lowStockThreshold ?? 5,
+    invoicePrefix: doc.invoicePrefix ?? 'INV',
+    receiptFooter: doc.receiptFooter ?? '',
+  };
+}
+
+export async function apiGetStoreSettings(): Promise<StoreSettings> {
+  const { data } = await api.get<Envelope<Doc>>('/store-settings');
+  return mapSettings(data.data);
+}
+
+export async function apiUpdateStoreSettings(patch: Partial<StoreSettings>): Promise<StoreSettings> {
+  // The API validates each field's format, and empty strings fail those
+  // checks — omit them (clearing a field isn't supported server-side yet).
+  const body = Object.fromEntries(
+    Object.entries(patch).filter(([, v]) => v !== '' && v !== undefined)
+  );
+  const { data } = await api.put<Envelope<Doc>>('/store-settings', body);
+  return mapSettings(data.data);
+}
+
+/** Owner-editable store profile fields (kept in sync with settings saves so
+ * the shell identity, receipts and the admin tenant list stay coherent). */
+export async function apiUpdateMyStore(
+  storeId: string,
+  patch: { storeName?: string; currency?: string; taxRate?: number; address?: string }
+): Promise<void> {
+  // Empty strings would fail the store document's required-field validators.
+  const body = Object.fromEntries(
+    Object.entries(patch).filter(([, v]) => v !== '' && v !== undefined)
+  );
+  await api.put(`/stores/${storeId}`, body);
+}

@@ -52,7 +52,7 @@ app.use(
         credentials: true,
     })
 );
-app.use(express.json());
+app.use(express.json({ limit: "3mb" })); // logos ship as data URLs
 
 // ---------------------------------------------------------------------------
 // Rate limits (in-memory — swap the store for Redis when running replicated).

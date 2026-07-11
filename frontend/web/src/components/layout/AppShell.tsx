@@ -9,39 +9,37 @@ import { useSession } from '@/store/session';
 import { StoreProfileProvider } from '@/config/StoreProfileContext';
 import { authRoleToStoreRole } from '@/config/roleMap';
 import { getMockStore } from '@/mocks';
-import { isConnected, apiGetStore, type RawStore } from '@/lib/api/resources';
-
-// One fetch per storeId per page load — every gate remount reuses it.
-const realStoreCache = new Map<string, Promise<RawStore>>();
+import { useStoreIdentity } from '@/lib/api/storeIdentity';
+import { useI18n } from '@/store/i18n';
 
 /** In connected mode the store's real identity (name, currency) overlays the
  * business-type template, so the shell and receipts never show demo branding. */
-function useRealStore(storeId: string | null): RawStore | null {
-  const [store, setStore] = useState<RawStore | null>(null);
-  useEffect(() => {
-    if (!isConnected || !storeId) return;
-    let alive = true;
-    if (!realStoreCache.has(storeId)) realStoreCache.set(storeId, apiGetStore(storeId));
-    realStoreCache
-      .get(storeId)!
-      .then((s) => { if (alive) setStore(s); })
-      .catch(() => realStoreCache.delete(storeId));
-    return () => { alive = false; };
-  }, [storeId]);
-  return store;
-}
-
 function StoreProfileGate({ children }: { children: ReactNode }) {
   const user = useSession((s) => s.user);
   const businessType = user?.businessType ?? 'supermarket';
   const role = user ? authRoleToStoreRole(user.role) : 'cashier';
   const { profile } = getMockStore(businessType);
-  const realStore = useRealStore(user?.storeId ?? null);
+  const realStore = useStoreIdentity((s) => s.store);
+  const storeId = user?.storeId ?? null;
+  // Pages format money through the global i18n store (non-reactive reads), so
+  // when the real currency arrives we configure it FIRST and then remount the
+  // subtree — every page re-renders against the correct formatters.
+  const [identityEpoch, setIdentityEpoch] = useState(0);
+  useEffect(() => {
+    if (storeId) useStoreIdentity.getState().load(storeId);
+  }, [storeId]);
+  useEffect(() => {
+    if (realStore) {
+      useI18n.getState().configure(profile.locale, realStore.currency, profile.timezone ?? 'UTC');
+      setIdentityEpoch((e) => e + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realStore]);
   const effective = realStore
     ? { ...profile, name: realStore.name, currency: realStore.currency }
     : profile;
   return (
-    <StoreProfileProvider profile={effective} role={role}>
+    <StoreProfileProvider key={identityEpoch} profile={effective} role={role}>
       {children}
     </StoreProfileProvider>
   );

@@ -143,16 +143,21 @@ export const register = async (req: Request, res: Response) => {
 
       await owner.save();
 
-      await sendEmailVerificationCode(owner.email, verificationCode);
+      // Email failure must NOT roll back the account (the code send is outside
+      // the store-creation rollback, and the sender never throws) — the user
+      // can request a fresh code from the verify screen if it didn't arrive.
+      const emailSent = await sendEmailVerificationCode(owner.email, verificationCode);
 
       res.status(201).json({
-        message:
-          'Store registered. Verification code sent to your email. Please verify your email before logging in.',
+        message: emailSent
+          ? 'Store registered. Verification code sent to your email. Please verify your email before logging in.'
+          : "Store registered, but we couldn't send the verification email. Use \"Resend code\" on the next screen.",
         data: {
           userId: owner._id,
           storeId: store._id,
           email: owner.email,
           isEmailVerified: owner.isEmailVerified,
+          emailSent,
         },
       });
     } catch (storeErr) {

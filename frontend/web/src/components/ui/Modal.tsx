@@ -24,6 +24,13 @@ export function Modal({
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
+  // Parents pass onClose as an inline arrow, so its identity changes on every
+  // render. Hold it in a ref so the focus/trap effect below can depend on
+  // `open` alone — otherwise it re-runs on each keystroke and steals focus
+  // back to the first field.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
 
@@ -36,7 +43,7 @@ export function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab' || !dialog) return;
@@ -69,7 +76,7 @@ export function Modal({
       document.body.style.overflow = prevOverflow;
       restoreFocusRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return createPortal(

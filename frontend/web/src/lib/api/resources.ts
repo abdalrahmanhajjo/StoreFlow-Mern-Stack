@@ -645,3 +645,25 @@ export async function apiUpdateMyStore(
   );
   await api.put(`/stores/${storeId}`, body);
 }
+
+// ---------------------------------------------------------------------------
+// Loyalty (POS redemption)
+// ---------------------------------------------------------------------------
+
+export async function apiRedeemPoints(
+  customerId: string,
+  points: number,
+  description: string
+): Promise<void> {
+  await api.post('/loyalty-ledger/redeem', { customerId, points, description });
+}
+
+/** Signed delta adjustment — used to re-credit points if a sale fails
+ * after its redemption already went through. */
+export async function apiAdjustPoints(
+  customerId: string,
+  points: number,
+  description: string
+): Promise<void> {
+  await api.post('/loyalty-ledger/adjust', { customerId, points, description });
+}

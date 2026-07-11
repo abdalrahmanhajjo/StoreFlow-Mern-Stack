@@ -2,7 +2,7 @@ import { useCart, computeTotals, TAX_RATE } from './cartStore';
 import { useProducts } from '@/features/products/productsStore';
 import { useCustomers } from '@/features/customers/customersStore';
 import { useSales, nextInvoiceNo, type Sale } from '@/features/sales/salesStore';
-import { isConnected, apiCreateSale } from '@/lib/api/resources';
+import { isConnected, apiCreateSale, apiRedeemPoints, apiAdjustPoints } from '@/lib/api/resources';
 import { refreshProducts, refreshCustomers } from '@/lib/api/hydrate';
 
 export type CheckoutResult =
@@ -30,16 +30,31 @@ export async function completeSale(cashierName: string): Promise<CheckoutResult>
 
   if (isConnected) {
     try {
-      const sale = await apiCreateSale({
-        items: cart.items.map((i) => ({ productId: i.id, quantity: i.qty })),
-        // The API has no loyalty redemption yet — folding the redeemed value
-        // into the discount keeps the charged total identical.
-        discount: t.discount + t.redeem,
-        taxRate: TAX_RATE * 100,
-        paymentMethod: cart.payMethod === 'Card' ? 'card' : 'cash',
-        customerId: cart.customer?.id,
-        cashierName,
-      });
+      // Redeem first: the server checks the real balance, so an insufficient
+      // one stops the checkout before any money moves.
+      if (cart.customer && t.redeemPoints > 0) {
+        await apiRedeemPoints(cart.customer.id, t.redeemPoints, 'POS redemption at checkout');
+      }
+      let sale: Sale;
+      try {
+        sale = await apiCreateSale({
+          items: cart.items.map((i) => ({ productId: i.id, quantity: i.qty })),
+          // The redeemed value is charged as discount; the points themselves
+          // were deducted by the redemption above.
+          discount: t.discount + t.redeem,
+          taxRate: TAX_RATE * 100,
+          paymentMethod: cart.payMethod === 'Card' ? 'card' : 'cash',
+          customerId: cart.customer?.id,
+          cashierName,
+        });
+      } catch (saleErr) {
+        // The sale failed after points were taken — give them back.
+        if (cart.customer && t.redeemPoints > 0) {
+          void apiAdjustPoints(cart.customer.id, t.redeemPoints, 'POS redemption reversal (sale failed)').catch(() => undefined);
+        }
+        throw saleErr;
+      }
+      sale.pointsRedeemed = t.redeemPoints;
       useSales.getState().add(sale);
       // Server truth for stock levels and loyalty balances.
       void refreshProducts();

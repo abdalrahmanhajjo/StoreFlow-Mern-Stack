@@ -26,4 +26,8 @@ router.post('/verify-reset-code', authController.verifyResetCode);
 
 router.post('/reset-password', authController.resetPassword);
 
+router.get('/invite-info', authController.inviteInfo);
+
+router.post('/accept-invite', authController.acceptInvite);
+
 export default router;

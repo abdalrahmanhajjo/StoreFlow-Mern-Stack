@@ -4,7 +4,7 @@ import { toast } from '@/components/ui';
 import { useSession } from '@/store/session';
 import {
   isConnected,
-  apiCreateEmployee,
+  apiInviteEmployee,
   apiUpdateEmployee,
   apiDeleteEmployee,
 } from '@/lib/api/resources';
@@ -22,11 +22,6 @@ const SEED = isConnected ? [] : (employeesData as Employee[]);
 
 let seq = 100;
 
-/** Shareable one-time password for invited staff (they change it later). */
-function tempPassword(): string {
-  return 'Sf!' + Math.random().toString(36).slice(2, 8) + Math.floor(Math.random() * 90 + 10);
-}
-
 interface EmployeesState {
   employees: Employee[];
   hydrate: (employees: Employee[]) => void;
@@ -36,8 +31,8 @@ interface EmployeesState {
   remove: (id: string) => void;
 }
 
-// SF-1101/1102: in-store staff. Connected mode creates real user accounts —
-// the generated temporary password is surfaced so the owner can share it.
+// SF-1101/1102: in-store staff. Connected mode emails an invite; the new
+// hire sets their own password from the link and then appears active.
 export const useEmployees = create<EmployeesState>((set, get) => ({
   employees: SEED,
   hydrate: (employees) => set({ employees }),
@@ -46,19 +41,20 @@ export const useEmployees = create<EmployeesState>((set, get) => ({
       return { ok: false, error: 'Email already in use' };
     }
     const localId = 'e' + ++seq;
-    set((s) => ({ employees: [...s.employees, { id: localId, name: name.trim(), email: email.trim(), role, status: 'active' }] }));
+    // Invited accounts show as "disabled" until the hire accepts.
+    const optimisticStatus: Employee['status'] = isConnected ? 'disabled' : 'active';
+    set((s) => ({ employees: [...s.employees, { id: localId, name: name.trim(), email: email.trim(), role, status: optimisticStatus }] }));
     if (isConnected) {
       const storeId = useSession.getState().user?.storeId;
       if (!storeId) return { ok: false, error: 'No store on this session' };
-      const password = tempPassword();
-      apiCreateEmployee({ name: name.trim(), email: email.trim(), role, password, storeId })
+      apiInviteEmployee({ name: name.trim(), email: email.trim(), role })
         .then((server) => {
           set((s) => ({ employees: s.employees.map((e) => (e.id === localId ? server : e)) }));
-          toast.success(`Temporary password: ${password}`, `${name.trim()} can now sign in`);
+          toast.success(`Invite emailed to ${email.trim()}`, `${name.trim()} will set their own password`);
         })
         .catch((err) => {
           set((s) => ({ employees: s.employees.filter((e) => e.id !== localId) }));
-          toast.error(err?.message || 'Could not create the staff account on the server');
+          toast.error(err?.message || 'Could not send the invite');
         });
     }
     return { ok: true };

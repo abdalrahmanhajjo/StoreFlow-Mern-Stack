@@ -14,6 +14,7 @@ const LegalNoticePage = lazy(() => import('@/features/legal/LegalNoticePage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
 const ResetPage = lazy(() => import('@/features/auth/ResetPage'));
+const AcceptInvitePage = lazy(() => import('@/features/auth/AcceptInvitePage'));
 const PendingApprovalPage = lazy(() => import('@/features/auth/PendingApprovalPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const SuppliersPage = lazy(() => import('@/features/suppliers/SuppliersPage'));
@@ -72,6 +73,8 @@ export function AppRouter() {
           <Route path="/reset" element={<ResetPage />} />
           {/* Target of the emailed reset link (?token=…) */}
           <Route path="/reset-password" element={<ResetPage />} />
+          {/* Target of the employee invite email */}
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/403" element={<Forbidden />} />
           <Route path="/500" element={<Error500 />} />

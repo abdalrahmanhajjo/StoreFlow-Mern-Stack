@@ -31,7 +31,9 @@ const storeSchema = new Schema<IStore>(
     currency: { type: String, enum: ['USD', 'EUR', 'EGP'], default: 'USD' },
     taxRate: { type: Number, default: 0 },
     status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'pending' },
-    taxRegistrationId: { type: String, unique: true, default: null, sparse: true },
+    // No default: an explicit null would still be indexed and collide with the
+    // next store registered without a tax ID — sparse only skips absent fields.
+    taxRegistrationId: { type: String, unique: true, sparse: true },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     subscription: {
       plan: { type: String, default: 'free' },

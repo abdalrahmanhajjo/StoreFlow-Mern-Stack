@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { refreshSession } from './refresh';
 import { startTokenRefreshScheduler } from './tokenRefresh';
+// Side-effect import: subscribes to the session and hydrates the workspace
+// stores from the API whenever a store-staff session appears (connected mode).
+import '@/lib/api/hydrate';
 
 // On app load:
 //  1. Start the proactive refresh scheduler (re-arms on every token change).

@@ -9,14 +9,39 @@ import { useSession } from '@/store/session';
 import { StoreProfileProvider } from '@/config/StoreProfileContext';
 import { authRoleToStoreRole } from '@/config/roleMap';
 import { getMockStore } from '@/mocks';
+import { isConnected, apiGetStore, type RawStore } from '@/lib/api/resources';
+
+// One fetch per storeId per page load — every gate remount reuses it.
+const realStoreCache = new Map<string, Promise<RawStore>>();
+
+/** In connected mode the store's real identity (name, currency) overlays the
+ * business-type template, so the shell and receipts never show demo branding. */
+function useRealStore(storeId: string | null): RawStore | null {
+  const [store, setStore] = useState<RawStore | null>(null);
+  useEffect(() => {
+    if (!isConnected || !storeId) return;
+    let alive = true;
+    if (!realStoreCache.has(storeId)) realStoreCache.set(storeId, apiGetStore(storeId));
+    realStoreCache
+      .get(storeId)!
+      .then((s) => { if (alive) setStore(s); })
+      .catch(() => realStoreCache.delete(storeId));
+    return () => { alive = false; };
+  }, [storeId]);
+  return store;
+}
 
 function StoreProfileGate({ children }: { children: ReactNode }) {
   const user = useSession((s) => s.user);
   const businessType = user?.businessType ?? 'supermarket';
   const role = user ? authRoleToStoreRole(user.role) : 'cashier';
   const { profile } = getMockStore(businessType);
+  const realStore = useRealStore(user?.storeId ?? null);
+  const effective = realStore
+    ? { ...profile, name: realStore.name, currency: realStore.currency }
+    : profile;
   return (
-    <StoreProfileProvider profile={profile} role={role}>
+    <StoreProfileProvider profile={effective} role={role}>
       {children}
     </StoreProfileProvider>
   );

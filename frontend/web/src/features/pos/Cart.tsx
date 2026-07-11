@@ -38,8 +38,8 @@ export function Cart() {
     toggleRedeem();
   };
 
-  const finishSale = useCallback(() => {
-    const res = completeSale(cashier);
+  const finishSale = useCallback(async () => {
+    const res = await completeSale(cashier);
     if (!res.ok) { return toast(res.error); }
     toast(`Sale ${res.sale.invoiceNo} · ${money(res.sale.total)} by ${res.sale.payment}` + (res.sale.customerName ? ` · +${res.sale.pointsEarned} pts` : ''));
     navigate(`/sales/${res.sale.invoiceNo}/receipt`);

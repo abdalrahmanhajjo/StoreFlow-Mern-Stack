@@ -18,19 +18,35 @@ import dashboardRoutes from "./routes/dashboard.routes";
 
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
+import securityRoutes from "./routes/security.routes";
 
 import cookieParser from 'cookie-parser';
 import storeRoutes from "./routes/store.routes";
 
-const CLIENT_APP_URL = process.env.CLIENT_APP_URL;
+
 const app = express();
 
 app.use(cookieParser());
-// Middlewares
-app.use(cors({
-  origin: CLIENT_APP_URL,
-  credentials: true,               // Allows cookies and authorization headers
-}));
+// Middlewares — credentials:true lets the browser send the HttpOnly refresh
+// cookie cross-origin, which requires an explicit origin (no wildcard).
+// Outside production any localhost port is accepted, since Vite hops ports
+// when 5173 is busy.
+const allowedOrigin = process.env.CLIENT_APP_URL ?? "http://localhost:5173";
+app.use(
+    cors({
+        origin:
+            process.env.NODE_ENV === "production"
+                ? allowedOrigin
+                : (origin, cb) =>
+                      cb(
+                          null,
+                          !origin ||
+                              origin === allowedOrigin ||
+                              /^http:\/\/localhost:\d+$/.test(origin)
+                      ),
+        credentials: true,
+    })
+);
 app.use(express.json());
 
 // Test route
@@ -52,6 +68,7 @@ app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/store-settings", storeSettingRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/security", securityRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/dashboard", dashboardRoutes);

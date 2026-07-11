@@ -4,8 +4,9 @@ import { authService } from './authService';
 import { useSession } from '@/store/session';
 import { landingRouteForRole } from '@/app/navConfig';
 import { toast } from '@/components/ui';
-import type { ApiErr } from '@/lib/api';
 import type { LoginInput, RegisterInput } from './schemas';
+
+interface ApiErr { code: string; message: string; fields?: Record<string, string> }
 
 export function useLogin(returnTo?: string) {
   const setSession = useSession((s) => s.setSession);
@@ -17,46 +18,35 @@ export function useLogin(returnTo?: string) {
       navigate(returnTo || landingRouteForRole(user.role), { replace: true });
     },
     onError: (err) => {
-      // 403 here means "email not verified" (auth.controller.ts login()) —
-      // LoginPage renders its own message + resend action for that case,
-      // so don't also fire a generic error toast.
-      if (err.status !== 403) toast.error(err.message || 'Sign in failed');
+      if (err.code !== 'PENDING_APPROVAL') {
+        toast.error(err.message || 'Sign in failed');
+      }
     },
   });
 }
 
-// Step 0-2 of RegisterPage call this when the Account step is completed —
-// creates the store + owner and triggers the first verification email.
-// No auto-navigation: RegisterPage advances to its own "Verify" step.
+/** Creates the store + owner and triggers the verification email. Navigation
+ * happens after the email code is confirmed (see useVerifyEmail). */
 export function useRegister() {
-  return useMutation<Awaited<ReturnType<typeof authService.register>>, ApiErr, RegisterInput>({
+  return useMutation<void, ApiErr, RegisterInput>({
     mutationFn: (input) => authService.register(input),
+    onSuccess: () => {
+      toast.success('Verification code sent', 'Check your email');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Registration failed. Please try again.');
+    },
   });
 }
 
-// Step 3 of RegisterPage (and the "resend" action on LoginPage) call these directly.
-export function useVerifyEmailCode() {
-  return useMutation<{ message: string }, ApiErr, { email: string; code: string }>({
-    mutationFn: ({ email, code }) => authService.verifyEmailCode(email, code),
-  });
-}
-
-export function useResendVerificationCode() {
-  return useMutation<{ message: string }, ApiErr, string>({
-    mutationFn: (email) => authService.resendVerificationCode(email),
-  });
-}
-
-export function useLogout() {
-  const clear = useSession((s) => s.clear);
+/** Confirms the 6-digit email code, then hands off to the approval screen. */
+export function useVerifyEmail() {
   const navigate = useNavigate();
-  return useMutation({
-    mutationFn: () => authService.logout(),
-    // Clear local session and redirect even if the network call fails —
-    // the user clicked logout, so the UI should reflect that regardless.
-    onSettled: () => {
-      clear();
-      navigate('/login', { replace: true });
+  return useMutation<void, ApiErr, { email: string; code: string }>({
+    mutationFn: ({ email, code }) => authService.verifyEmailCode(email, code),
+    onSuccess: (_data, { email }) => {
+      toast.success('Email verified', 'Application received');
+      navigate(`/pending-approval?email=${encodeURIComponent(email)}`, { replace: true });
     },
   });
 }

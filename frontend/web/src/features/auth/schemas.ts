@@ -68,3 +68,19 @@ export const registerSchema = z.object({
   otp: z.string().length(6, 'Enter the full 6-digit code').regex(/^\d{6}$/, 'Code must be exactly 6 digits').optional().or(z.literal('')),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, 'At least 8 characters required')
+      .regex(/[a-z]/, 'Must include a lowercase letter')
+      .regex(/[A-Z]/, 'Must include an uppercase letter')
+      .regex(/\d/, 'Must include a number'),
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

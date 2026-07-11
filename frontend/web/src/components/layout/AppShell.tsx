@@ -36,7 +36,14 @@ function StoreProfileGate({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [realStore]);
   const effective = realStore
-    ? { ...profile, name: realStore.name, currency: realStore.currency }
+    ? {
+        ...profile,
+        name: realStore.name,
+        currency: realStore.currency,
+        // The store's own configured tax rate (stored as a percent) drives the
+        // POS, receipts and reports — not the business-type template default.
+        taxProfile: { ...profile.taxProfile, defaultRate: realStore.taxRate / 100 },
+      }
     : profile;
   return (
     <StoreProfileProvider key={identityEpoch} profile={effective} role={role}>

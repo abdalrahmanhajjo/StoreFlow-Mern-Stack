@@ -70,3 +70,9 @@ export const resendVerificationCodeSchema = z.object({
     .email('Email must be valid')
     .toLowerCase(),
 });
+
+export const acceptInviteSchema = z.object({
+  token: z.string().min(10),
+  newPassword: z.string().min(8).max(72),
+  name: z.string().trim().min(2).max(120).optional(),
+});

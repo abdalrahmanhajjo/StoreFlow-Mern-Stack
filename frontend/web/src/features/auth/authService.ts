@@ -279,4 +279,21 @@ export const authService = {
     }
     await api.post('/auth/reset-password', { email, code, newPassword });
   },
+
+  /** Employee invite: read who/where the invite is for (accept page header). */
+  async getInviteInfo(token: string): Promise<{ name: string; email: string; role: string; storeName: string | null }> {
+    if (USE_MOCK) {
+      return delay({ name: 'Jordan Cole', email: 'jordan@store.com', role: 'cashier', storeName: 'Demo Store' });
+    }
+    const { data } = await api.get('/auth/invite-info', { params: { token } });
+    return data;
+  },
+
+  /** Employee invite: set password + activate the account. */
+  async acceptInvite(token: string, newPassword: string, name?: string): Promise<void> {
+    if (USE_MOCK) {
+      return delay(undefined);
+    }
+    await api.post('/auth/accept-invite', { token, newPassword, name });
+  },
 };

@@ -23,6 +23,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyResetCodeSchema,
+  acceptInviteSchema,
   verifyEmailCodeSchema,
   resendVerificationCodeSchema,
 } from '../validators/auth.validator';
@@ -355,6 +356,15 @@ export const login = async (req: Request, res: Response) => {
       });
 
       return invalidCreds();
+    }
+
+    // Invited staff who haven't accepted yet are inactive with no usable
+    // password; treat as "still needs setup".
+    if (user.isActive === false) {
+      return res.status(403).json({
+        code: 'INVITE_PENDING',
+        message: 'Finish setting up your account from your invite email first.',
+      });
     }
 
     if (!user.isEmailVerified) {
@@ -720,5 +730,72 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(500).json({
       message: 'Could not reset password',
     });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Employee invites — the invitee finishes their own account (public).
+// The token is the same hashed-token mechanism as password reset.
+// ---------------------------------------------------------------------------
+
+/** Read-only: name/email/store for the accept-invite page (no token consumed). */
+export const inviteInfo = async (req: Request, res: Response) => {
+  const token = String(req.query.token ?? '');
+  if (!token) return res.status(400).json({ message: 'Missing invite token' });
+
+  const user = await User.findOne({
+    passwordResetTokenHash: hashToken(token),
+    passwordResetExpires: { $gt: new Date() },
+    isActive: false,
+  }).select('name email role storeId');
+
+  if (!user) {
+    return res.status(400).json({ message: 'This invite is invalid or has expired' });
+  }
+
+  const store = user.storeId ? await Store.findById(user.storeId).select('storeName') : null;
+  res.json({
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    storeName: store?.storeName ?? null,
+  });
+};
+
+export const acceptInvite = async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword, name } = acceptInviteSchema.parse(req.body);
+
+    const user = await User.findOne({
+      passwordResetTokenHash: hashToken(token),
+      passwordResetExpires: { $gt: new Date() },
+      isActive: false,
+    }).select('+passwordResetTokenHash +passwordResetExpires');
+
+    if (!user) {
+      return res.status(400).json({ message: 'This invite is invalid or has expired' });
+    }
+
+    user.passwordHash = await hashPassword(newPassword);
+    if (name && name.trim()) user.name = name.trim();
+    // Accepting the invite proves the invitee controls the mailbox it went to.
+    user.isActive = true;
+    user.isEmailVerified = true;
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpires = null;
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+
+    res.json({ message: 'Account set up. You can now sign in.' });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: err.flatten(),
+      });
+    }
+    console.error(err);
+    res.status(500).json({ message: 'Could not complete the invite' });
   }
 };

@@ -374,20 +374,17 @@ export async function apiListEmployees(): Promise<Employee[]> {
   return (data.data ?? []).map(mapEmployee);
 }
 
-export async function apiCreateEmployee(input: {
+/** Invites a staff member: creates an inactive account and emails them a
+ * set-password link. They appear as "disabled" until they accept. */
+export async function apiInviteEmployee(input: {
   name: string;
   email: string;
   role: StaffRole;
-  password: string;
-  storeId: string;
 }): Promise<Employee> {
-  const { data } = await api.post<Envelope<Doc>>('/users', {
+  const { data } = await api.post<Envelope<Doc>>('/users/invite', {
     name: input.name,
     email: input.email,
     role: input.role,
-    password: input.password,
-    storeId: input.storeId,
-    isEmailVerified: true,
   });
   return mapEmployee(data.data);
 }

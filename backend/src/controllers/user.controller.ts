@@ -1,9 +1,91 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
+import { randomBytes } from "crypto";
 import { User } from "../models/user.model";
+import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
-import { hashPassword } from "../utils/auth.utils";
+import {
+    hashPassword,
+    generateRawToken,
+    hashToken,
+    sendEmployeeInviteEmail,
+} from "../utils/auth.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+
+const INVITE_TTL_DAYS = 7;
+
+// INVITE STAFF — creates an inactive account and emails a set-password link.
+// The invitee finishes via POST /api/auth/accept-invite. No password is set
+// here, so an unaccepted invite can never be signed into.
+export const inviteUser = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const { name, email, role } = req.body;
+        const inviter = req.user!;
+
+        const targetRole = role ?? "cashier";
+        if (inviter.role !== "platform_admin" && !["manager", "cashier"].includes(targetRole)) {
+            return next(new AppError("Owners can only invite manager or cashier accounts", 403));
+        }
+
+        const storeId = inviter.role === "platform_admin" ? req.body.storeId : req.storeId;
+        if (!storeId) {
+            return next(new AppError("A store is required to invite staff", 400));
+        }
+
+        const existing = await User.findOne({ email });
+        if (existing) {
+            return next(new AppError("An account with this email already exists", 409));
+        }
+
+        // Unusable random password — the account is unlocked only by accepting.
+        const passwordHash = await hashPassword(randomBytes(24).toString("hex"));
+        const rawToken = generateRawToken(32);
+
+        const user = await User.create({
+            name,
+            email,
+            passwordHash,
+            role: targetRole,
+            storeId,
+            isActive: false,
+            isEmailVerified: false,
+            passwordResetTokenHash: hashToken(rawToken),
+            passwordResetExpires: new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000),
+        });
+
+        const [store, inviterDoc] = await Promise.all([
+            Store.findById(storeId),
+            User.findById(inviter.sub).select("name"),
+        ]);
+        const inviteUrl = `${process.env.CLIENT_APP_URL}/accept-invite?token=${rawToken}`;
+
+        await sendEmployeeInviteEmail(email, {
+            inviteUrl,
+            inviterName: inviterDoc?.name ?? "Your manager",
+            storeName: store?.storeName ?? "your store",
+            role: targetRole,
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "Invite sent",
+            data: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                storeId: user.storeId,
+                isActive: user.isActive,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
 // 1. CREATE USER
 export const createUser = async (

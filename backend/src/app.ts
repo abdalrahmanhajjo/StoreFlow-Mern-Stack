@@ -21,6 +21,7 @@ import userRoutes from "./routes/user.routes";
 
 import cookieParser from 'cookie-parser';
 import storeRoutes from "./routes/store.routes";
+import employeeRoutes from "./routes/employee.routes";
 
 
 const app = express();
@@ -52,6 +53,7 @@ app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/employees", employeeRoutes);
 
 // Not found route
 app.use((req: Request, res: Response) => {

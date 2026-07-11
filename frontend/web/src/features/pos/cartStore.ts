@@ -5,7 +5,7 @@ import type { Product } from '@/features/products/productsStore';
 import type { Role } from '@/store/session';
 
 export const TAX_RATE = 0.054;
-export const DEFAULT_DISCOUNT = 0.1; // 10% promo
+export const DEFAULT_DISCOUNT = 0; // no discount until the cashier applies one
 export const DEFAULT_DISCOUNT_FIXED = 0;
 export type DiscountMode = 'percent' | 'fixed';
 

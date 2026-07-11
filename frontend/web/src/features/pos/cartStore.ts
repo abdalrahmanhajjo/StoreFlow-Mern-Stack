@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { earn, redeemValue, pointsUsed } from '@/features/customers/loyalty';
+import { roundMoney, lineAmount } from '@/lib/money';
 import type { Product } from '@/features/products/productsStore';
 import type { Role } from '@/store/session';
 
@@ -120,22 +121,20 @@ export interface CartTotals {
   pointsEarned: number;
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 export function computeTotals(state: Pick<CartState, 'items' | 'customer' | 'redeeming' | 'discountMode' | 'discountRate' | 'discountFixed'> & { taxRate?: number }): CartTotals {
   const rate = state.taxRate ?? TAX_RATE;
-  const subtotal = round2(state.items.reduce((s, i) => s + i.price * i.qty, 0));
-  const discountPct = round2(subtotal * state.discountRate);
+  // Round each line to cents first, then sum — the same order the server uses,
+  // so the register total always equals the server-issued receipt total.
+  const subtotal = roundMoney(state.items.reduce((s, i) => s + lineAmount(i.price, i.qty), 0));
+  const discountPct = roundMoney(subtotal * state.discountRate);
   const discountFixed = state.discountMode === 'fixed' ? Math.min(state.discountFixed, subtotal) : 0;
-  const discount = state.discountMode === 'percent' ? discountPct : round2(discountFixed);
-  const afterDiscount = round2(subtotal - discount);
+  const discount = state.discountMode === 'percent' ? discountPct : roundMoney(discountFixed);
+  const afterDiscount = roundMoney(subtotal - discount);
   const redeem = state.redeeming && state.customer ? redeemValue(state.customer.points, afterDiscount) : 0;
   const redeemPoints = pointsUsed(redeem);
-  const taxable = round2(afterDiscount - redeem);
-  const tax = round2(taxable * rate);
-  const total = round2(taxable + tax);
+  const taxable = roundMoney(afterDiscount - redeem);
+  const tax = roundMoney(taxable * rate);
+  const total = roundMoney(taxable + tax);
   return { subtotal, discount, discountFixed, discountPct, redeem, redeemPoints, taxable, tax, total, pointsEarned: earn(total) };
 }
 

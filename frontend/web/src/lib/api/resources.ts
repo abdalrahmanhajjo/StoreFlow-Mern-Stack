@@ -35,7 +35,7 @@ const id = (doc: Doc): string => String(doc._id ?? doc.id);
 
 const CATEGORY_EMOJIS = ['🥤', '🍞', '🥛', '🥬', '🧻', '🥫', '🧴', '📦', '🧀', '🍫'];
 
-/** Stable emoji per category name — the backend doesn't store one. */
+/** Fallback emoji per category name for older rows that predate stored emoji. */
 function emojiForCategory(name: string): string {
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) | 0;
@@ -46,7 +46,8 @@ function mapCategory(doc: Doc): Category {
   return {
     id: id(doc),
     name: doc.name,
-    emoji: emojiForCategory(doc.name),
+    emoji: doc.emoji || emojiForCategory(doc.name),
+    image: doc.imageUrl ?? '',
     description: doc.description ?? '',
   };
 }
@@ -56,16 +57,23 @@ export async function apiListCategories(): Promise<Category[]> {
   return (data.data ?? []).map(mapCategory);
 }
 
-export async function apiCreateCategory(name: string, description: string): Promise<Category> {
+export async function apiCreateCategory(input: { name: string; description?: string; emoji?: string; image?: string }): Promise<Category> {
   const { data } = await api.post<Envelope<Doc>>('/categories', {
-    name,
-    description: description || undefined,
+    name: input.name,
+    description: input.description || undefined,
+    emoji: input.emoji || undefined,
+    imageUrl: input.image || undefined,
   });
   return mapCategory(data.data);
 }
 
-export async function apiUpdateCategory(catId: string, patch: { name?: string; description?: string }): Promise<void> {
-  await api.put(`/categories/${catId}`, patch);
+export async function apiUpdateCategory(catId: string, patch: { name?: string; description?: string; emoji?: string; image?: string }): Promise<void> {
+  await api.put(`/categories/${catId}`, {
+    name: patch.name,
+    description: patch.description,
+    emoji: patch.emoji,
+    ...(patch.image !== undefined ? { imageUrl: patch.image || undefined } : {}),
+  });
 }
 
 export async function apiDeleteCategory(catId: string): Promise<void> {
@@ -87,7 +95,7 @@ function mapProduct(doc: Doc): Product {
     cost: doc.cost ?? 0,
     stock: doc.quantity ?? 0,
     reorderPoint: doc.reorderThreshold ?? 0,
-    emoji: '📦',
+    emoji: doc.emoji || '📦',
     image: doc.imageUrl ?? '',
     category,
   };
@@ -109,6 +117,7 @@ function productBody(input: Partial<ProductInput>, categoryId?: string) {
     quantity: input.stock,
     reorderThreshold: input.reorderPoint,
     imageUrl: input.image || undefined,
+    emoji: input.emoji || undefined,
     ...(categoryId ? { categoryId } : {}),
   };
 }

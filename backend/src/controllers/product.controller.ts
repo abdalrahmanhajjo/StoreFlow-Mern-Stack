@@ -191,6 +191,7 @@ export const createProduct = async (req: Request, res: Response) => {
       quantity = 0,
       reorderThreshold = 5,
       imageUrl,
+      emoji,
       categoryId,
     } = req.body;
 
@@ -233,6 +234,7 @@ export const createProduct = async (req: Request, res: Response) => {
       quantity,
       reorderThreshold,
       imageUrl,
+      emoji,
       categoryId,
     });
 

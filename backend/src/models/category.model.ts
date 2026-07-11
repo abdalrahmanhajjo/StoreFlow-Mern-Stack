@@ -4,6 +4,8 @@ export interface ICategory extends Document {
     storeId: mongoose.Types.ObjectId;
   name: string;
   description?: string;
+  emoji?: string;
+  imageUrl?: string;
   isActive: boolean;
 }
 
@@ -35,6 +37,16 @@ const categorySchema = new Schema<ICategory>(
       type: String,
       trim: true,
       maxlength: [250, "Description cannot exceed 250 characters"],
+    },
+
+    emoji: {
+      type: String,
+      trim: true,
+      maxlength: [8, "Emoji is too long"],
+    },
+
+    imageUrl: {
+      type: String,
     },
 
     isActive: {

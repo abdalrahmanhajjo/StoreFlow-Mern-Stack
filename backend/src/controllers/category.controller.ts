@@ -128,7 +128,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
 // CREATE category
 export const createCategory = async (req: Request, res: Response) => {
     try {
-        const { name, description } = req.body;
+        const { name, description, emoji, imageUrl } = req.body;
 
         if (!name) {
             res.status(400).json({
@@ -141,6 +141,8 @@ export const createCategory = async (req: Request, res: Response) => {
         const category = await Category.create({ storeId: req.storeId!, 
             name,
             description,
+            emoji,
+            imageUrl,
         });
 
         res.status(201).json({

@@ -77,6 +77,12 @@ export const createProductSchema = z.object({
             .url("Image URL must be a valid URL")
             .optional(),
 
+        emoji: z
+            .string()
+            .trim()
+            .max(8, "Emoji is too long")
+            .optional(),
+
         categoryId: z
             .string({
                 error: "Category is required",
@@ -153,6 +159,12 @@ export const updateProductSchema = z.object({
             .string()
             .trim()
             .url("Image URL must be a valid URL")
+            .optional(),
+
+        emoji: z
+            .string()
+            .trim()
+            .max(8, "Emoji is too long")
             .optional(),
 
         categoryId: z

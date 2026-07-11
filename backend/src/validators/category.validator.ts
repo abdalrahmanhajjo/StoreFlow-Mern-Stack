@@ -22,6 +22,18 @@ export const createCategorySchema = z.object({
             .max(250, "Description cannot exceed 250 characters")
             .optional(),
 
+        emoji: z
+            .string()
+            .trim()
+            .max(8, "Emoji is too long")
+            .optional(),
+
+        imageUrl: z
+            .string()
+            .trim()
+            .url("Image URL must be a valid URL")
+            .optional(),
+
         isActive: z.boolean().optional(),
     }),
 });
@@ -43,6 +55,18 @@ export const updateCategorySchema = z.object({
             .string()
             .trim()
             .max(250, "Description cannot exceed 250 characters")
+            .optional(),
+
+        emoji: z
+            .string()
+            .trim()
+            .max(8, "Emoji is too long")
+            .optional(),
+
+        imageUrl: z
+            .string()
+            .trim()
+            .url("Image URL must be a valid URL")
             .optional(),
 
         isActive: z.boolean().optional(),

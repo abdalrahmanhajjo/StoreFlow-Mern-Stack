@@ -17,6 +17,19 @@ const EMPTY: StoreSettings = {
   taxRate: 0, logoUrl: '', lowStockThreshold: 10, invoicePrefix: 'INV', receiptFooter: '',
 };
 
+/** Stable module-level field wrapper — defining this inside the page would
+ * mint a new component type on every keystroke, remounting the input and
+ * dropping focus after each character. */
+function Field({ label, desc, isMobile, children: input }: { label: string; desc?: string; isMobile: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: isMobile ? 14 : 16 }}>
+      <label style={{ display: 'block', fontSize: isMobile ? 13 : 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 5 }}>{label}</label>
+      {desc && <div style={{ fontSize: 11.5, color: 'var(--ink-faint)', marginBottom: 7, lineHeight: 1.4 }}>{desc}</div>}
+      {input}
+    </div>
+  );
+}
+
 export default function StoreSettingsPage() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const user = useSession((s) => s.user);
@@ -101,14 +114,6 @@ export default function StoreSettingsPage() {
 
   const stlSel: React.CSSProperties = { ...stlInp, cursor: 'pointer' };
 
-  const Field = ({ label, desc, children: input }: { label: string; desc?: string; children: React.ReactNode }) => (
-    <div style={{ marginBottom: isMobile ? 14 : 16 }}>
-      <label style={{ display: 'block', fontSize: isMobile ? 13 : 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 5 }}>{label}</label>
-      {desc && <div style={{ fontSize: isMobile ? 11.5 : 11.5, color: 'var(--ink-faint)', marginBottom: 7, lineHeight: 1.4 }}>{desc}</div>}
-      {input}
-    </div>
-  );
-
   const low = form.lowStockThreshold;
 
   return (
@@ -138,17 +143,17 @@ export default function StoreSettingsPage() {
           <div style={{ fontSize: isMobile ? 10 : 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-faint)', fontWeight: 600, marginBottom: isMobile ? 14 : 16, paddingBottom: isMobile ? 10 : 12, borderBottom: '1px solid var(--line)' }}>
             General
           </div>
-          <Field label="Store name"><input value={form.storeName} placeholder="Store name" onChange={edit('storeName')} style={stlInp} /></Field>
-          <Field label="Phone"><input value={form.phone} placeholder="Phone number" onChange={edit('phone')} style={stlInp} /></Field>
-          <Field label="Email"><input value={form.email} placeholder="Store email" onChange={edit('email')} style={stlInp} /></Field>
-          <Field label="Address"><input value={form.address} placeholder="Street, city, postal code" onChange={edit('address')} style={stlInp} /></Field>
+          <Field isMobile={isMobile} label="Store name"><input value={form.storeName} placeholder="Store name" onChange={edit('storeName')} style={stlInp} /></Field>
+          <Field isMobile={isMobile} label="Phone"><input value={form.phone} placeholder="Phone number" onChange={edit('phone')} style={stlInp} /></Field>
+          <Field isMobile={isMobile} label="Email"><input value={form.email} placeholder="Store email" onChange={edit('email')} style={stlInp} /></Field>
+          <Field isMobile={isMobile} label="Address"><input value={form.address} placeholder="Street, city, postal code" onChange={edit('address')} style={stlInp} /></Field>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 0 : 14 }}>
-            <Field label="Currency">
+            <Field isMobile={isMobile} label="Currency">
               <select aria-label="Currency" value={form.currency} onChange={edit('currency')} style={stlSel}>
                 <option value="USD">USD — $</option><option value="EUR">EUR — €</option><option value="EGP">EGP — E£</option>
               </select>
             </Field>
-            <Field label="Tax rate (%)">
+            <Field isMobile={isMobile} label="Tax rate (%)">
               <input type="number" min={0} step={0.1} value={form.taxRate} onChange={edit('taxRate')} style={stlInp} />
             </Field>
           </div>
@@ -159,7 +164,7 @@ export default function StoreSettingsPage() {
           <div style={{ fontSize: isMobile ? 10 : 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-faint)', fontWeight: 600, marginBottom: isMobile ? 14 : 16, paddingBottom: isMobile ? 10 : 12, borderBottom: '1px solid var(--line)' }}>
             Branding & receipts
           </div>
-          <Field label="Store logo" desc="PNG or JPG, max 2 MB. Square recommended.">
+          <Field isMobile={isMobile} label="Store logo" desc="PNG or JPG, max 2 MB. Square recommended.">
             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12 }}>
               <div style={{ width: isMobile ? 60 : 64, height: isMobile ? 60 : 64, borderRadius: 12, border: '1px solid var(--line-soft)', background: 'var(--paper)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {form.logoUrl ? (
@@ -179,10 +184,10 @@ export default function StoreSettingsPage() {
               </div>
             </div>
           </Field>
-          <Field label="Invoice prefix" desc="Printed before invoice numbers, e.g. INV-20260711-0042.">
+          <Field isMobile={isMobile} label="Invoice prefix" desc="Printed before invoice numbers, e.g. INV-20260711-0042.">
             <input value={form.invoicePrefix} onChange={edit('invoicePrefix')} style={stlInp} />
           </Field>
-          <Field label="Receipt footer" desc="Shown at the bottom of every printed receipt.">
+          <Field isMobile={isMobile} label="Receipt footer" desc="Shown at the bottom of every printed receipt.">
             <input value={form.receiptFooter} placeholder="Thank you for shopping with us!" onChange={edit('receiptFooter')} style={stlInp} />
           </Field>
         </div>
@@ -192,7 +197,7 @@ export default function StoreSettingsPage() {
           <div style={{ fontSize: isMobile ? 10 : 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-faint)', fontWeight: 600, marginBottom: isMobile ? 14 : 16, paddingBottom: isMobile ? 10 : 12, borderBottom: '1px solid var(--line)' }}>
             Low-stock thresholds
           </div>
-          <Field label="Default low-stock threshold (units)" desc="Products at or below this level are flagged low-stock on the dashboard.">
+          <Field isMobile={isMobile} label="Default low-stock threshold (units)" desc="Products at or below this level are flagged low-stock on the dashboard.">
             <input type="number" min={0} value={form.lowStockThreshold} onChange={edit('lowStockThreshold')} style={stlInp} />
           </Field>
           <div style={{ marginTop: isMobile ? 6 : 8, display: 'flex', gap: 4 }}>
@@ -215,10 +220,10 @@ export default function StoreSettingsPage() {
           <div style={{ fontSize: isMobile ? 10 : 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-faint)', fontWeight: 600, marginBottom: isMobile ? 14 : 16, paddingBottom: isMobile ? 10 : 12, borderBottom: '1px solid var(--line)' }}>
             Account
           </div>
-          <Field label="Signed in as">
+          <Field isMobile={isMobile} label="Signed in as">
             <input value={`${user?.name ?? ''} · ${user?.email ?? ''}`} readOnly style={{ ...stlInp, color: 'var(--ink-soft)', cursor: 'default' }} />
           </Field>
-          <Field label="Role">
+          <Field isMobile={isMobile} label="Role">
             <input value={user?.role ?? ''} readOnly style={{ ...stlInp, color: 'var(--ink-soft)', cursor: 'default' }} />
           </Field>
           <p style={{ fontSize: 12, color: 'var(--ink-faint)', lineHeight: 1.5, margin: '4px 0 0' }}>

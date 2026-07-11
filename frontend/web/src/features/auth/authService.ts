@@ -264,14 +264,19 @@ export const authService = {
     await api.post('/auth/forgot-password', { email });
   },
 
-  /** Completes a reset using the token from the emailed link. */
-  async resetPassword(token: string, newPassword: string): Promise<void> {
+  /** Checks the emailed 6-digit reset code. Demo mode accepts any code. */
+  async verifyResetCode(email: string, code: string): Promise<void> {
+    if (USE_MOCK) {
+      return delay(undefined, 400);
+    }
+    await api.post('/auth/verify-reset-code', { email, code });
+  },
+
+  /** Completes the reset with the emailed code. */
+  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
     if (USE_MOCK) {
       return delay(undefined);
     }
-    await api.post('/auth/reset-password', { token, newPassword });
+    await api.post('/auth/reset-password', { email, code, newPassword });
   },
-
-  /** Connected mode sends a reset *link* by email; the demo flow fakes a code. */
-  usesResetLink: !USE_MOCK,
 };

@@ -22,6 +22,8 @@ router.get('/approval-status', authController.approvalStatus);
 
 router.post('/forgot-password', authController.forgotPassword);
 
+router.post('/verify-reset-code', authController.verifyResetCode);
+
 router.post('/reset-password', authController.resetPassword);
 
 export default router;

@@ -13,7 +13,7 @@ import {
   signAccessToken,
   generateRawToken,
   hashToken,
-  sendPasswordResetEmail,
+  sendPasswordResetCode,
   sendEmailVerificationCode,
 } from '../utils/auth.utils';
 
@@ -22,6 +22,7 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  verifyResetCodeSchema,
   verifyEmailCodeSchema,
   resendVerificationCodeSchema,
 } from '../validators/auth.validator';
@@ -32,7 +33,7 @@ const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_LOCK_MINUTES = 15;
 
-const RESET_TOKEN_TTL_MINUTES = 30;
+const RESET_CODE_TTL_MINUTES = 10;
 
 const EMAIL_VERIFICATION_CODE_TTL_MINUTES = 10;
 
@@ -599,22 +600,21 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const user = await User.findOne({ email });
 
     if (user) {
-      const rawToken = generateRawToken(32);
+      // Same OTP experience as registration: a 6-digit emailed code.
+      const code = generateEmailVerificationCode();
 
-      user.passwordResetTokenHash = hashToken(rawToken);
+      user.passwordResetTokenHash = hashToken(code);
       user.passwordResetExpires = new Date(
-        Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000
+        Date.now() + RESET_CODE_TTL_MINUTES * 60 * 1000
       );
 
       await user.save();
 
-      const resetUrl = `${process.env.CLIENT_APP_URL}/reset-password?token=${rawToken}`;
-
-      await sendPasswordResetEmail(user.email, resetUrl);
+      await sendPasswordResetCode(user.email, code);
     }
 
     res.json({
-      message: 'If that email exists, a reset link has been sent.',
+      message: 'If that email exists, a reset code has been sent.',
     });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -632,13 +632,47 @@ export const forgotPassword = async (req: Request, res: Response) => {
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
+/** Validates a reset code without consuming it — the reset page's OTP step. */
+export const verifyResetCode = async (req: Request, res: Response) => {
   try {
-    const { token, newPassword } = resetPasswordSchema.parse(req.body);
-    const tokenHash = hashToken(token);
+    const { email, code } = verifyResetCodeSchema.parse(req.body);
 
     const user = await User.findOne({
-      passwordResetTokenHash: tokenHash,
+      email,
+      passwordResetTokenHash: hashToken(code),
+      passwordResetExpires: { $gt: new Date() },
+    }).select('+passwordResetTokenHash +passwordResetExpires');
+
+    if (!user) {
+      return res.status(400).json({
+        message: 'Reset code is invalid or has expired',
+      });
+    }
+
+    res.json({ message: 'Code verified' });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: err.flatten(),
+      });
+    }
+
+    console.error(err);
+
+    res.status(500).json({
+      message: 'Could not verify code',
+    });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, code, newPassword } = resetPasswordSchema.parse(req.body);
+
+    const user = await User.findOne({
+      email,
+      passwordResetTokenHash: hashToken(code),
       passwordResetExpires: {
         $gt: new Date(),
       },
@@ -646,7 +680,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(400).json({
-        message: 'Password reset token is invalid or has expired',
+        message: 'Reset code is invalid or has expired',
       });
     }
 

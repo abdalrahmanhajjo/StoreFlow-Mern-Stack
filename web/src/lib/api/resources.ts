@@ -402,3 +402,186 @@ export async function apiUpdateEmployee(
 export async function apiDeleteEmployee(userId: string): Promise<void> {
   await api.delete(`/users/${userId}`);
 }
+
+// ---------------------------------------------------------------------------
+// Platform admin: stores (tenants + approvals), users, security, audit
+// ---------------------------------------------------------------------------
+
+import type { Tenant, Application, Plan, PlatformUser, PlatformRole } from '@/features/admin/adminStore';
+import type { Session, Attempt, AuditEntry } from '@/features/admin/securityStore';
+
+const TENANT_COLORS = ['#4e6af0', '#0e9384', '#b54708', '#7a5af8', '#c11574', '#175cd3'];
+
+function initialsOf(name: string): string {
+  return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function colorOf(name: string): string {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return TENANT_COLORS[Math.abs(h) % TENANT_COLORS.length];
+}
+
+function planOf(doc: Doc): Plan {
+  const raw = String(doc.subscription?.plan ?? 'free').toLowerCase();
+  if (raw === 'pro') return 'Pro';
+  if (raw === 'enterprise') return 'Enterprise';
+  return 'Free'; // trial & free both render as the free tier
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  grocery: 'Supermarket',
+  restaurant: 'Restaurant',
+  pharmacy: 'Pharmacy',
+  retail: 'Boutique',
+};
+
+const shortDay = (value: string | undefined): string => {
+  if (!value) return '—';
+  const d = new Date(value);
+  return `${d.toLocaleString('en', { month: 'short' })} ${d.getDate()}`;
+};
+
+export interface RawStore {
+  id: string;
+  name: string;
+  ownerName: string;
+  ownerEmail: string;
+  businessType: string;
+  currency: string;
+  status: 'pending' | 'active' | 'suspended';
+  createdAt?: string;
+  plan: Plan;
+}
+
+function mapStoreDoc(doc: Doc): RawStore {
+  const owner = typeof doc.ownerId === 'object' && doc.ownerId ? doc.ownerId : {};
+  return {
+    id: id(doc),
+    name: doc.storeName,
+    ownerName: owner.name ?? '—',
+    ownerEmail: owner.email ?? '—',
+    businessType: TYPE_LABELS[doc.businessType] ?? doc.businessType,
+    currency: doc.currency ?? 'USD',
+    status: doc.status,
+    createdAt: doc.createdAt,
+    plan: planOf(doc),
+  };
+}
+
+export async function apiListStoresRaw(): Promise<RawStore[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/stores');
+  return (data.data ?? []).map(mapStoreDoc);
+}
+
+export function tenantFromStore(store: RawStore, userCount: number): Tenant {
+  return {
+    id: store.id,
+    name: store.name,
+    initials: initialsOf(store.name),
+    color: colorOf(store.name),
+    owner: store.ownerName,
+    type: store.businessType,
+    plan: store.plan,
+    users: userCount,
+    salesMtd: 0, // platform-wide sales rollup isn't exposed by the API yet
+    status: store.status === 'suspended' ? 'suspended' : 'active',
+  };
+}
+
+export function applicationFromStore(store: RawStore): Application {
+  return {
+    id: store.id,
+    name: store.name,
+    initials: initialsOf(store.name),
+    color: colorOf(store.name),
+    email: store.ownerEmail,
+    type: store.businessType,
+    plan: store.plan,
+    submitted: shortDay(store.createdAt),
+  };
+}
+
+export async function apiChangeStoreStatus(
+  storeId: string,
+  status: 'pending' | 'active' | 'suspended'
+): Promise<void> {
+  await api.post(`/stores/${storeId}/status`, { status });
+}
+
+/** Real store document for the signed-in workspace (name, currency, …). */
+export async function apiGetStore(storeId: string): Promise<RawStore> {
+  const { data } = await api.get<Envelope<Doc>>(`/stores/${storeId}`);
+  return mapStoreDoc(data.data);
+}
+
+const ROLE_LABELS: Record<string, PlatformRole> = {
+  platform_admin: 'Platform admin',
+  owner: 'Owner',
+  manager: 'Manager',
+  cashier: 'Cashier',
+};
+
+export async function apiListPlatformUsers(storeNames: Map<string, string>): Promise<PlatformUser[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/users');
+  return (data.data ?? []).map((doc) => ({
+    id: id(doc),
+    name: doc.name,
+    email: doc.email,
+    role: ROLE_LABELS[doc.role] ?? 'Cashier',
+    store: doc.storeId ? (storeNames.get(String(doc.storeId)) ?? '—') : '—',
+    status: doc.isActive === false ? 'disabled' : 'active',
+    lastActive: shortDay(doc.updatedAt ?? doc.createdAt),
+    root: doc.role === 'platform_admin',
+  }));
+}
+
+export async function apiSetUserActive(userId: string, isActive: boolean): Promise<void> {
+  await api.put(`/users/${userId}`, { isActive });
+}
+
+export async function apiDeletePlatformUser(userId: string): Promise<void> {
+  await api.delete(`/users/${userId}`);
+}
+
+export async function apiListLoginAttempts(): Promise<Attempt[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/security/login-attempts');
+  return (data.data ?? []).map((doc) => ({
+    id: id(doc),
+    account: doc.email,
+    ip: doc.ip ?? '—',
+    when: doc.createdAt ? new Date(doc.createdAt).toLocaleString() : '—',
+    result: doc.success ? 'Success' : 'Failed',
+  }));
+}
+
+export async function apiListSessions(): Promise<Session[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/security/sessions');
+  return (data.data ?? []).map((doc) => {
+    const user = typeof doc.userId === 'object' && doc.userId ? doc.userId : {};
+    return {
+      id: id(doc),
+      user: user.name ?? '—',
+      ip: '—', // not recorded on refresh tokens
+      device: user.email ?? '—',
+      started: doc.createdAt ? new Date(doc.createdAt).toLocaleString() : '—',
+    };
+  });
+}
+
+const AUDIT_KIND: Record<string, AuditEntry['kind']> = {
+  Store: 'store', User: 'user', Sale: 'billing', Auth: 'auth',
+};
+
+export async function apiListAuditLogs(): Promise<AuditEntry[]> {
+  const { data } = await api.get<Envelope<Doc[]>>('/audit-logs', { params: { limit: 200 } });
+  return (data.data ?? []).map((doc) => ({
+    id: id(doc),
+    time: doc.createdAt ? new Date(doc.createdAt).toLocaleString() : '—',
+    actor: doc.performedByName ?? doc.performedBy ?? 'System',
+    action: doc.action ?? '—',
+    target: doc.entity ?? '—',
+    ip: '—',
+    kind: AUDIT_KIND[doc.entity] ?? 'store',
+  }));
+}

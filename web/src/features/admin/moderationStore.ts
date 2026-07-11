@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import moderationData from '@/data/moderation.json';
+import { isConnected } from '@/lib/api/resources';
 
 export type ReasonCode = 'misleading' | 'counterfeit' | 'spam' | 'trademark' | 'prohibited' | 'other';
 
@@ -37,7 +38,9 @@ export const REASON_LABEL: Record<string, string> = {
   other: 'Other',
 };
 
-const DATA = moderationData as ModerationItem[];
+// No moderation reports exist in the real backend yet — connected mode shows
+// the true (empty) queue instead of demo rows.
+const DATA = isConnected ? [] : (moderationData as ModerationItem[]);
 
 interface ModerationState {
   items: ModerationItem[];

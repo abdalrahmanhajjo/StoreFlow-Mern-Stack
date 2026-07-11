@@ -5,6 +5,9 @@ import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
+  // Pinned so emailed links (CLIENT_APP_URL) and CORS stay valid — other
+  // local projects already occupy Vite's 5173/5174 defaults.
+  server: { port: 5175 },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

@@ -1,31 +1,13 @@
-// Client-side JWT *decoding* only (never verification — that is the server's job).
-// Used to read the access token's `exp` so we can refresh proactively before it lapses.
-export interface JwtClaims {
-  sub?: string;
-  role?: string;
-  storeId?: string | null;
-  iat?: number;
-  exp?: number; // seconds since epoch
-  [key: string]: unknown;
-}
-
-function base64UrlDecode(input: string): string {
-  const padded = input.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(input.length / 4) * 4, '=');
-  return atob(padded);
-}
-
-export function decodeJwt(token: string): JwtClaims | null {
-  const parts = token.split('.');
-  if (parts.length < 2) return null;
+// Decodes a JWT's payload WITHOUT verifying its signature — verification is
+// the backend's job. We only need to read `exp` so we know when to
+// proactively refresh the access token.
+export function getExpiryMs(token: string): number | null {
   try {
-    return JSON.parse(base64UrlDecode(parts[1])) as JwtClaims;
+    const [, payload] = token.split('.');
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof json.exp !== 'number') return null;
+    return json.exp * 1000; // exp is in seconds, we work in ms
   } catch {
     return null;
   }
-}
-
-/** Access-token expiry in ms since epoch, or null if it can't be determined. */
-export function getExpiryMs(token: string): number | null {
-  const claims = decodeJwt(token);
-  return typeof claims?.exp === 'number' ? claims.exp * 1000 : null;
 }

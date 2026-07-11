@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, type CSSProperties } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { authService } from './authService';
 import { Button, Input, Logo } from '@/components/ui';
 
@@ -18,91 +18,23 @@ const s: Record<string, CSSProperties> = {
   } as CSSProperties,
 };
 
-// SF-104: neutral success, no account enumeration
+// SF-104: same response whether or not the email exists — no account
+// enumeration (forgotPassword() in auth.controller.ts always returns 200).
 export default function ResetPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [resendTimer, setResendTimer] = useState(0);
-  const resendInterval = useRef<ReturnType<typeof setInterval>>();
-  const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [confirmError, setConfirmError] = useState('');
-  const [done, setDone] = useState(false);
-  const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const [sent, setSent] = useState(false);
 
-  useEffect(() => {
-    return () => clearInterval(resendInterval.current);
-  }, []);
-
-  function startResendTimer() {
-    setResendTimer(30);
-    resendInterval.current = setInterval(() => {
-      setResendTimer((t) => {
-        if (t <= 1) { clearInterval(resendInterval.current); return 0; }
-        return t - 1;
-      });
-    }, 1000);
-  }
-
-  async function handleSendCode(e: React.FormEvent) {
+  async function handleSendLink(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
     setBusy(true);
-    await authService.requestReset(email);
-    setBusy(false);
-    setStep(1);
-    startResendTimer();
-    setTimeout(() => otpInputsRef.current[0]?.focus(), 100);
-  }
-
-  function handleOtpDigit(index: number, value: string) {
-    if (!/^\d*$/.test(value)) return;
-    setOtpCode((prev) => {
-      const next = prev.split('');
-      next[index] = value.slice(-1);
-      const joined = next.join('');
-      return joined;
-    });
-    setOtpError('');
-    if (value && index < 5) otpInputsRef.current[index + 1]?.focus();
-  }
-
-  function handleOtpKeyDown(index: number, e: React.KeyboardEvent) {
-    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
-      otpInputsRef.current[index - 1]?.focus();
+    try {
+      await authService.forgotPassword(email);
+      setSent(true);
+    } finally {
+      setBusy(false);
     }
-  }
-
-  function handleVerifyOtp() {
-    if (otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
-      setOtpError('Enter the complete code');
-      return;
-    }
-    setStep(2);
-    setTimeout(() => {
-      document.getElementById('new-pw')?.focus();
-    }, 100);
-  }
-
-  function handleResetPassword(e: React.FormEvent) {
-    e.preventDefault();
-    let err = false;
-    if (password.length < 8) { setPasswordError('At least 8 characters'); err = true; }
-    else if (!/[a-z]/.test(password)) { setPasswordError('Include a lowercase letter'); err = true; }
-    else if (!/[A-Z]/.test(password)) { setPasswordError('Include an uppercase letter'); err = true; }
-    else if (!/\d/.test(password)) { setPasswordError('Include a number'); err = true; }
-    else { setPasswordError(''); }
-
-    if (password !== confirmPassword) { setConfirmError('Passwords do not match'); err = true; }
-    else { setConfirmError(''); }
-
-    if (err) return;
-    setDone(true);
   }
 
   return (
@@ -126,128 +58,36 @@ export default function ResetPage() {
             </div>
           </div>
 
-          {/* Step 0 — Email */}
-          {step === 0 && !done && (
+          {!sent ? (
             <div className="sf-enter">
               <h2 className="display" style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Reset password</h2>
-              <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)' }}>Enter your email and we&apos;ll send a reset code.</p>
-              <form onSubmit={handleSendCode}>
+              <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)' }}>Enter your email and we&apos;ll send you a reset link.</p>
+              <form onSubmit={handleSendLink}>
                 <Input
                   label="Email address" type="email" placeholder="you@store.com"
                   value={email} onChange={(e) => setEmail(e.target.value)}
                   required autoFocus
                   leftIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>}
                 />
-                <Button type="submit" fullWidth isLoading={busy}>Send reset code</Button>
+                <Button type="submit" fullWidth isLoading={busy}>Send reset link</Button>
               </form>
               <p style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: 'var(--ink-faint)' }}>
                 <Link to="/login" style={{ color: 'var(--blue)', fontWeight: 600, textDecoration: 'none' }}>Back to sign in</Link>
               </p>
             </div>
-          )}
-
-          {/* Step 1 — OTP */}
-          {step === 1 && !done && (
+          ) : (
             <div className="sf-enter">
               <h2 className="display" style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Check your email</h2>
-              <p style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
-                We sent a 6-digit code to{' '}
-                <strong style={{ color: 'var(--ink)' }}>{email}</strong>
+              <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
+                If an account exists for <strong style={{ color: 'var(--ink)' }}>{email}</strong>, a reset link
+                is on its way. It expires in 30 minutes.
               </p>
-
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', margin: '28px 0 12px' }}>
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <input
-                    key={i}
-                    ref={(el) => { otpInputsRef.current[i] = el; }}
-                    type="text" inputMode="numeric" autoComplete="one-time-code"
-                    maxLength={1}
-                    value={otpCode[i] || ''}
-                    onChange={(e) => handleOtpDigit(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    aria-label={`Digit ${i + 1}`}
-                    style={{
-                      width: 48, height: 54, textAlign: 'center', fontSize: 22, fontWeight: 700,
-                      fontFamily: 'inherit', color: 'var(--ink)',
-                      border: `2px solid ${otpError ? 'var(--red)' : otpCode[i] ? 'var(--blue)' : 'var(--line)'}`,
-                      borderRadius: 12, background: 'var(--card)', outline: 'none',
-                      transition: 'border-color .15s, box-shadow .15s', caretColor: 'var(--blue)',
-                    }}
-                    onFocus={(e) => { e.target.select(); e.target.style.borderColor = 'var(--blue)'; e.target.style.boxShadow = '0 0 0 3px var(--blue-soft)'; }}
-                    onBlur={(e) => { if (!otpError) { e.target.style.borderColor = otpCode[i] ? 'var(--blue)' : 'var(--line)'; } e.target.style.boxShadow = 'none'; }}
-                  />
-                ))}
-              </div>
-
-              {otpError && <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: '0 0 8px' }}>{otpError}</p>}
-
-              <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--ink-faint)', margin: '8px 0 0' }}>
-                {resendTimer > 0 ? (
-                  <>Resend code in <strong>{resendTimer}s</strong></>
-                ) : (
-                  <button type="button" onClick={startResendTimer}
-                    style={{ background: 'none', border: 'none', color: 'var(--blue)', fontWeight: 600, cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit', padding: 0 }}
-                  >Resend code</button>
-                )}
-              </p>
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-                <Button type="button" variant="ghost" onClick={() => setStep(0)} style={{ flex: 1 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                  Back
-                </Button>
-                <Button type="button" onClick={handleVerifyOtp} style={{ flex: 1, letterSpacing: '0.01em' }}>
-                  Verify
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2 — New password */}
-          {step === 2 && !done && (
-            <div className="sf-enter">
-              <h2 className="display" style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Create new password</h2>
-              <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)' }}>Choose a strong password for your account.</p>
-              <form onSubmit={handleResetPassword}>
-                <Input
-                  id="new-pw"
-                  label="New password" type="password" placeholder="At least 8 characters"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
-                  error={passwordError}
-                  leftIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
-                />
-                <Input
-                  label="Confirm password" type="password" placeholder="Repeat your password"
-                  value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                  error={confirmError}
-                  leftIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
-                />
-                <Button type="submit" fullWidth isLoading={busy}>Reset password</Button>
-              </form>
+              <Button type="button" fullWidth variant="ghost" onClick={() => setSent(false)}>
+                Use a different email
+              </Button>
               <p style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: 'var(--ink-faint)' }}>
                 <Link to="/login" style={{ color: 'var(--blue)', fontWeight: 600, textDecoration: 'none' }}>Back to sign in</Link>
               </p>
-            </div>
-          )}
-
-          {/* Done */}
-          {done && (
-            <div className="sf-enter">
-              <h2 className="display" style={{ fontSize: 23, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Password reset</h2>
-              <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--ink-soft)' }}>Your password has been updated successfully.</p>
-              <div style={{
-                padding: 16, borderRadius: 12, background: 'var(--green-soft)',
-                border: '1px solid #c4d9c8', marginBottom: 24, display: 'flex', gap: 10, alignItems: 'flex-start',
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2e7d43" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                <p style={{ fontSize: 13, color: 'var(--green-deep)', margin: 0, lineHeight: 1.5 }}>
-                  You can now sign in with your new password.
-                </p>
-              </div>
-              <Button type="button" fullWidth onClick={() => navigate('/login')}>Sign in</Button>
             </div>
           )}
         </div>

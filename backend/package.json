@@ -8,7 +8,8 @@
     "dev:memory": "ts-node-dev --transpile-only scripts/dev-memory.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "seed:admin": "ts-node-dev --transpile-only --quiet scripts/seed-admin.ts"
+    "seed:admin": "ts-node-dev --transpile-only --quiet scripts/seed-admin.ts",
+    "dev:local": "ts-node-dev --transpile-only --ignore-watch .data scripts/dev-local.ts"
   },
   "keywords": [],
   "author": "",

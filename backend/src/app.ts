@@ -18,6 +18,7 @@ import dashboardRoutes from "./routes/dashboard.routes";
 
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
+import securityRoutes from "./routes/security.routes";
 
 import cookieParser from 'cookie-parser';
 import storeRoutes from "./routes/store.routes";
@@ -67,6 +68,7 @@ app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/store-settings", storeSettingRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/security", securityRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/dashboard", dashboardRoutes);

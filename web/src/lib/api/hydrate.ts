@@ -14,6 +14,8 @@ import { useSupply } from '@/features/suppliers/supplyStore';
 import { useSales } from '@/features/sales/salesStore';
 import { useInventory } from '@/features/inventory/inventoryStore';
 import { useEmployees } from '@/features/employees/employeesStore';
+import { useTenants, useApprovals, usePlatformUsers } from '@/features/admin/adminStore';
+import { useSecurity, useAudit } from '@/features/admin/securityStore';
 import {
   isConnected,
   apiListProducts,
@@ -24,6 +26,13 @@ import {
   apiListSales,
   apiListAdjustments,
   apiListEmployees,
+  apiListStoresRaw,
+  tenantFromStore,
+  applicationFromStore,
+  apiListPlatformUsers,
+  apiListLoginAttempts,
+  apiListSessions,
+  apiListAuditLogs,
 } from './resources';
 
 async function load(name: string, task: () => Promise<void>): Promise<void> {
@@ -67,12 +76,52 @@ export async function refreshEmployees() {
   useEmployees.getState().hydrate(await apiListEmployees());
 }
 
+/** Stores + users together: tenants list needs per-store user counts, users
+ * list needs store names, approvals are the pending stores. */
+export async function refreshAdminStores() {
+  const stores = await apiListStoresRaw();
+  const storeNames = new Map(stores.map((s) => [s.id, s.name]));
+  const users = await apiListPlatformUsers(storeNames);
+
+  const countByStore = new Map<string, number>();
+  for (const u of users) {
+    if (u.store !== '—') countByStore.set(u.store, (countByStore.get(u.store) ?? 0) + 1);
+  }
+
+  useTenants.getState().hydrate(
+    stores.filter((s) => s.status !== 'pending').map((s) => tenantFromStore(s, countByStore.get(s.name) ?? 0))
+  );
+  useApprovals.getState().hydrate(stores.filter((s) => s.status === 'pending').map(applicationFromStore));
+  usePlatformUsers.getState().hydrate(users);
+}
+
+export async function refreshSecurity() {
+  const [attempts, sessions] = await Promise.all([apiListLoginAttempts(), apiListSessions()]);
+  useSecurity.getState().hydrate({ attempts, sessions });
+}
+
+export async function refreshAudit() {
+  useAudit.getState().hydrate(await apiListAuditLogs());
+}
+
 let hydratedForUser: string | null = null;
 
 /** Pull every workspace resource. Safe to call repeatedly. */
 export async function hydrateWorkspace(): Promise<void> {
   const user = useSession.getState().user;
-  if (!isConnected || !user?.storeId) return;
+  if (!isConnected || !user) return;
+
+  // Platform admins get the platform view; store staff get their workspace.
+  if (user.role === 'platform_admin') {
+    await Promise.all([
+      load('admin-stores', refreshAdminStores),
+      load('security', refreshSecurity),
+      load('audit', refreshAudit),
+    ]);
+    return;
+  }
+
+  if (!user.storeId) return;
 
   const jobs = [
     load('products', refreshProducts),

@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IStoreSetting extends Document {
+    storeId: mongoose.Types.ObjectId;
     storeName: string;
     address?: string;
     phone?: string;
@@ -17,6 +18,12 @@ export interface IStoreSetting extends Document {
 
 const storeSettingSchema = new Schema<IStoreSetting>(
     {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
         storeName: {
             type: String,
             required: [true, "Store name is required"],

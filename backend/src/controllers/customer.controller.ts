@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Customer from "../models/customer.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all customers
 export const getCustomers = async (req: Request, res: Response) => {
@@ -12,6 +13,7 @@ export const getCustomers = async (req: Request, res: Response) => {
         const skip = (page - 1) * limit;
 
         const filter: any = {
+        ...tenantFilter(req),
             isActive: true,
         };
 
@@ -63,7 +65,7 @@ export const getCustomerById = async (req: Request, res: Response) => {
             return;
         }
 
-        const customer = await Customer.findOne({
+        const customer = await Customer.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         });
@@ -92,7 +94,7 @@ export const getCustomerById = async (req: Request, res: Response) => {
 // CREATE customer
 export const createCustomer = async (req: Request, res: Response) => {
     try {
-        const customer = await Customer.create(req.body);
+        const customer = await Customer.create({ ...req.body, storeId: req.storeId! });
 
         res.status(201).json({
             success: true,
@@ -122,7 +124,7 @@ export const updateCustomer = async (req: Request, res: Response) => {
         }
 
         const customer = await Customer.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },
@@ -169,7 +171,7 @@ export const deleteCustomer = async (req: Request, res: Response) => {
         }
 
         const customer = await Customer.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },
@@ -225,7 +227,7 @@ export const addCustomerPurchase = async (req: Request, res: Response) => {
         }
 
         const customer = await Customer.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },

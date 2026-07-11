@@ -1,5 +1,7 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 import categoryRoutes from "./routes/category.routes";
 import productRoutes from "./routes/product.routes";
@@ -15,17 +17,20 @@ import inventoryRoutes from "./routes/inventory.routes";
 import reportsRoutes from "./routes/reports.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 
-
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import securityRoutes from "./routes/security.routes";
 
-import cookieParser from 'cookie-parser';
+import cookieParser from "cookie-parser";
 import storeRoutes from "./routes/store.routes";
 
+import { authenticate } from "./middleware/auth.middleware";
+import { authorize } from "./middleware/role.middleware";
+import { tenantScope } from "./middleware/tenant.middleware";
 
 const app = express();
 
+app.use(helmet());
 app.use(cookieParser());
 // Middlewares — credentials:true lets the browser send the HttpOnly refresh
 // cookie cross-origin, which requires an explicit origin (no wildcard).
@@ -49,29 +54,84 @@ app.use(
 );
 app.use(express.json());
 
+// ---------------------------------------------------------------------------
+// Rate limits (in-memory — swap the store for Redis when running replicated).
+// The OTP limiter is the one that matters: codes are 6 digits, so guessing
+// must be throttled per IP on top of expiry + single-use.
+// ---------------------------------------------------------------------------
+const otpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { message: "Too many attempts. Please try again later." },
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 300,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { message: "Too many requests. Please slow down." },
+});
+
+app.use("/api/auth/verify-email-code", otpLimiter);
+app.use("/api/auth/verify-reset-code", otpLimiter);
+app.use("/api/auth/reset-password", otpLimiter);
+app.use("/api/auth/forgot-password", otpLimiter);
+app.use("/api/auth/resend-verification-code", otpLimiter);
+
 // Test route
 app.get("/", (req: Request, res: Response) => {
     res.send("StoreFlow API is running");
 });
 
+// ---------------------------------------------------------------------------
+// Workspace routes: every one requires a valid JWT and is tenant-scoped —
+// tenantScope resolves req.storeId from the token (null = platform admin).
+// managerWrites additionally restricts non-GET methods to owner/manager and
+// requires a store-scoped account, so cashiers can look but not touch and
+// nothing can ever be written without a tenant.
+// ---------------------------------------------------------------------------
+const managerWrites = (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === "GET") return next();
+    if (!req.storeId) {
+        return res.status(403).json({
+            success: false,
+            message: "A store-scoped account is required for this action",
+        });
+    }
+    return authorize("owner", "manager")(req, res, next);
+};
+
+/** Non-GET requests must carry a store scope (cashier-writable resources). */
+const storeWrites = (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === "GET" || req.storeId) return next();
+    return res.status(403).json({
+        success: false,
+        message: "A store-scoped account is required for this action",
+    });
+};
+
 // API routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/stores", storeRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/customers", customerRoutes);
-app.use("/api/loyalty-ledger", loyaltyLedgerRoutes);
-app.use("/api/sales", saleRoutes);
-app.use("/api/stock-adjustments", stockAdjustmentRoutes);
-app.use("/api/suppliers", supplierRoutes);
-app.use("/api/purchase-orders", purchaseOrderRoutes);
-app.use("/api/store-settings", storeSettingRoutes);
-app.use("/api/audit-logs", auditLogRoutes);
-app.use("/api/security", securityRoutes);
-app.use("/api/inventory", inventoryRoutes);
-app.use("/api/reports", reportsRoutes);
-app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/users", userRoutes); // has its own authenticate/authorize chain
+app.use("/api/stores", storeRoutes); // has its own authenticate/authorize chain
+app.use("/api/security", securityRoutes); // admin-only, own chain
+
+app.use("/api/categories", authenticate, tenantScope, managerWrites, categoryRoutes);
+app.use("/api/products", authenticate, tenantScope, managerWrites, productRoutes);
+app.use("/api/customers", authenticate, tenantScope, storeWrites, customerRoutes);
+app.use("/api/loyalty-ledger", authenticate, tenantScope, storeWrites, loyaltyLedgerRoutes);
+app.use("/api/sales", authenticate, tenantScope, storeWrites, saleRoutes);
+app.use("/api/stock-adjustments", authenticate, tenantScope, managerWrites, stockAdjustmentRoutes);
+app.use("/api/suppliers", authenticate, tenantScope, managerWrites, supplierRoutes);
+app.use("/api/purchase-orders", authenticate, tenantScope, managerWrites, purchaseOrderRoutes);
+app.use("/api/store-settings", authenticate, tenantScope, managerWrites, storeSettingRoutes);
+app.use("/api/audit-logs", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), auditLogRoutes);
+app.use("/api/inventory", authenticate, tenantScope, managerWrites, inventoryRoutes);
+app.use("/api/reports", authenticate, tenantScope, reportsRoutes);
+app.use("/api/dashboard", authenticate, tenantScope, dashboardRoutes);
 
 // Not found route
 app.use((req: Request, res: Response) => {

@@ -4,6 +4,7 @@ export type LoyaltyType = "earn" | "redeem" | "adjust";
 export type LoyaltyTier = "Bronze" | "Silver" | "Gold" | "Platinum";
 
 export interface ILoyaltyLedger extends Document {
+    storeId: mongoose.Types.ObjectId;
     customerId: mongoose.Types.ObjectId;
     type: LoyaltyType;
     points: number;
@@ -17,6 +18,12 @@ export interface ILoyaltyLedger extends Document {
 
 const loyaltyLedgerSchema = new Schema<ILoyaltyLedger>(
     {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
         customerId: {
             type: Schema.Types.ObjectId,
             ref: "Customer",

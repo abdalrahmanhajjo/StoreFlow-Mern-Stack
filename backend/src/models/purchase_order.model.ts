@@ -18,6 +18,7 @@ export interface IPurchaseOrderItem {
 }
 
 export interface IPurchaseOrder extends Document {
+    storeId: mongoose.Types.ObjectId;
     supplierId: mongoose.Types.ObjectId;
     supplierName: string;
     orderNumber: string;
@@ -82,6 +83,12 @@ const purchaseOrderItemSchema = new Schema<IPurchaseOrderItem>(
 
 const purchaseOrderSchema = new Schema<IPurchaseOrder>(
     {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
         supplierId: {
             type: Schema.Types.ObjectId,
             ref: "Supplier",

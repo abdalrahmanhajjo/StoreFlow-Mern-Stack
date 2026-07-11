@@ -10,6 +10,7 @@ export interface IPurchaseHistory {
 }
 
 export interface ICustomer extends Document {
+    storeId: mongoose.Types.ObjectId;
   name: string;
   phone?: string;
   email?: string;
@@ -52,6 +53,12 @@ const purchaseHistorySchema = new Schema<IPurchaseHistory>(
 
 const customerSchema = new Schema<ICustomer>(
   {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
     name: {
       type: String,
       required: [true, "Customer name is required"],

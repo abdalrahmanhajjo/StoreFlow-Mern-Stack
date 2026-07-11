@@ -7,6 +7,7 @@ import LoyaltyLedger from "../models/loyalty_ledger.model";
 import AuditLog from "../models/audit_log.model";
 import { calculateLoyaltyTier } from "../utils/loyalty_tier.utils";
 import StoreSetting from "../models/store_setting.model";
+import { tenantFilter } from "../utils/tenant.utils";
 class AppError extends Error {
     statusCode: number;
 
@@ -34,6 +35,7 @@ export const getSales = async (req: Request, res: Response) => {
         const status = req.query.status as string | undefined;
 
         const filter: any = {
+        ...tenantFilter(req),
             isActive: true,
         };
 
@@ -73,7 +75,7 @@ export const getSaleById = async (req: Request, res: Response) => {
             return;
         }
 
-        const sale = await Sale.findOne({
+        const sale = await Sale.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         })
@@ -106,7 +108,7 @@ export const getInvoiceByNumber = async (req: Request, res: Response) => {
     try {
         const invoiceNumber = req.params.invoiceNumber as string;
 
-        const sale = await Sale.findOne({
+        const sale = await Sale.findOne({ ...tenantFilter(req),
             invoiceNumber,
             isActive: true,
         })
@@ -171,7 +173,7 @@ export const createSale = async (req: Request, res: Response) => {
                 throw new AppError("Invalid customer ID", 400);
             }
 
-            const customer = await Customer.findOne({
+            const customer = await Customer.findOne({ ...tenantFilter(req),
                 _id: customerId,
                 isActive: true,
             }).session(session);
@@ -196,7 +198,7 @@ export const createSale = async (req: Request, res: Response) => {
                 throw new AppError("Quantity must be greater than 0", 400);
             }
 
-            const product = await Product.findOne({
+            const product = await Product.findOne({ ...tenantFilter(req),
                 _id: productId,
                 isActive: true,
             }).session(session);
@@ -262,9 +264,7 @@ export const createSale = async (req: Request, res: Response) => {
             loyaltyPointsEarned = Math.floor(total);
         }
 
-        const createdSales = await Sale.create(
-            [
-                {
+        const createdSales = await Sale.create([{ storeId: req.storeId!, 
                     invoiceNumber,
                     customerId,
                     cashierName: performedByName,
@@ -287,9 +287,7 @@ export const createSale = async (req: Request, res: Response) => {
 
         const sale = createdSales[0];
 
-        await AuditLog.create(
-            [
-                {
+        await AuditLog.create([{ storeId: req.storeId!, 
                     action: "CREATE_SALE",
                     entity: "Sale",
                     entityId: sale._id,
@@ -315,7 +313,7 @@ export const createSale = async (req: Request, res: Response) => {
 
         for (const item of saleItems) {
             const updatedProduct = await Product.findOneAndUpdate(
-                {
+            { ...tenantFilter(req),
                     _id: item.productId,
                     isActive: true,
                     quantity: {
@@ -340,9 +338,7 @@ export const createSale = async (req: Request, res: Response) => {
                 );
             }
 
-            await AuditLog.create(
-                [
-                    {
+            await AuditLog.create([{ storeId: req.storeId!, 
                         action: "STOCK_DECREMENT",
                         entity: "Product",
                         entityId: item.productId,
@@ -391,9 +387,7 @@ export const createSale = async (req: Request, res: Response) => {
             await updatedCustomer.save({ session });
 
             if (loyaltyPointsEarned > 0) {
-                await LoyaltyLedger.create(
-                    [
-                        {
+                await LoyaltyLedger.create([{ storeId: req.storeId!, 
                             customerId,
                             type: "earn",
                             points: loyaltyPointsEarned,
@@ -407,9 +401,7 @@ export const createSale = async (req: Request, res: Response) => {
                     { session }
                 );
 
-                await AuditLog.create(
-                    [
-                        {
+                await AuditLog.create([{ storeId: req.storeId!, 
                             action: "LOYALTY_EARNED",
                             entity: "Customer",
                             entityId: updatedCustomer._id,
@@ -471,7 +463,7 @@ export const voidSale = async (req: Request, res: Response) => {
             throw new AppError("Invalid sale ID", 400);
         }
 
-        const sale = await Sale.findOne({
+        const sale = await Sale.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         }).session(session);
@@ -507,9 +499,7 @@ export const voidSale = async (req: Request, res: Response) => {
                 );
             }
 
-            await AuditLog.create(
-                [
-                    {
+            await AuditLog.create([{ storeId: req.storeId!, 
                         action: "STOCK_RESTORE",
                         entity: "Product",
                         entityId: item.productId,
@@ -533,9 +523,7 @@ export const voidSale = async (req: Request, res: Response) => {
         sale.status = "voided";
         await sale.save({ session });
 
-        await AuditLog.create(
-            [
-                {
+        await AuditLog.create([{ storeId: req.storeId!, 
                     action: "VOID_SALE",
                     entity: "Sale",
                     entityId: sale._id,
@@ -586,9 +574,7 @@ export const voidSale = async (req: Request, res: Response) => {
                 await customer.save({ session });
 
                 if (pointsToRemove > 0) {
-                    await LoyaltyLedger.create(
-                        [
-                            {
+                    await LoyaltyLedger.create([{ storeId: req.storeId!, 
                                 customerId: sale.customerId,
                                 type: "adjust",
                                 points: -pointsToRemove,
@@ -601,9 +587,7 @@ export const voidSale = async (req: Request, res: Response) => {
                         { session }
                     );
 
-                    await AuditLog.create(
-                        [
-                            {
+                    await AuditLog.create([{ storeId: req.storeId!, 
                                 action: "LOYALTY_REVERSED",
                                 entity: "Customer",
                                 entityId: customer._id,
@@ -664,7 +648,7 @@ export const getSaleReceipt = async (req: Request, res: Response) => {
             return;
         }
 
-        const sale: any = await Sale.findOne({
+        const sale: any = await Sale.findOne({ ...tenantFilter(req),
             _id: saleId,
             isActive: true,
         })
@@ -679,7 +663,7 @@ export const getSaleReceipt = async (req: Request, res: Response) => {
             return;
         }
 
-        const storeSettings: any = await StoreSetting.findOne({
+        const storeSettings: any = await StoreSetting.findOne({ ...tenantFilter(req),
             isActive: true,
         });
 

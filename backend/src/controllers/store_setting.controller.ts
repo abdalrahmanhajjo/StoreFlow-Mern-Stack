@@ -1,22 +1,31 @@
 import { Request, Response } from "express";
 import StoreSetting from "../models/store_setting.model";
+import { requireStoreId } from "../utils/tenant.utils";
+
+const DEFAULTS = {
+    storeName: "StoreFlow Store",
+    currency: "USD",
+    taxRate: 0,
+    invoicePrefix: "INV",
+    receiptFooter: "Thank you for shopping with us!",
+    lowStockThreshold: 5,
+    timezone: "Asia/Beirut",
+};
+
+/** Settings are a per-store singleton, created on first touch. */
+async function getOrCreateSetting(storeId: string) {
+    const existing = await StoreSetting.findOne({ storeId, isActive: true });
+    if (existing) return existing;
+    return StoreSetting.create({ storeId, ...DEFAULTS });
+}
 
 // GET store settings
 export const getStoreSetting = async (req: Request, res: Response) => {
     try {
-        let setting = await StoreSetting.findOne({ isActive: true });
+        const storeId = requireStoreId(req, res);
+        if (!storeId) return;
 
-        if (!setting) {
-            setting = await StoreSetting.create({
-                storeName: "StoreFlow Store",
-                currency: "USD",
-                taxRate: 0,
-                invoicePrefix: "INV",
-                receiptFooter: "Thank you for shopping with us!",
-                lowStockThreshold: 5,
-                timezone: "Asia/Beirut",
-            });
-        }
+        const setting = await getOrCreateSetting(storeId);
 
         res.status(200).json({
             success: true,
@@ -34,7 +43,10 @@ export const getStoreSetting = async (req: Request, res: Response) => {
 // CREATE store settings
 export const createStoreSetting = async (req: Request, res: Response) => {
     try {
-        const existingSetting = await StoreSetting.findOne({ isActive: true });
+        const storeId = requireStoreId(req, res);
+        if (!storeId) return;
+
+        const existingSetting = await StoreSetting.findOne({ storeId, isActive: true });
 
         if (existingSetting) {
             res.status(400).json({
@@ -45,7 +57,8 @@ export const createStoreSetting = async (req: Request, res: Response) => {
             return;
         }
 
-        const setting = await StoreSetting.create(req.body);
+        // storeId last so the body can never write another store's settings.
+        const setting = await StoreSetting.create({ ...req.body, storeId });
 
         res.status(201).json({
             success: true,
@@ -64,23 +77,16 @@ export const createStoreSetting = async (req: Request, res: Response) => {
 // UPDATE store settings
 export const updateStoreSetting = async (req: Request, res: Response) => {
     try {
-        let setting = await StoreSetting.findOne({ isActive: true });
+        const storeId = requireStoreId(req, res);
+        if (!storeId) return;
 
-        if (!setting) {
-            setting = await StoreSetting.create({
-                storeName: "StoreFlow Store",
-                currency: "USD",
-                taxRate: 0,
-                invoicePrefix: "INV",
-                receiptFooter: "Thank you for shopping with us!",
-                lowStockThreshold: 5,
-                timezone: "Asia/Beirut",
-            });
-        }
+        const setting = await getOrCreateSetting(storeId);
 
+        const { storeId: _ignored, ...patch } = req.body ?? {};
+        void _ignored;
         const updatedSetting = await StoreSetting.findByIdAndUpdate(
             setting._id,
-            req.body,
+            patch,
             {
                 new: true,
                 runValidators: true,
@@ -104,33 +110,18 @@ export const updateStoreSetting = async (req: Request, res: Response) => {
 // RESET store settings to default
 export const resetStoreSetting = async (req: Request, res: Response) => {
     try {
-        let setting = await StoreSetting.findOne({ isActive: true });
+        const storeId = requireStoreId(req, res);
+        if (!storeId) return;
 
-        if (!setting) {
-            setting = await StoreSetting.create({
-                storeName: "StoreFlow Store",
-                currency: "USD",
-                taxRate: 0,
-                invoicePrefix: "INV",
-                receiptFooter: "Thank you for shopping with us!",
-                lowStockThreshold: 5,
-                timezone: "Asia/Beirut",
-            });
-        } else {
-            setting.storeName = "StoreFlow Store";
-            setting.address = "";
-            setting.phone = "";
-            setting.email = "";
-            setting.currency = "USD";
-            setting.taxRate = 0;
-            setting.logoUrl = "";
-            setting.invoicePrefix = "INV";
-            setting.receiptFooter = "Thank you for shopping with us!";
-            setting.lowStockThreshold = 5;
-            setting.timezone = "Asia/Beirut";
+        const setting = await getOrCreateSetting(storeId);
 
-            await setting.save();
-        }
+        Object.assign(setting, DEFAULTS, {
+            address: "",
+            phone: "",
+            email: "",
+            logoUrl: "",
+        });
+        await setting.save();
 
         res.status(200).json({
             success: true,

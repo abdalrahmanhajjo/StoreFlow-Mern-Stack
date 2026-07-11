@@ -9,6 +9,17 @@ interface Toggles {
   maintenance: boolean;
 }
 
+/** Module-level so re-renders never remount it (keyboard focus survives). */
+function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
+      style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', padding: 0, position: 'relative', background: checked ? 'var(--green)' : 'var(--line)', transition: 'background .15s', flexShrink: 0 }}
+    >
+      <span style={{ display: 'block', width: 20, height: 20, borderRadius: '50%', background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,.15)', transition: 'transform .15s', transform: checked ? 'translateX(20px)' : 'translateX(2px)' }} />
+    </button>
+  );
+}
+
 export default function SystemSettingsPage() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [toggles, setToggles] = useState<Toggles>({ enforce2fa: false, passwordPolicy: true, autoSuspend: true, maintenance: false });
@@ -37,14 +48,6 @@ export default function SystemSettingsPage() {
     ...stlInput,
     cursor: 'pointer',
   };
-
-  const Switch = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
-    <button type="button" role="switch" aria-checked={checked} onClick={() => { onChange(!checked); setDirty(true); }}
-      style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', padding: 0, position: 'relative', background: checked ? 'var(--green)' : 'var(--line)', transition: 'background .15s', flexShrink: 0 }}
-    >
-      <span style={{ display: 'block', width: 20, height: 20, borderRadius: '50%', background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,.15)', transition: 'transform .15s', transform: checked ? 'translateX(20px)' : 'translateX(2px)' }} />
-    </button>
-  );
 
   return (
     <>

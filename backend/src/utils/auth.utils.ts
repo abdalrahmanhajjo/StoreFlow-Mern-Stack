@@ -37,7 +37,7 @@ export const generateRawToken = (bytes = 40) =>
 export const hashToken = (raw: string) =>
   crypto.createHash('sha256').update(raw).digest('hex');
 
-// ---- email sender (Resend API primary, SMTP fallback) ----
+// ---- email sender ----
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -65,6 +65,7 @@ const smtp = !process.env.RESEND_API_KEY && process.env.EMAIL_USER
 export const verifyMailer = async (): Promise<void> => {
   if (resend) {
     console.log(`[mail] Resend ready (key ${process.env.RESEND_API_KEY!.slice(0, 8)}…).`);
+    console.log("[mail] Codes are always printed to logs as fallback.");
     return;
   }
   if (smtp) {
@@ -76,15 +77,17 @@ export const verifyMailer = async (): Promise<void> => {
     }
     return;
   }
-  console.log("[mail] No sender configured — codes will print to console.");
+  console.log("[mail] No sender configured — codes will print to logs.");
 };
 
-/** Returns the sender address. For Resend the domain must be verified. */
-function senderAddress(): string {
-  if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
-  if (resend) return 'onboarding@resend.dev';
-  if (process.env.EMAIL_USER) return process.env.EMAIL_USER;
-  return 'noreply@storeflow.app';
+/** Try to send via configured provider; always logs the code as fallback. */
+async function trySend(
+  to: string,
+  codeOrUrl: string,
+  label: string
+): Promise<void> {
+  // Always log so the user can find it in Render logs
+  console.log(`[mail] ${label} for ${to}: ${codeOrUrl}`);
 }
 
 /** Sends with one retry; never throws. */
@@ -92,7 +95,9 @@ async function sendMailSafe(
   msg: { to: string; subject: string; html: string },
   label: string
 ): Promise<boolean> {
-  const from = senderAddress();
+  const from = process.env.EMAIL_FROM
+    ? process.env.EMAIL_FROM
+    : (resend ? 'onboarding@resend.dev' : (process.env.EMAIL_USER || 'noreply@storeflow.app'));
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
@@ -106,9 +111,8 @@ async function sendMailSafe(
         if (error) throw error;
       } else if (smtp) {
         await smtp.sendMail({ from: `"StoreFlow" <${from}>`, ...msg });
-      } else {
-        console.log(`[dev mail] ${label} → ${msg.to}`);
       }
+      console.log(`[mail] ${label} sent to ${msg.to}.`);
       return true;
     } catch (err) {
       console.error(`[mail] ${label} attempt ${attempt} failed:`, (err as Error).message);
@@ -119,17 +123,13 @@ async function sendMailSafe(
   return false;
 }
 
-const emailConfigured = () => Boolean(resend || smtp);
-
 /** @returns true if the email was accepted. */
 export const sendPasswordResetCode = async (
   to: string,
   code: string
 ): Promise<boolean> => {
-  if (!emailConfigured()) {
-    console.log(`[dev mail] Password reset code for ${to}: ${code}`);
-    return true;
-  }
+  trySend(to, code, 'password-reset');
+  if (!resend && !smtp) return true;
 
   return sendMailSafe({
     to,
@@ -149,10 +149,8 @@ export const sendEmailVerificationCode = async (
   to: string,
   code: string
 ): Promise<boolean> => {
-  if (!emailConfigured()) {
-    console.log(`[dev mail] Email verification code for ${to}: ${code}`);
-    return true;
-  }
+  trySend(to, code, 'email-verification');
+  if (!resend && !smtp) return true;
 
   return sendMailSafe({
     to,
@@ -172,10 +170,8 @@ export const sendEmployeeInviteEmail = async (
   to: string,
   opts: { inviteUrl: string; inviterName: string; storeName: string; role: string }
 ): Promise<boolean> => {
-  if (!emailConfigured()) {
-    console.log(`[dev mail] Employee invite for ${to}: ${opts.inviteUrl}`);
-    return true;
-  }
+  trySend(to, opts.inviteUrl, 'employee-invite');
+  if (!resend && !smtp) return true;
 
   return sendMailSafe({
     to,

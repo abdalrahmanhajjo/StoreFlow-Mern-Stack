@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import sgMail from '@sendgrid/mail';
 
 import { UserRole } from '../models/user.model';
 
@@ -37,56 +36,33 @@ export const generateRawToken = (bytes = 40) =>
 export const hashToken = (raw: string) =>
   crypto.createHash('sha256').update(raw).digest('hex');
 
-// ---- email sender (SendGrid primary, SMTP fallback) ----
+// ---- email sender (Brevo SMTP relay — 300 emails/day free forever) ----
 
-const useSendGrid = Boolean(process.env.SENDGRID_API_KEY);
-if (useSendGrid) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
-  console.log(`[mail] SendGrid configured (sender ${process.env.EMAIL_USER}).`);
-}
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || "smtp-relay.brevo.com",
+  port: Number(process.env.EMAIL_PORT) || 587,
+  secure: Number(process.env.EMAIL_PORT) === 465,
+  requireTLS: Number(process.env.EMAIL_PORT) !== 465,
+  pool: true,
+  maxConnections: 3,
+  connectionTimeout: 10_000,
+  greetingTimeout: 10_000,
+  socketTimeout: 20_000,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-const emailPort = Number(process.env.EMAIL_PORT) || 465;
-const smtpTransporter = useSendGrid
-  ? null
-  : nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || "smtp.gmail.com",
-      port: emailPort,
-      secure: emailPort === 465,
-      requireTLS: emailPort !== 465,
-      pool: true,
-      maxConnections: 3,
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 20_000,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-/** Verifies the email sender at boot. */
+/** Verifies the SMTP connection at boot. */
 export const verifyMailer = async (): Promise<void> => {
   if (!process.env.EMAIL_USER) {
     console.log("[mail] EMAIL_USER not set — verification codes will print to the console.");
     return;
   }
-  if (useSendGrid) {
-    try {
-      await sgMail.send({
-        to: process.env.EMAIL_USER,
-        from: `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`,
-        subject: 'StoreFlow mailer test',
-        text: 'SendGrid is configured and working.',
-      });
-      console.log(`[mail] SendGrid ready (as ${process.env.EMAIL_USER}).`);
-    } catch (err) {
-      console.error("[mail] SendGrid verification FAILED:", (err as Error).message);
-    }
-    return;
-  }
   try {
-    await smtpTransporter!.verify();
-    console.log(`[mail] SMTP ready (${process.env.EMAIL_HOST} as ${process.env.EMAIL_USER}).`);
+    await transporter.verify();
+    console.log(`[mail] SMTP ready (${process.env.EMAIL_HOST || 'smtp-relay.brevo.com'} as ${process.env.EMAIL_USER}).`);
   } catch (err) {
     console.error("[mail] SMTP verification FAILED — emails will not send:", (err as Error).message);
   }
@@ -94,18 +70,14 @@ export const verifyMailer = async (): Promise<void> => {
 
 /** Sends with one retry on transient failures; never throws. */
 async function sendMailSafe(
-  msg: { to: string; subject: string; html: string; replyTo?: string },
+  msg: { to: string; subject: string; html: string },
   label: string
 ): Promise<boolean> {
   const from = `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      if (useSendGrid) {
-        await sgMail.send({ ...msg, from });
-      } else {
-        await smtpTransporter!.sendMail({ ...msg, from });
-      }
+      await transporter.sendMail({ ...msg, from });
       return true;
     } catch (err) {
       console.error(`[mail] ${label} send attempt ${attempt} failed:`, (err as Error).message);

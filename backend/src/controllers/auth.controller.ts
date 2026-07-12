@@ -38,13 +38,19 @@ const RESET_CODE_TTL_MINUTES = 10;
 
 const EMAIL_VERIFICATION_CODE_TTL_MINUTES = 10;
 
-const cookieOptions = (expires?: Date) => ({
+// In production the frontend and API are on different domains (e.g.
+// app.vercel.app ↔ api.onrender.com), so the refresh cookie must be
+// SameSite=None + Secure or the browser drops it on cross-site requests and
+// silent refresh breaks. Locally (same host, http) that combo is invalid, so
+// we use Lax + insecure.
+const isProd = process.env.NODE_ENV === 'production';
+const baseCookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  secure: isProd,
+  sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
   path: '/api/auth',
-  expires,
-});
+};
+const cookieOptions = (expires?: Date) => ({ ...baseCookieOptions, expires });
 
 const generateEmailVerificationCode = () => {
   return randomInt(100000, 1000000).toString();
@@ -539,9 +545,8 @@ export const logout = async (req: Request, res: Response) => {
     );
   }
 
-  res.clearCookie(REFRESH_COOKIE, {
-    path: '/api/auth',
-  });
+  // Must match the attributes the cookie was set with, or it won't clear.
+  res.clearCookie(REFRESH_COOKIE, baseCookieOptions);
 
   res.status(204).send();
 };

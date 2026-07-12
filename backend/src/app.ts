@@ -30,6 +30,14 @@ import { tenantScope } from "./middleware/tenant.middleware";
 
 const app = express();
 
+// Hosting platforms (Render, Railway, Fly, …) terminate TLS at a proxy and
+// forward over http. Trusting the first proxy lets Express see the real
+// protocol (so Secure cookies are sent) and the real client IP (for rate
+// limiting) instead of the proxy's.
+if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+}
+
 app.use(helmet());
 app.use(cookieParser());
 // Middlewares — credentials:true lets the browser send the HttpOnly refresh

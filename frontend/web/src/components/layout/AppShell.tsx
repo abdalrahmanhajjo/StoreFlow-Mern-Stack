@@ -10,7 +10,7 @@ import { StoreProfileProvider } from '@/config/StoreProfileContext';
 import { authRoleToStoreRole } from '@/config/roleMap';
 import { getMockStore } from '@/mocks';
 import { useStoreIdentity } from '@/lib/api/storeIdentity';
-import { useI18n } from '@/store/i18n';
+import { useI18n, UI_LOCALE } from '@/store/i18n';
 
 /** In connected mode the store's real identity (name, currency) overlays the
  * business-type template, so the shell and receipts never show demo branding. */
@@ -30,7 +30,7 @@ function StoreProfileGate({ children }: { children: ReactNode }) {
   }, [storeId]);
   useEffect(() => {
     if (realStore) {
-      useI18n.getState().configure(profile.locale, realStore.currency, profile.timezone ?? 'UTC');
+      useI18n.getState().configure(UI_LOCALE, realStore.currency, profile.timezone ?? 'UTC');
       setIdentityEpoch((e) => e + 1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

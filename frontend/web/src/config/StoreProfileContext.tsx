@@ -3,7 +3,7 @@ import type { StoreProfile, StoreRole } from '@/lib/contracts/types';
 import { storeProfileSchema } from '@/lib/contracts/schemas';
 import { resolveStoreConfig, type ResolvedStoreConfig } from '@/config/templates/registry';
 import { createFormatters, type Formatters } from '@/lib/i18n/format';
-import { useI18n } from '@/store/i18n';
+import { useI18n, UI_LOCALE } from '@/store/i18n';
 
 interface StoreContextValue {
   config: ResolvedStoreConfig;
@@ -33,8 +33,10 @@ export function StoreProfileProvider({ profile, role, children }: StoreProfilePr
   const configure = useI18n((s) => s.configure);
 
   useEffect(() => {
-    configure(profile.locale, profile.currency, profile.timezone ?? 'UTC');
-  }, [profile.locale, profile.currency, profile.timezone, configure]);
+    // English-only UI: force en-US regardless of the store's business-type
+    // locale (currency still follows the store).
+    configure(UI_LOCALE, profile.currency, profile.timezone ?? 'UTC');
+  }, [profile.currency, profile.timezone, configure]);
 
   const value = useMemo<StoreContextValue>(() => {
     const parsed = storeProfileSchema.safeParse(profile);
@@ -42,7 +44,9 @@ export function StoreProfileProvider({ profile, role, children }: StoreProfilePr
       console.warn('[StoreProfile] invalid profile, rendering best-effort', parsed.error.flatten());
     }
     const config = resolveStoreConfig(profile);
-    const formatters = createFormatters(profile.locale, profile.currency);
+    // English-only: formatters (and thus dir/lang on the wrapper) use en-US;
+    // the store's currency is still respected.
+    const formatters = createFormatters(UI_LOCALE, profile.currency);
     return { config, formatters, role };
   }, [profile, role]);
 

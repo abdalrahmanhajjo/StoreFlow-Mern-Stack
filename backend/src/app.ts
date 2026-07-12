@@ -44,7 +44,10 @@ app.use(cookieParser());
 // cookie cross-origin, which requires an explicit origin (no wildcard).
 // Outside production any localhost port is accepted, since Vite hops ports
 // when 5173 is busy.
-const allowedOrigin = process.env.CLIENT_APP_URL ?? "http://localhost:5173";
+// A browser Origin never has a trailing slash, so neither must the allowed
+// origin — a CLIENT_APP_URL with a stray "/" would silently fail every CORS
+// check. Strip it defensively.
+const allowedOrigin = (process.env.CLIENT_APP_URL ?? "http://localhost:5173").replace(/\/+$/, "");
 app.use(
     cors({
         origin:

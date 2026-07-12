@@ -79,14 +79,20 @@ export const verifyMailer = async (): Promise<void> => {
   console.log("[mail] No sender configured — codes will print to console.");
 };
 
+/** Returns the sender address. For Resend the domain must be verified. */
+function senderAddress(): string {
+  if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
+  if (resend) return 'onboarding@resend.dev';
+  if (process.env.EMAIL_USER) return process.env.EMAIL_USER;
+  return 'noreply@storeflow.app';
+}
+
 /** Sends with one retry; never throws. */
 async function sendMailSafe(
   msg: { to: string; subject: string; html: string },
   label: string
 ): Promise<boolean> {
-  const from = process.env.EMAIL_FROM
-    ? process.env.EMAIL_FROM
-    : (process.env.EMAIL_USER || 'noreply@storeflow.app');
+  const from = senderAddress();
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {

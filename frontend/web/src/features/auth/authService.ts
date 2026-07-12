@@ -60,6 +60,18 @@ function sessionUserFromApi(u: ApiUser): SessionUser {
   };
 }
 
+/** True only for a well-formed user object from the API. Guards against a
+ * misconfigured API base URL returning an HTML page (or any non-JSON) instead
+ * of a user — which would otherwise crash on `user.id`. */
+function isValidApiUser(u: unknown): u is ApiUser {
+  return Boolean(u) && typeof u === 'object' && 'id' in (u as object) && 'role' in (u as object);
+}
+
+const BAD_RESPONSE = {
+  code: 'SERVER',
+  message: 'Unexpected response from the server. Check that the app is pointed at the API.',
+};
+
 const REFRESH_COOKIE = 'sf_refresh';
 function writeMockRefresh(email: string) {
   document.cookie = `${REFRESH_COOKIE}=${encodeURIComponent(email)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
@@ -160,6 +172,9 @@ export const authService = {
       email: input.email,
       password: input.password,
     });
+    if (!data?.accessToken || !isValidApiUser(data.user)) {
+      return Promise.reject(BAD_RESPONSE);
+    }
     return { accessToken: data.accessToken, user: sessionUserFromApi(data.user) };
   },
 
@@ -241,9 +256,11 @@ export const authService = {
     // The refresh endpoint only rotates tokens; the session user comes from
     // /me using the fresh token (the interceptor hasn't stored it yet).
     const { data } = await api.post('/auth/refresh');
+    if (!data?.accessToken) return Promise.reject(BAD_RESPONSE);
     const me = await api.get('/auth/me', {
       headers: { Authorization: `Bearer ${data.accessToken}` },
     });
+    if (!isValidApiUser(me.data)) return Promise.reject(BAD_RESPONSE);
     return { accessToken: data.accessToken, user: sessionUserFromApi(me.data) };
   },
 

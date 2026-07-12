@@ -27,16 +27,16 @@ import storeRoutes from "./routes/store.routes";
 import { authenticate } from "./middleware/auth.middleware";
 import { authorize } from "./middleware/role.middleware";
 import { tenantScope } from "./middleware/tenant.middleware";
+import errorHandler from "./middleware/error.middleware";
+import { isProduction } from "./config/env";
 
 const app = express();
 
 // Hosting platforms (Render, Railway, Fly, …) terminate TLS at a proxy and
 // forward over http. Trusting the first proxy lets Express see the real
-// protocol (so Secure cookies are sent) and the real client IP (for rate
-// limiting) instead of the proxy's.
-if (process.env.NODE_ENV === "production") {
-    app.set("trust proxy", 1);
-}
+// protocol (req.secure → Secure cookies) and the real client IP (rate
+// limiting). Harmless locally, where there is no proxy.
+app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(cookieParser());
@@ -48,7 +48,7 @@ const allowedOrigin = process.env.CLIENT_APP_URL ?? "http://localhost:5173";
 app.use(
     cors({
         origin:
-            process.env.NODE_ENV === "production"
+            isProduction()
                 ? allowedOrigin
                 : (origin, cb) =>
                       cb(
@@ -161,5 +161,9 @@ app.use((req: Request, res: Response) => {
         message: "Route not found",
     });
 });
+
+// Global error handler — normalises Zod/Mongo/AppError into clean JSON and
+// never leaks a stack trace to the client. Must be last.
+app.use(errorHandler);
 
 export default app;

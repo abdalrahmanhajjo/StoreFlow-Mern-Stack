@@ -7,7 +7,6 @@ const errorHandler = (
     res: Response,
     next: NextFunction
 ) => {
-    console.log("GLOBAL ERROR MIDDLEWARE");
     console.error(err);
 
     // 1. Establish defaults

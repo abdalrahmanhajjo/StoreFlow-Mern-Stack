@@ -38,19 +38,22 @@ const RESET_CODE_TTL_MINUTES = 10;
 
 const EMAIL_VERIFICATION_CODE_TTL_MINUTES = 10;
 
-// In production the frontend and API are on different domains (e.g.
-// app.vercel.app ↔ api.onrender.com), so the refresh cookie must be
-// SameSite=None + Secure or the browser drops it on cross-site requests and
-// silent refresh breaks. Locally (same host, http) that combo is invalid, so
-// we use Lax + insecure.
-const isProd = process.env.NODE_ENV === 'production';
-const baseCookieOptions = {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
-  path: '/api/auth',
+// Over HTTPS (the deployed site, where the frontend and API are on different
+// domains) the refresh cookie must be SameSite=None + Secure or the browser
+// drops it on cross-site requests and silent refresh breaks. Over plain HTTP
+// (local dev) that combo is invalid, so we use Lax + insecure. We key off the
+// actual request protocol (req.secure, via `trust proxy`) rather than
+// NODE_ENV, so it's always correct regardless of how NODE_ENV is spelled.
+const cookieBase = (req: Request) => {
+  const https = req.secure;
+  return {
+    httpOnly: true,
+    secure: https,
+    sameSite: (https ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/api/auth',
+  };
 };
-const cookieOptions = (expires?: Date) => ({ ...baseCookieOptions, expires });
+const cookieOptions = (req: Request, expires?: Date) => ({ ...cookieBase(req), expires });
 
 const generateEmailVerificationCode = () => {
   return randomInt(100000, 1000000).toString();
@@ -424,7 +427,7 @@ export const login = async (req: Request, res: Response) => {
     const { accessToken, rawRefreshToken, refreshTokenExpiresAt } =
       await issueTokens(user);
 
-    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(refreshTokenExpiresAt));
+    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(req, refreshTokenExpiresAt));
 
     res.json({
       accessToken,
@@ -514,7 +517,7 @@ export const refresh = async (req: Request, res: Response) => {
     stored.revokedAt = new Date();
     await stored.save();
 
-    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(refreshTokenExpiresAt));
+    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(req, refreshTokenExpiresAt));
 
     res.json({
       accessToken,
@@ -546,7 +549,7 @@ export const logout = async (req: Request, res: Response) => {
   }
 
   // Must match the attributes the cookie was set with, or it won't clear.
-  res.clearCookie(REFRESH_COOKIE, baseCookieOptions);
+  res.clearCookie(REFRESH_COOKIE, cookieBase(req));
 
   res.status(204).send();
 };

@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 import { UserRole } from '../models/user.model';
 
@@ -36,51 +37,75 @@ export const generateRawToken = (bytes = 40) =>
 export const hashToken = (raw: string) =>
   crypto.createHash('sha256').update(raw).digest('hex');
 
-// ---- email sender (Brevo SMTP relay — 300 emails/day free forever) ----
+// ---- email sender (Resend API primary, SMTP fallback) ----
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp-relay.brevo.com",
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: Number(process.env.EMAIL_PORT) === 465,
-  requireTLS: Number(process.env.EMAIL_PORT) !== 465,
-  pool: true,
-  maxConnections: 3,
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 20_000,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
-/** Verifies the SMTP connection at boot. */
+const smtp = !process.env.RESEND_API_KEY && process.env.EMAIL_USER
+  ? nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || "smtp-relay.brevo.com",
+      port: Number(process.env.EMAIL_PORT) || 587,
+      secure: Number(process.env.EMAIL_PORT) === 465,
+      requireTLS: Number(process.env.EMAIL_PORT) !== 465,
+      pool: true,
+      maxConnections: 3,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    })
+  : null;
+
+/** Verifies the email sender at boot. */
 export const verifyMailer = async (): Promise<void> => {
-  if (!process.env.EMAIL_USER) {
-    console.log("[mail] EMAIL_USER not set — verification codes will print to the console.");
+  if (resend) {
+    console.log(`[mail] Resend ready (key ${process.env.RESEND_API_KEY!.slice(0, 8)}…).`);
     return;
   }
-  try {
-    await transporter.verify();
-    console.log(`[mail] SMTP ready (${process.env.EMAIL_HOST || 'smtp-relay.brevo.com'} as ${process.env.EMAIL_USER}).`);
-  } catch (err) {
-    console.error("[mail] SMTP verification FAILED — emails will not send:", (err as Error).message);
+  if (smtp) {
+    try {
+      await smtp.verify();
+      console.log(`[mail] SMTP ready (${process.env.EMAIL_HOST || 'smtp-relay.brevo.com'} as ${process.env.EMAIL_USER}).`);
+    } catch (err) {
+      console.error("[mail] SMTP verification FAILED:", (err as Error).message);
+    }
+    return;
   }
+  console.log("[mail] No sender configured — codes will print to console.");
 };
 
-/** Sends with one retry on transient failures; never throws. */
+/** Sends with one retry; never throws. */
 async function sendMailSafe(
   msg: { to: string; subject: string; html: string },
   label: string
 ): Promise<boolean> {
-  const from = `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`;
+  const from = process.env.EMAIL_FROM
+    ? process.env.EMAIL_FROM
+    : (process.env.EMAIL_USER || 'noreply@storeflow.app');
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      await transporter.sendMail({ ...msg, from });
+      if (resend) {
+        const { error } = await resend.emails.send({
+          from: `StoreFlow <${from}>`,
+          to: msg.to,
+          subject: msg.subject,
+          html: msg.html,
+        });
+        if (error) throw error;
+      } else if (smtp) {
+        await smtp.sendMail({ from: `"StoreFlow" <${from}>`, ...msg });
+      } else {
+        console.log(`[dev mail] ${label} → ${msg.to}`);
+      }
       return true;
     } catch (err) {
-      console.error(`[mail] ${label} send attempt ${attempt} failed:`, (err as Error).message);
+      console.error(`[mail] ${label} attempt ${attempt} failed:`, (err as Error).message);
       if (attempt === 2) return false;
       await new Promise((r) => setTimeout(r, 800));
     }
@@ -88,7 +113,7 @@ async function sendMailSafe(
   return false;
 }
 
-const emailConfigured = () => Boolean(process.env.EMAIL_USER);
+const emailConfigured = () => Boolean(resend || smtp);
 
 /** @returns true if the email was accepted. */
 export const sendPasswordResetCode = async (

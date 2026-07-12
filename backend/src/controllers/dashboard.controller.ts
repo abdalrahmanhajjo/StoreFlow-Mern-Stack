@@ -49,6 +49,11 @@ export const getDashboardData = async (req: Request, res: Response) => {
             isActive: true,
         });
 
+        // A product is low-stock when its on-hand quantity is at or below its
+        // own reorder threshold; products without a per-item threshold fall
+        // back to the store-wide setting. (The old aggregation read
+        // `stockQuantity`/`stock`, fields that don't exist on the Product
+        // model, so every product counted as low-stock.)
         const lowStockProducts = await Product.aggregate([
             {
                 $match: {
@@ -58,15 +63,15 @@ export const getDashboardData = async (req: Request, res: Response) => {
             },
             {
                 $addFields: {
-                    currentStock: {
-                        $ifNull: ["$stockQuantity", "$stock"],
+                    effectiveThreshold: {
+                        $ifNull: ["$reorderThreshold", lowStockThreshold],
                     },
                 },
             },
             {
                 $match: {
                     $expr: {
-                        $lte: ["$currentStock", lowStockThreshold],
+                        $lte: ["$quantity", "$effectiveThreshold"],
                     },
                 },
             },

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useSupply, type PurchaseOrder, type POLine } from './supplyStore';
 import { useProducts } from '@/features/products/productsStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { Modal, Button, Badge, toast, confirmDialog } from '@/components/ui';
+import { Modal, Button, Badge, toast, confirm } from '@/components/ui';
 
 export default function PurchaseOrdersPage() {
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -17,6 +17,7 @@ export default function PurchaseOrdersPage() {
   const [poExpected, setPoExpected] = useState('');
   const [poLines, setPoLines] = useState<POLine[]>([]);
   const [prodQuery, setProdQuery] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -45,6 +46,7 @@ export default function PurchaseOrdersPage() {
     setPoExpected('');
     setPoLines([]);
     setProdQuery('');
+    setSaving(false);
     setFormOpen(true);
   };
 
@@ -73,24 +75,26 @@ export default function PurchaseOrdersPage() {
   };
 
   const submitPO = () => {
+    if (saving) return;
     if (!poSupplier) return toast('Select a supplier');
     if (poLines.length === 0) return toast('Add at least one product');
+    setSaving(true);
     const res = createPO(poSupplier, poLines, poExpected || 'TBD');
-    if (!res.ok) return toast(res.error ?? 'Could not create PO');
+    if (!res.ok) { setSaving(false); return toast(res.error ?? 'Could not create PO'); }
     toast(`Purchase order created for ${poSupplier}`);
     setFormOpen(false);
   };
 
   const onReceive = async (po: PurchaseOrder) => {
     const total = po.lines.reduce((n, l) => n + l.qty, 0);
-    if (!await confirmDialog(`Receive ${po.poNo} from ${po.supplier}?\n${po.lines.length} product(s), ${total} units will be added to stock.`)) return;
+    if (!await confirm({ title: `Receive ${po.poNo}?`, message: `From ${po.supplier}: ${po.lines.length} product(s), ${total} units will be added to stock.`, confirmLabel: 'Receive' })) return;
     const added = receivePO(po.id);
     toast(`${po.poNo} received — ${added} units added to stock`);
   };
 
   const onDeletePO = async (po: PurchaseOrder) => {
     if (po.status === 'received') return toast('Cannot delete a received PO');
-    if (!await confirmDialog(`Delete ${po.poNo}?`)) return;
+    if (!await confirm({ title: `Delete ${po.poNo}?`, confirmLabel: 'Delete', danger: true })) return;
     removePO(po.id);
     toast(`${po.poNo} deleted`);
   };
@@ -280,8 +284,8 @@ export default function PurchaseOrdersPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }}>Cancel</Button>
-          <Button onClick={submitPO} style={{ flex: 2 }} disabled={poLines.length === 0}>Create purchase order</Button>
+          <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }} disabled={saving}>Cancel</Button>
+          <Button onClick={submitPO} style={{ flex: 2 }} disabled={poLines.length === 0 || saving} isLoading={saving}>Create purchase order</Button>
         </div>
       </Modal>
     </>

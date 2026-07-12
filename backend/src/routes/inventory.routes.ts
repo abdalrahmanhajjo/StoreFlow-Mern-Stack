@@ -1,6 +1,10 @@
 import express from "express";
-import Product from "../models/product.model";
-import StockAdjustment from "../models/stock_adjustment.model";
+
+import {
+  adjustInventory,
+  getLowStockInventory,
+  getInventoryHistory,
+} from "../controllers/inventory.controller";
 
 const router = express.Router();
 
@@ -12,70 +16,13 @@ router.get("/test", (req, res) => {
   });
 });
 
-// GET /api/inventory/low-stock
-router.get("/low-stock", async (req, res) => {
-  try {
-    const products = await Product.find({
-      isActive: true,
-      $expr: {
-        $lte: ["$quantity", "$reorderThreshold"],
-      },
-    })
-      .populate("categoryId", "name description")
-      .sort({ quantity: 1 });
+// GET /api/inventory/low-stock — tenant-scoped low-stock products.
+router.get("/low-stock", getLowStockInventory);
 
-    res.status(200).json({
-      success: true,
-      count: products.length,
-      message: "Low stock products retrieved successfully",
-      data: products,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to get low stock products",
-      error: error.message,
-    });
-  }
-});
+// GET /api/inventory/history — tenant-scoped adjustment history.
+router.get("/history", getInventoryHistory);
 
-// GET /api/inventory/history
-router.get("/history", async (req, res) => {
-  try {
-    const history = await StockAdjustment.find({
-      isActive: true,
-    })
-      .populate("productId", "name sku price quantity reorderThreshold")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      count: history.length,
-      message: "Inventory adjustment history retrieved successfully",
-      data: history,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to get inventory history",
-      error: error.message,
-    });
-  }
-});
-
-// POST /api/inventory/adjust
-router.post("/adjust", async (req, res) => {
-  try {
-    res.status(200).json({
-      success: true,
-      message: "Inventory adjust route exists. Keep your adjustInventory controller later.",
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
+// POST /api/inventory/adjust — real, tenant-scoped stock adjustment.
+router.post("/adjust", adjustInventory);
 
 export default router;

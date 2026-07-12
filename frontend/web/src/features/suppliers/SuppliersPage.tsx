@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSupply, supplierProductCount, supplierLinkedProducts } from './supplyStore';
 import { useProducts } from '@/features/products/productsStore';
-import { Modal, Button, Input, toast, confirmDialog } from '@/components/ui';
+import { Modal, Button, Input, toast, confirm } from '@/components/ui';
 
 export default function SuppliersPage() {
   const { suppliers, purchaseOrders, addSupplier, updateSupplier, removeSupplier } = useSupply();
@@ -15,32 +15,38 @@ export default function SuppliersPage() {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [linkQuery, setLinkQuery] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const editing = editingId ? suppliers.find((s) => s.id === editingId) ?? null : null;
 
   const openNew = () => {
     setEditingId(null);
-    setName(''); setPhone(''); setEmail(''); setAddress(''); setLinkQuery('');
+    setName(''); setPhone(''); setEmail(''); setAddress(''); setLinkQuery(''); setSaving(false);
     setFormOpen(true);
   };
 
   const openEdit = (s: typeof suppliers[number]) => {
     setEditingId(s.id);
-    setName(s.name); setPhone(s.phone); setEmail(s.email); setAddress(s.address); setLinkQuery('');
+    setName(s.name); setPhone(s.phone); setEmail(s.email); setAddress(s.address); setLinkQuery(''); setSaving(false);
     setFormOpen(true);
   };
 
   const onSave = () => {
+    if (saving) return;
     const trimmed = name.trim();
     if (trimmed.length < 2) return toast('Enter a supplier name');
+    if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      return toast('Enter a valid email address');
+    }
+    setSaving(true);
     const input = { name: trimmed, phone, email, address };
     if (editingId) {
       const res = updateSupplier(editingId, input);
-      if (!res.ok) return toast(res.error ?? 'Could not update');
+      if (!res.ok) { setSaving(false); return toast(res.error ?? 'Could not update'); }
       toast('Supplier updated');
     } else {
       const res = addSupplier(input);
-      if (!res.ok) return toast(res.error ?? 'Could not add');
+      if (!res.ok) { setSaving(false); return toast(res.error ?? 'Could not add'); }
       toast(`“${trimmed}” added`);
     }
     setFormOpen(false);
@@ -50,7 +56,7 @@ export default function SuppliersPage() {
     if (supplierProductCount(s.id) > 0) {
       return toast(`Cannot delete — ${supplierProductCount(s.id)} product(s) are linked to “${s.name}”`);
     }
-    if (await confirmDialog(`Remove supplier “${s.name}”?`)) {
+    if (await confirm({ title: `Remove supplier “${s.name}”?`, confirmLabel: 'Remove', danger: true })) {
       removeSupplier(s.id);
       toast(`“${s.name}” removed`);
     }
@@ -210,8 +216,8 @@ export default function SuppliersPage() {
         )}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-          <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }}>Cancel</Button>
-          <Button onClick={onSave} style={{ flex: 2 }}>{editing ? 'Save changes' : 'Add supplier'}</Button>
+          <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }} disabled={saving}>Cancel</Button>
+          <Button onClick={onSave} style={{ flex: 2 }} isLoading={saving}>{editing ? 'Save changes' : 'Add supplier'}</Button>
         </div>
       </Modal>
     </>

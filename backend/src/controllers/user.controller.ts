@@ -110,9 +110,17 @@ export const createUser = async (
         
         // 1. Hash the incoming password string using your utility function
         const passwordHash = await hashPassword(password);
-        
-        // 2. Write the new user into MongoDB
-        const user = await User.create({ ...userData, passwordHash });
+
+        // 2. Write the new user into MongoDB. A staff account provisioned
+        //    directly by a trusted owner/admin (with a password set here) is
+        //    immediately usable — otherwise it would default to unverified and
+        //    could never sign in, since there is no verification path for
+        //    admin-created accounts. `isActive` stays true so they can log in.
+        const user = await User.create({
+            ...userData,
+            passwordHash,
+            isEmailVerified: userData.isEmailVerified ?? true,
+        });
 
         // 3. Return response (passwordHash is automatically excluded by the model)
         res.status(201).json({

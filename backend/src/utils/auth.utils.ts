@@ -45,13 +45,14 @@ if (useSendGrid) {
   console.log(`[mail] SendGrid configured (sender ${process.env.EMAIL_USER}).`);
 }
 
+const emailPort = Number(process.env.EMAIL_PORT) || 465;
 const smtpTransporter = useSendGrid
   ? null
   : nodemailer.createTransport({
       host: process.env.EMAIL_HOST || "smtp.gmail.com",
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: Number(process.env.EMAIL_PORT) === 465,
-      requireTLS: true,
+      port: emailPort,
+      secure: emailPort === 465,
+      requireTLS: emailPort !== 465,
       pool: true,
       maxConnections: 3,
       connectionTimeout: 10_000,

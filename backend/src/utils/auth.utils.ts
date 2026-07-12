@@ -2,11 +2,11 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
 import { UserRole } from '../models/user.model';
 
 // ---- password hashing ----
-// 12 = salt rounds
 export const hashPassword = (plain: string) => bcrypt.hash(plain, 12);
 
 export const comparePassword = (plain: string, hash: string) =>
@@ -37,46 +37,74 @@ export const generateRawToken = (bytes = 40) =>
 export const hashToken = (raw: string) =>
   crypto.createHash('sha256').update(raw).digest('hex');
 
-// ---- real email sender ----
-// Pooled + bounded timeouts so a slow/hung SMTP handshake can't stall a
-// request forever, with a couple of retries at the transport level. Gmail on
-// 587 uses STARTTLS (secure:false + requireTLS).
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: Number(process.env.EMAIL_PORT) === 465,
-  requireTLS: true,
-  pool: true,
-  maxConnections: 3,
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 20_000,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// ---- email sender (SendGrid primary, SMTP fallback) ----
 
-/** Verifies the SMTP connection once at boot and logs the result, so a bad
- * credential or blocked port surfaces immediately instead of on first send. */
+const useSendGrid = Boolean(process.env.SENDGRID_API_KEY);
+if (useSendGrid) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+  console.log(`[mail] SendGrid configured (sender ${process.env.EMAIL_USER}).`);
+}
+
+const smtpTransporter = useSendGrid
+  ? null
+  : nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port: Number(process.env.EMAIL_PORT) || 587,
+      secure: Number(process.env.EMAIL_PORT) === 465,
+      requireTLS: true,
+      pool: true,
+      maxConnections: 3,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+/** Verifies the email sender at boot. */
 export const verifyMailer = async (): Promise<void> => {
-  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER) {
-    console.log("[mail] SMTP not configured — verification codes will print to the console.");
+  if (!process.env.EMAIL_USER) {
+    console.log("[mail] EMAIL_USER not set — verification codes will print to the console.");
+    return;
+  }
+  if (useSendGrid) {
+    try {
+      await sgMail.send({
+        to: process.env.EMAIL_USER,
+        from: `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`,
+        subject: 'StoreFlow mailer test',
+        text: 'SendGrid is configured and working.',
+      });
+      console.log(`[mail] SendGrid ready (as ${process.env.EMAIL_USER}).`);
+    } catch (err) {
+      console.error("[mail] SendGrid verification FAILED:", (err as Error).message);
+    }
     return;
   }
   try {
-    await transporter.verify();
+    await smtpTransporter!.verify();
     console.log(`[mail] SMTP ready (${process.env.EMAIL_HOST} as ${process.env.EMAIL_USER}).`);
   } catch (err) {
     console.error("[mail] SMTP verification FAILED — emails will not send:", (err as Error).message);
   }
 };
 
-/** Sends with one retry on transient failures; never throws to the caller. */
-async function sendMailSafe(options: Parameters<typeof transporter.sendMail>[0], label: string): Promise<boolean> {
+/** Sends with one retry on transient failures; never throws. */
+async function sendMailSafe(
+  msg: { to: string; subject: string; html: string; replyTo?: string },
+  label: string
+): Promise<boolean> {
+  const from = `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`;
+
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      await transporter.sendMail(options);
+      if (useSendGrid) {
+        await sgMail.send({ ...msg, from });
+      } else {
+        await smtpTransporter!.sendMail({ ...msg, from });
+      }
       return true;
     } catch (err) {
       console.error(`[mail] ${label} send attempt ${attempt} failed:`, (err as Error).message);
@@ -87,12 +115,9 @@ async function sendMailSafe(options: Parameters<typeof transporter.sendMail>[0],
   return false;
 }
 
-// Without SMTP configured (local dev), print instead of send — otherwise
-// registration would 500 and roll back before the code ever reaches anyone.
-const emailConfigured = () =>
-  Boolean(process.env.EMAIL_HOST && process.env.EMAIL_USER);
+const emailConfigured = () => Boolean(process.env.EMAIL_USER);
 
-/** @returns true if the email was accepted by the SMTP server. */
+/** @returns true if the email was accepted. */
 export const sendPasswordResetCode = async (
   to: string,
   code: string
@@ -103,7 +128,6 @@ export const sendPasswordResetCode = async (
   }
 
   return sendMailSafe({
-    from: `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`,
     to,
     subject: 'Reset your StoreFlow password',
     html: `
@@ -116,7 +140,7 @@ export const sendPasswordResetCode = async (
   }, 'password-reset');
 };
 
-/** @returns true if the email was accepted by the SMTP server. */
+/** @returns true if the email was accepted. */
 export const sendEmailVerificationCode = async (
   to: string,
   code: string
@@ -127,7 +151,6 @@ export const sendEmailVerificationCode = async (
   }
 
   return sendMailSafe({
-    from: `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`,
     to,
     subject: 'Verify your StoreFlow email',
     html: `
@@ -139,6 +162,8 @@ export const sendEmailVerificationCode = async (
     `,
   }, 'email-verification');
 };
+
+/** @returns true if the email was accepted. */
 export const sendEmployeeInviteEmail = async (
   to: string,
   opts: { inviteUrl: string; inviterName: string; storeName: string; role: string }
@@ -149,7 +174,6 @@ export const sendEmployeeInviteEmail = async (
   }
 
   return sendMailSafe({
-    from: `"${process.env.EMAIL_FROM || 'StoreFlow'}" <${process.env.EMAIL_USER}>`,
     to,
     subject: `You've been invited to join ${opts.storeName} on StoreFlow`,
     html: `

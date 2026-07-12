@@ -154,8 +154,11 @@ app.use("/api/purchase-orders", authenticate, tenantScope, managerWrites, purcha
 app.use("/api/store-settings", authenticate, tenantScope, ownerWrites, storeSettingRoutes);
 app.use("/api/audit-logs", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), auditLogRoutes);
 app.use("/api/inventory", authenticate, tenantScope, managerWrites, inventoryRoutes);
-app.use("/api/reports", authenticate, tenantScope, reportsRoutes);
-app.use("/api/dashboard", authenticate, tenantScope, dashboardRoutes);
+// Reports & dashboard expose store-wide financials — restricted to owners and
+// managers (and platform admins), matching what the UI navigation implies.
+// Cashiers get the POS/sales/customers surface only.
+app.use("/api/reports", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), reportsRoutes);
+app.use("/api/dashboard", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), dashboardRoutes);
 
 // Not found route
 app.use((req: Request, res: Response) => {

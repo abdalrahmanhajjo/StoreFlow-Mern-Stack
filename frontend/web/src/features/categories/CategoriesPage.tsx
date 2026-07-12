@@ -3,7 +3,7 @@ import { useCategories } from './categoriesStore';
 import { useProducts } from '@/features/products/productsStore';
 import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
-import { Modal, Button, Input, confirmDialog, toast } from '@/components/ui';
+import { Modal, Button, Input, confirm, toast } from '@/components/ui';
 
 interface Row { id: string; name: string; emoji: string; image: string; description: string; count: number }
 
@@ -91,7 +91,7 @@ export default function CategoriesPage() {
     if (r.count > 0) {
       return toast(`Cannot delete — ${r.count} product(s) still use “${r.name}”`);
     }
-    if (await confirmDialog(`Delete category “${r.name}”?`)) {
+    if (await confirm({ title: `Delete category “${r.name}”?`, confirmLabel: 'Delete', danger: true })) {
       remove(r.id);
       toast(`“${r.name}” deleted`);
     }

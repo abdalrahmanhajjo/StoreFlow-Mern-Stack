@@ -70,6 +70,17 @@ export function supplierLinkedProducts(supplierId: string) {
   return productsForSupplier(supplierId);
 }
 
+/** After a rejected supplier update/delete, pull server truth; fall back to
+ *  the pre-change snapshot if the refetch also fails. */
+async function reconcileSuppliers(fallback: Supplier[]) {
+  try {
+    const { refreshSuppliers } = await import('@/lib/api/hydrate');
+    await refreshSuppliers();
+  } catch {
+    useSupply.setState({ suppliers: fallback });
+  }
+}
+
 export const useSupply = create<SupplyState>((set, get) => ({
   suppliers: SUPPLIERS,
   purchaseOrders: POS,
@@ -94,24 +105,28 @@ export const useSupply = create<SupplyState>((set, get) => ({
   updateSupplier: (id, input) => {
     const existing = get().suppliers.find((s) => s.id === id);
     if (!existing) return { ok: false, error: 'Supplier not found' };
+    const prev = get().suppliers;
     set((s) => ({
       suppliers: s.suppliers.map((sup) =>
         sup.id === id ? { ...sup, ...input, name: input.name?.trim() ?? sup.name } : sup
       ),
     }));
     if (isConnected) {
-      apiUpdateSupplier(id, { ...input, name: input.name?.trim() }).catch((err) =>
-        toast.error(err?.message || 'Could not save supplier changes to the server')
-      );
+      apiUpdateSupplier(id, { ...input, name: input.name?.trim() }).catch((err) => {
+        toast.error(err?.message || 'Could not save supplier changes to the server');
+        reconcileSuppliers(prev);
+      });
     }
     return { ok: true };
   },
   removeSupplier: (id) => {
+    const prev = get().suppliers;
     set((s) => ({ suppliers: s.suppliers.filter((x) => x.id !== id) }));
     if (isConnected) {
-      apiDeleteSupplier(id).catch((err) =>
-        toast.error(err?.message || 'Could not delete the supplier on the server')
-      );
+      apiDeleteSupplier(id).catch((err) => {
+        toast.error(err?.message || 'Could not delete the supplier on the server');
+        reconcileSuppliers(prev);
+      });
     }
   },
   createPO: (supplier, lines, expected) => {

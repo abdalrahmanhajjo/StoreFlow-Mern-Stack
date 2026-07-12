@@ -148,6 +148,7 @@ export const getInventoryHistory = async (req: Request, res: Response) => {
         const search = req.query.search as string | undefined;
 
         const filter: any = {
+            ...tenantFilter(req),
             isActive: true,
         };
 

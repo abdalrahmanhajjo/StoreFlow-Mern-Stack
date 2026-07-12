@@ -244,6 +244,20 @@ export const createProduct = async (req: Request, res: Response) => {
       data: product,
     });
   } catch (error: any) {
+    // A unique-index violation (duplicate SKU/barcode within the store) must
+    // return a clean 409 — never the raw Mongo error, which leaks the database
+    // name, collection, index and a real ObjectId.
+    if (error?.code === 11000) {
+      // The unique index is compound (storeId + sku); report the meaningful
+      // field to the user, never the internal tenant key.
+      const field =
+        Object.keys(error.keyValue ?? {}).find((k) => k !== "storeId") ?? "SKU";
+      res.status(409).json({
+        success: false,
+        message: `A product with this ${field} already exists.`,
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: "Failed to create product",
@@ -314,6 +328,17 @@ export const updateProduct = async (req: Request, res: Response) => {
       data: product,
     });
   } catch (error: any) {
+    if (error?.code === 11000) {
+      // The unique index is compound (storeId + sku); report the meaningful
+      // field to the user, never the internal tenant key.
+      const field =
+        Object.keys(error.keyValue ?? {}).find((k) => k !== "storeId") ?? "SKU";
+      res.status(409).json({
+        success: false,
+        message: `A product with this ${field} already exists.`,
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: "Failed to update product",

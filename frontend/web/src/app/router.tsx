@@ -26,6 +26,7 @@ const ReceiptPage = lazy(() => import('@/features/sales/ReceiptPage'));
 const CustomersPage = lazy(() => import('@/features/customers/CustomersPage'));
 const CustomerProfile = lazy(() => import('@/features/customers/CustomerProfile'));
 const ProductsPage = lazy(() => import('@/features/products/ProductsPage'));
+const ProductsImportPage = lazy(() => import('@/features/import/ProductsImportPage'));
 const CategoriesPage = lazy(() => import('@/features/categories/CategoriesPage'));
 const InventoryPage = lazy(() => import('@/features/inventory/InventoryPage'));
 const SalesPage = lazy(() => import('@/features/sales/SalesPage'));
@@ -87,6 +88,7 @@ export function AppRouter() {
             <Route path="/sales" element={<RequireRole roles={[...STORE]}><SalesPage /></RequireRole>} />
             <Route path="/sales/:invoiceNo/receipt" element={<RequireRole roles={[...STORE]}><ReceiptPage /></RequireRole>} />
             <Route path="/products" element={<RequireRole roles={['owner', 'manager']}><ProductsPage /></RequireRole>} />
+            <Route path="/products/import" element={<RequireRole roles={['owner', 'manager']}><ProductsImportPage /></RequireRole>} />
             <Route path="/categories" element={<RequireRole roles={['owner', 'manager']}><CategoriesPage /></RequireRole>} />
             <Route path="/inventory" element={<RequireRole roles={['owner', 'manager']}><InventoryPage /></RequireRole>} />
             <Route path="/customers" element={<RequireRole roles={[...STORE]}><CustomersPage /></RequireRole>} />

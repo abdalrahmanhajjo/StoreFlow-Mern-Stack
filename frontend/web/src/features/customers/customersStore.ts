@@ -33,6 +33,17 @@ interface CustomersState {
 
 let seq = 100;
 
+/** After a rejected update/delete, pull server truth; fall back to the
+ *  pre-change snapshot if the refetch also fails. */
+async function reconcileCustomers(fallback: Customer[]) {
+  try {
+    const { refreshCustomers } = await import('@/lib/api/hydrate');
+    await refreshCustomers();
+  } catch {
+    useCustomers.setState({ customers: fallback });
+  }
+}
+
 // SF-504 / SF-901: customer directory + loyalty balance updates. Local-first;
 // connected mode mirrors mutations to the API.
 export const useCustomers = create<CustomersState>((set, get) => ({
@@ -60,19 +71,23 @@ export const useCustomers = create<CustomersState>((set, get) => ({
     return c;
   },
   update: (id, input) => {
+    const prev = get().customers;
     set((s) => ({ customers: s.customers.map((c) => (c.id === id ? { ...c, ...input } : c)) }));
     if (isConnected) {
-      apiUpdateCustomer(id, input).catch((err) =>
-        toast.error(err?.message || 'Could not save customer changes to the server')
-      );
+      apiUpdateCustomer(id, input).catch((err) => {
+        toast.error(err?.message || 'Could not save customer changes to the server');
+        reconcileCustomers(prev);
+      });
     }
   },
   remove: (id) => {
+    const prev = get().customers;
     set((s) => ({ customers: s.customers.filter((c) => c.id !== id) }));
     if (isConnected) {
-      apiDeleteCustomer(id).catch((err) =>
-        toast.error(err?.message || 'Could not delete the customer on the server')
-      );
+      apiDeleteCustomer(id).catch((err) => {
+        toast.error(err?.message || 'Could not delete the customer on the server');
+        reconcileCustomers(prev);
+      });
     }
   },
   applySale: (id, earned, used, total) =>

@@ -268,6 +268,8 @@ export async function apiDeletePurchaseOrder(poId: string): Promise<void> {
 
 function mapSale(doc: Doc): Sale {
   return {
+    id: id(doc),
+    status: doc.status === 'voided' ? 'voided' : 'completed',
     invoiceNo: doc.invoiceNumber ?? id(doc),
     cashier: doc.cashierName ?? 'Cashier',
     customerName:
@@ -312,6 +314,12 @@ export async function apiCreateSale(input: CreateSaleInput): Promise<Sale> {
     customerId: input.customerId,
     cashierName: input.cashierName,
   });
+  return mapSale(data.data);
+}
+
+/** Void a completed sale — the server restores stock and reverses loyalty. */
+export async function apiVoidSale(saleId: string): Promise<Sale> {
+  const { data } = await api.patch<Envelope<Doc>>(`/sales/${saleId}/void`);
   return mapSale(data.data);
 }
 

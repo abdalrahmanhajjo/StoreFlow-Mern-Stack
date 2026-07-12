@@ -63,6 +63,17 @@ function replaceLocal(localId: string, serverProduct: Product) {
   }));
 }
 
+/** After a rejected update/delete, pull server truth; if that also fails,
+ *  fall back to the snapshot taken before the optimistic change. */
+async function reconcileProducts(fallback: Product[]) {
+  try {
+    const { refreshProducts } = await import('@/lib/api/hydrate');
+    await refreshProducts();
+  } catch {
+    useProducts.setState({ products: fallback });
+  }
+}
+
 // SF-501 / SF-601: product catalog + CRUD. Local state is the source of truth
 // the pages render; in connected mode every mutation is mirrored to the API.
 export const useProducts = create<ProductsState>((set, get) => ({
@@ -87,6 +98,7 @@ export const useProducts = create<ProductsState>((set, get) => ({
     return { ok: true };
   },
   update: (id, patch) => {
+    const prev = get().products;
     set((s) => ({ products: s.products.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
     if (isConnected) {
       void (async () => {
@@ -95,16 +107,22 @@ export const useProducts = create<ProductsState>((set, get) => ({
           await apiUpdateProduct(id, patch, catId);
         } catch (err) {
           toast.error((err as Error)?.message || 'Could not save product changes to the server');
+          // The server rejected the edit — reconcile so the UI can't keep
+          // showing a value the server never accepted.
+          reconcileProducts(prev);
         }
       })();
     }
   },
   remove: (id) => {
+    const prev = get().products;
     set((s) => ({ products: s.products.filter((p) => p.id !== id) }));
     if (isConnected) {
-      apiDeleteProduct(id).catch((err) =>
-        toast.error(err?.message || 'Could not delete the product on the server')
-      );
+      apiDeleteProduct(id).catch((err) => {
+        toast.error(err?.message || 'Could not delete the product on the server');
+        // The delete didn't take server-side — restore the row.
+        reconcileProducts(prev);
+      });
     }
   },
   decrement: (lines) =>

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useProducts, statusFor, type Product } from '../products/productsStore';
-import { Badge, confirmDialog } from '@/components/ui';
+import { Badge, confirm } from '@/components/ui';
 import { money } from '@/lib/format';
 
 interface Props {
@@ -30,7 +30,7 @@ export function ProductGrid({ query, category, stockFilter, onEdit, writable }: 
   }, [products, query, category, stockFilter]);
 
   const handleDelete = async (p: Product) => {
-    if (await confirmDialog(`Delete "${p.name}"? This cannot be undone.`)) {
+    if (await confirm({ title: `Delete “${p.name}”?`, message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) {
       remove(p.id);
     }
   };

@@ -22,6 +22,17 @@ const SEED = isConnected
 
 let seq = 100;
 
+/** After a rejected update/delete, pull server truth; fall back to the
+ *  pre-change snapshot if the refetch also fails. */
+async function reconcileCategories(fallback: Category[]) {
+  try {
+    const { refreshCategories } = await import('@/lib/api/hydrate');
+    await refreshCategories();
+  } catch {
+    useCategories.setState({ categories: fallback });
+  }
+}
+
 export type CategoryInput = Pick<Category, 'name' | 'emoji' | 'image' | 'description'>;
 
 interface CategoriesState {
@@ -64,24 +75,28 @@ export const useCategories = create<CategoriesState>((set, get) => ({
     if (input.name && get().categories.some((c) => c.id !== id && c.name.toLowerCase() === name.toLowerCase())) {
       return { ok: false, error: 'Category already exists' };
     }
+    const prev = get().categories;
     set((s) => ({
       categories: s.categories.map((c) =>
         c.id === id ? { ...c, name, emoji: input.emoji ?? c.emoji, image: input.image ?? c.image, description: input.description ?? c.description } : c
       ),
     }));
     if (isConnected) {
-      apiUpdateCategory(id, { name: input.name?.trim(), description: input.description, emoji: input.emoji, image: input.image }).catch((err) =>
-        toast.error(err?.message || 'Could not save category changes to the server')
-      );
+      apiUpdateCategory(id, { name: input.name?.trim(), description: input.description, emoji: input.emoji, image: input.image }).catch((err) => {
+        toast.error(err?.message || 'Could not save category changes to the server');
+        reconcileCategories(prev);
+      });
     }
     return { ok: true };
   },
   remove: (id) => {
+    const prev = get().categories;
     set((s) => ({ categories: s.categories.filter((c) => c.id !== id) }));
     if (isConnected) {
-      apiDeleteCategory(id).catch((err) =>
-        toast.error(err?.message || 'Could not delete the category on the server')
-      );
+      apiDeleteCategory(id).catch((err) => {
+        toast.error(err?.message || 'Could not delete the category on the server');
+        reconcileCategories(prev);
+      });
     }
   },
 }));

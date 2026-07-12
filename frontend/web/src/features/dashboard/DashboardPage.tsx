@@ -2,11 +2,11 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSales } from '@/features/sales/salesStore';
 import { useProducts } from '@/features/products/productsStore';
+import { useEmployees } from '@/features/employees/employeesStore';
+import { useSupply } from '@/features/suppliers/supplyStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { money } from '@/lib/format';
 import { Badge, Button } from '@/components/ui';
-
-const CHECKLIST = ['Add your first product', 'Invite a staff member', 'Complete your first sale', 'Add a supplier', 'Review your first report'];
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -15,14 +15,27 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const sales = useSales((s) => s.sales);
   const products = useProducts((s) => s.products);
-  const [done, setDone] = useState<boolean[]>([true, false, false, false, false]);
+  const employees = useEmployees((s) => s.employees);
+  const suppliers = useSupply((s) => s.suppliers);
   const [dismissed, setDismissed] = useState(false);
+
+  // Onboarding progress reflects real store data, not a stored guess.
+  const checklist = useMemo(
+    () => [
+      { label: 'Add your first product', done: products.length > 0, to: '/products' },
+      { label: 'Invite a staff member', done: employees.length > 1, to: '/employees' },
+      { label: 'Complete your first sale', done: sales.length > 0, to: '/pos' },
+      { label: 'Add a supplier', done: suppliers.length > 0, to: '/suppliers' },
+      { label: 'Review your reports', done: sales.length > 0, to: '/reports' },
+    ],
+    [products.length, employees.length, sales.length, suppliers.length]
+  );
 
   const revenue = useMemo(() => sales.reduce((n, s) => n + s.total, 0), [sales]);
   const lowStock = useMemo(() => products.filter((p) => p.stock <= p.reorderPoint), [products]);
   const recent = sales.slice(0, 5);
-  const doneCount = done.filter(Boolean).length;
-  const pendingCount = CHECKLIST.length - doneCount;
+  const doneCount = checklist.filter((c) => c.done).length;
+  const pendingCount = checklist.length - doneCount;
   const totalQty = useMemo(() => products.reduce((n, p) => n + p.stock, 0), [products]);
 
   const trend = useMemo(() => {
@@ -36,8 +49,6 @@ export default function DashboardPage() {
 
   const maxTrend = Math.max(...trend, 1);
 
-  const toggle = (i: number) => setDone((d) => d.map((v, idx) => (idx === i ? !v : v)));
-
   return (
     <>
       {/* Header */}
@@ -47,27 +58,32 @@ export default function DashboardPage() {
         <p style={{ margin: '2px 0 0', color: 'var(--ink-soft)', fontSize: isMobile ? 12 : 13 }}>{sales.length} invoices · {products.length} products · {money(revenue)} total revenue</p>
       </div>
 
-      {/* Onboarding checklist */}
-      {!dismissed && doneCount < CHECKLIST.length && (
+      {/* Onboarding checklist — derived from real store data (read-only) */}
+      {!dismissed && doneCount < checklist.length && (
         <div style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', padding: isMobile ? 14 : 18, marginBottom: isMobile ? 14 : 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isMobile ? 8 : 10 }}>
             <div style={{ fontWeight: 700, fontSize: isMobile ? 14 : 14, color: 'var(--ink)' }}>
               {pendingCount === 0 ? '🎉 All set!' : `Finish setting up your store (${pendingCount} left)`}
             </div>
-            <span style={{ fontSize: isMobile ? 11.5 : 12, color: 'var(--ink-faint)' }}>{doneCount} of {CHECKLIST.length} done</span>
+            <span style={{ fontSize: isMobile ? 11.5 : 12, color: 'var(--ink-faint)' }}>{doneCount} of {checklist.length} done</span>
           </div>
           <div style={{ height: 6, borderRadius: 6, background: 'var(--paper-dim)', overflow: 'hidden', marginBottom: isMobile ? 10 : 12 }}>
-            <div style={{ height: '100%', width: `${(doneCount / CHECKLIST.length) * 100}%`, background: 'var(--ink)', borderRadius: 6, transition: 'width .3s' }} />
+            <div style={{ height: '100%', width: `${(doneCount / checklist.length) * 100}%`, background: 'var(--ink)', borderRadius: 6, transition: 'width .3s' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit,minmax(220px,1fr))', gap: isMobile ? 6 : 8 }}>
-            {CHECKLIST.map((c, i) => (
-              <label key={c} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 9, fontSize: isMobile ? 12.5 : 13, color: done[i] ? 'var(--ink-faint)' : 'var(--ink)', cursor: 'pointer', padding: isMobile ? '5px 0' : 0 }}>
-                <input type="checkbox" checked={done[i]} onChange={() => toggle(i)} style={{ width: isMobile ? 16 : 15, height: isMobile ? 16 : 15, accentColor: 'var(--ink)' }} />
-                <span style={{ textDecoration: done[i] ? 'line-through' : 'none' }}>{c}</span>
-              </label>
+            {checklist.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                onClick={() => !c.done && navigate(c.to)}
+                style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 9, fontSize: isMobile ? 12.5 : 13, color: c.done ? 'var(--ink-faint)' : 'var(--ink)', cursor: c.done ? 'default' : 'pointer', padding: isMobile ? '5px 0' : 0, background: 'none', border: 'none', textAlign: 'left', fontFamily: 'inherit' }}
+              >
+                <span aria-hidden style={{ width: isMobile ? 16 : 15, height: isMobile ? 16 : 15, borderRadius: 4, border: `1.5px solid ${c.done ? 'var(--green)' : 'var(--line)'}`, background: c.done ? 'var(--green)' : 'transparent', color: 'var(--card)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0 }}>{c.done ? '✓' : ''}</span>
+                <span style={{ textDecoration: c.done ? 'line-through' : 'none' }}>{c.label}</span>
+              </button>
             ))}
           </div>
-          {doneCount >= CHECKLIST.length - 1 && (
+          {doneCount >= checklist.length - 1 && (
             <Button variant="ghost" size="sm" onClick={() => setDismissed(true)} style={{ marginTop: isMobile ? 10 : 12 }}>Dismiss</Button>
           )}
         </div>
@@ -87,7 +103,7 @@ export default function DashboardPage() {
       {/* KPI grid */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 14 : 20 }}>
         {[
-          { label: 'Revenue (MTD)', value: money(revenue), color: 'var(--green)' },
+          { label: 'Revenue', value: money(revenue), color: 'var(--green)' },
           { label: 'Invoices', value: sales.length, color: 'var(--ink)' },
           { label: 'Products', value: products.length, color: 'var(--blue-deep)' },
           { label: 'Total stock', value: totalQty, color: 'var(--amber)' },

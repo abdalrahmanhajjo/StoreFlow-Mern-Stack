@@ -8,7 +8,7 @@ export interface IStore {
   currency: "USD" | "EUR" | "EGP";
   taxRate: number;
   status: 'pending' | 'active' | 'suspended';
-  
+  planId: Types.ObjectId | null;
   taxRegistrationId?: string;
   ownerId: Types.ObjectId;
   subscription: {
@@ -36,7 +36,7 @@ const storeSchema = new Schema<IStore>(
     taxRegistrationId: { type: String, unique: true, sparse: true },
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     subscription: {
-      plan: { type: String, default: 'free' },
+      planId: { type: Schema.Types.ObjectId, ref: 'Plan', default: null, index: true },
       trialEndsAt: { type: Date },
       status: { type: String, enum: ['trial', 'active', 'expired'], default: 'trial' }
     },

@@ -16,6 +16,7 @@ import auditLogRoutes from "./routes/audit_log.routes";
 import inventoryRoutes from "./routes/inventory.routes";
 import reportsRoutes from "./routes/reports.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
+import planRoutes from "./routes/plan.routes";
 
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
@@ -159,6 +160,8 @@ app.use("/api/inventory", authenticate, tenantScope, managerWrites, inventoryRou
 // Cashiers get the POS/sales/customers surface only.
 app.use("/api/reports", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), reportsRoutes);
 app.use("/api/dashboard", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), dashboardRoutes);
+
+app.use("/api/plans", planRoutes); // admin-only, own chain
 
 // Not found route
 app.use((req: Request, res: Response) => {

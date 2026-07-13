@@ -7,7 +7,6 @@ import {
     updateUser,
     deleteUser,
     getUsers,
-    resetStaffPassword,
 } from "../controllers/user.controller";
 
 import { authenticate } from "../middleware/auth.middleware";
@@ -24,7 +23,6 @@ router.get("/:id", authorize("platform_admin", "owner"), getUserById);
 router.post("/", authorize("platform_admin", "owner"), createUser);
 
 router.post("/invite", authorize("platform_admin", "owner"), inviteUser);
-router.post("/:id/reset", authorize("platform_admin", "owner"), resetStaffPassword);
 router.put("/:id", authorize("platform_admin", "owner"), updateUser);
 router.delete("/:id", authorize("platform_admin", "owner"), deleteUser);
 

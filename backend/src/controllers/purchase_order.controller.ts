@@ -200,7 +200,6 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
         for (const item of items) {
             const productId = item.productId as string;
             const quantityOrdered = Number(item.quantityOrdered);
-            const unitCost = Number(item.unitCost);
 
             if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
                 res.status(400).json({
@@ -221,14 +220,6 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
                 return;
             }
 
-            if (Number.isNaN(unitCost) || unitCost < 0) {
-                res.status(400).json({
-                    success: false,
-                    message: "Unit cost cannot be negative",
-                });
-                return;
-            }
-
             const product = await Product.findOne({ ...tenantFilter(req),
                 _id: productId,
                 isActive: true,
@@ -238,6 +229,16 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
                 res.status(404).json({
                     success: false,
                     message: "Product not found",
+                });
+                return;
+            }
+
+            const unitCost = Number(product.cost);
+
+            if (Number.isNaN(unitCost) || unitCost < 0) {
+                res.status(400).json({
+                    success: false,
+                    message: "Invalid product cost in database",
                 });
                 return;
             }

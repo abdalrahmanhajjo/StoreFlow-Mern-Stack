@@ -208,6 +208,13 @@ export const createSale = async (req: Request, res: Response) => {
                 throw new AppError("Product not found", 404);
             }
 
+            if (item.unitPrice !== undefined && Number(item.unitPrice) !== product.price) {
+                throw new AppError(
+                    `Price mismatch for ${product.name}. Client price ${Number(item.unitPrice)} does not match server price ${product.price}`,
+                    400
+                );
+            }
+
             if (product.quantity < quantity) {
                 throw new AppError(
                     `Not enough stock for ${product.name}. Available: ${product.quantity}`,

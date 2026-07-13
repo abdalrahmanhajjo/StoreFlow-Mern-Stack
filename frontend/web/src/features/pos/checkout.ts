@@ -37,6 +37,10 @@ export async function completeSale(cashierName: string): Promise<CheckoutResult>
       }
       let sale: Sale;
       try {
+        // NOTE: total, subtotal, discount, and tax are omitted intentionally.
+        // The backend is the authoritative calculator for all monetary values.
+        // The values sent below are "requested" amounts — the server
+        // recalculates, validates, and may reject if they disagree.
         sale = await apiCreateSale({
           items: cart.items.map((i) => ({ productId: i.id, quantity: i.qty })),
           // The redeemed value is charged as discount; the points themselves

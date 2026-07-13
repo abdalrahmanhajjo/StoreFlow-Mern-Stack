@@ -20,6 +20,12 @@ export interface ApprovalStatus {
 /** Real API whenever a base URL is configured; otherwise the built-in demo
  * mocks keep the app fully usable without a backend. Unit tests always run
  * on the mocks, whatever .env says. */
+if (import.meta.env.MODE === 'production' && !import.meta.env.VITE_API_BASE_URL) {
+  console.warn(
+    '[auth] Production mode without VITE_API_BASE_URL — no backend connection. ' +
+    'All auth operations will use local mocks. Set VITE_API_BASE_URL in production.'
+  );
+}
 export const USE_MOCK = !import.meta.env.VITE_API_BASE_URL || import.meta.env.MODE === 'test';
 
 /** Register form labels → backend businessType enum. */

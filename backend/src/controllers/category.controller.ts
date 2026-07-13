@@ -2,7 +2,10 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Category from "../models/category.model";
 import Product from "../models/product.model";
+import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+
+const CATEGORY_UPDATE_FIELDS = ['name', 'description', 'isActive'] as const;
 
 // GET all categories with product count
 export const getCategories = async (req: Request, res: Response) => {
@@ -31,18 +34,8 @@ export const getCategories = async (req: Request, res: Response) => {
 
         if (search) {
             filter.$or = [
-                {
-                    name: {
-                        $regex: search,
-                        $options: "i",
-                    },
-                },
-                {
-                    description: {
-                        $regex: search,
-                        $options: "i",
-                    },
-                },
+                safeRegex('name', search),
+                safeRegex('description', search),
             ];
         }
 
@@ -183,12 +176,17 @@ export const updateCategory = async (req: Request, res: Response) => {
             return;
         }
 
+        const allowed = pickAllowed<Record<string, unknown>>(
+            stripOperators(req.body),
+            CATEGORY_UPDATE_FIELDS
+        );
+
         const category = await Category.findOneAndUpdate(
             { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },
-            req.body,
+            allowed,
             {
                 new: true,
                 runValidators: true,

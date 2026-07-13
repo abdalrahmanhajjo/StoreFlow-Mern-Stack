@@ -2,7 +2,10 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Product from "../models/product.model";
 import StockAdjustment from "../models/stock_adjustment.model";
+import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+
+const ADJUST_ALLOWED_FIELDS = ['productId', 'delta', 'reason', 'note'] as const;
 
 class AppError extends Error {
     statusCode: number;
@@ -178,30 +181,10 @@ export const getInventoryHistory = async (req: Request, res: Response) => {
 
         if (search) {
             filter.$or = [
-                {
-                    productName: {
-                        $regex: search,
-                        $options: "i",
-                    },
-                },
-                {
-                    sku: {
-                        $regex: search,
-                        $options: "i",
-                    },
-                },
-                {
-                    reason: {
-                        $regex: search,
-                        $options: "i",
-                    },
-                },
-                {
-                    adjustedByName: {
-                        $regex: search,
-                        $options: "i",
-                    },
-                },
+                safeRegex('productName', search),
+                safeRegex('sku', search),
+                safeRegex('reason', search),
+                safeRegex('adjustedByName', search),
             ];
         }
 

@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Customer from "../models/customer.model";
+import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+
+const CUSTOMER_UPDATE_FIELDS = ['name', 'email', 'phone', 'address', 'notes'] as const;
 
 // GET all customers
 export const getCustomers = async (req: Request, res: Response) => {
@@ -19,9 +22,9 @@ export const getCustomers = async (req: Request, res: Response) => {
 
         if (search) {
             filter.$or = [
-                { name: { $regex: search, $options: "i" } },
-                { phone: { $regex: search, $options: "i" } },
-                { email: { $regex: search, $options: "i" } },
+                safeRegex('name', search),
+                safeRegex('phone', search),
+                safeRegex('email', search),
             ];
         }
 
@@ -94,7 +97,11 @@ export const getCustomerById = async (req: Request, res: Response) => {
 // CREATE customer
 export const createCustomer = async (req: Request, res: Response) => {
     try {
-        const customer = await Customer.create({ ...req.body, storeId: req.storeId! });
+        const allowed = pickAllowed<Record<string, unknown>>(
+            stripOperators(req.body),
+            CUSTOMER_UPDATE_FIELDS
+        ) as Record<string, unknown>;
+        const customer = await Customer.create({ ...allowed, storeId: req.storeId as any });
 
         res.status(201).json({
             success: true,
@@ -123,12 +130,16 @@ export const updateCustomer = async (req: Request, res: Response) => {
             return;
         }
 
+        const allowed = pickAllowed<Record<string, unknown>>(
+            stripOperators(req.body),
+            CUSTOMER_UPDATE_FIELDS
+        );
         const customer = await Customer.findOneAndUpdate(
             { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },
-            req.body,
+            allowed,
             {
                 new: true,
                 runValidators: true,

@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Supplier from "../models/supplier.model";
 import Product from "../models/product.model";
+import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
+
+const SUPPLIER_UPDATE_FIELDS = ['name', 'email', 'phone', 'address', 'contactPerson'] as const;
 
 // Helper function to build multi-tenant query objects dynamically
 const buildTenantFilter = (req: Request, baseFilter: any = {}) => {
@@ -46,9 +49,9 @@ export const getSuppliers = async (req: Request, res: Response) => {
 
         if (search) {
             filter.$or = [
-                { name: { $regex: search, $options: "i" } },
-                { phone: { $regex: search, $options: "i" } },
-                { email: { $regex: search, $options: "i" } },
+                safeRegex('name', search),
+                safeRegex('phone', search),
+                safeRegex('email', search),
             ];
         }
 
@@ -122,10 +125,15 @@ export const createSupplier = async (req: Request, res: Response) => {
             return;
         }
 
+        const allowed = pickAllowed<Record<string, unknown>>(
+            stripOperators(req.body),
+            SUPPLIER_UPDATE_FIELDS
+        ) as Record<string, unknown>;
+
         // Explicitly set storeId to prevent standard users from modifying other data environments
         const supplier = await Supplier.create({
-            ...req.body,
-            storeId: req.storeId,
+            ...allowed,
+            storeId: req.storeId as any,
         });
 
         const fullSupplier = await Supplier.findById(supplier._id).populate(
@@ -176,9 +184,13 @@ export const updateSupplier = async (req: Request, res: Response) => {
         }
 
         const query = buildTenantFilter(req, { _id: id, isActive: true });
+        const allowed = pickAllowed<Record<string, unknown>>(
+            stripOperators(req.body),
+            SUPPLIER_UPDATE_FIELDS
+        );
         const supplier = await Supplier.findOneAndUpdate(
             query,
-            req.body,
+            allowed,
             {
                 new: true,
                 runValidators: true,

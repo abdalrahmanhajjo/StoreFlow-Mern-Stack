@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { loginSchema, type LoginInput } from './schemas';
 import { useLogin } from './hooks';
 import { Button, Input, Logo } from '@/components/ui';
+import { safeLoginReason, getLoginMessage } from '@/lib/security/url';
 
 const filledInput: CSSProperties = { background: 'var(--paper-raise)' };
 
@@ -116,7 +117,9 @@ function SilkWaves() {
 
 export default function LoginPage() {
   const [params] = useSearchParams();
-  const returnTo = params.get('returnTo') || undefined;
+  const rawReturnTo = params.get('returnTo');
+  const returnTo = rawReturnTo && /^\/(?!\/)/.test(rawReturnTo) ? rawReturnTo : undefined;
+  const reason = safeLoginReason(params.get('reason'));
   const login = useLogin(returnTo);
   const {
     register,
@@ -250,6 +253,16 @@ export default function LoginPage() {
               <p style={{ margin: '0 0 26px', fontSize: 14, color: 'var(--ink-soft)' }}>
                 Sign in to your account to continue your journey with StoreFlow
               </p>
+
+              {reason && (
+                <div role="status" style={{
+                  background: 'var(--yellow-soft)', color: 'var(--yellow-deep)',
+                  border: '1px solid #e6d7b5', borderRadius: 10,
+                  padding: '10px 14px', fontSize: 13, marginBottom: 16, fontWeight: 500,
+                }}>
+                  {getLoginMessage(reason)}
+                </div>
+              )}
 
               {login.isError && !isPending && (
                 <div role="alert" className="sf-shake" style={{

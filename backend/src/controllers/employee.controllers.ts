@@ -1,8 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { User } from "../models/user.model";
+import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
-import { hashPassword } from "../utils/auth.utils";
+import { hashPassword, generateRawToken, hashToken, sendEmployeeInviteEmail } from "../utils/auth.utils";
+
+const INVITE_TTL_DAYS = 7;
 
 export const getEmployees = async (
   req: Request,
@@ -29,44 +32,47 @@ export const inviteEmployee = async (
   res: Response,
   next: NextFunction
 ) => {
-  const {name,email,role}=req.body;
+  const { name, email, role } = req.body;
 
-    const exists = await User.findOne({email});
+  const exists = await User.findOne({ email });
+  if (exists)
+    return next(new AppError("Email already in use", 409));
 
-    if(exists)
-        return next(new AppError("Email already in use",409));
+  // Random unguessable password + invite token — employee sets their
+  // own password via the accept-invite flow (POST /api/auth/accept-invite).
+  const placeholderHash = await hashPassword(generateRawToken(32));
+  const rawToken = generateRawToken(32);
 
-    const passwordHash = await hashPassword("Temp123!");
+  const employee = await User.create({
+    name,
+    email,
+    passwordHash: placeholderHash,
+    role,
+    storeId: req.user!.storeId,
+    isActive: false,
+    isEmailVerified: false,
+    passwordResetTokenHash: hashToken(rawToken),
+    passwordResetExpires: new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000),
+    phone: { countryCode: "", number: "" },
+    idVerification: { type: "national_id", number: "" },
+  });
 
-    const employee = await User.create({
+  const store = await Store.findById(req.user!.storeId).select('storeName').lean();
 
-        name,
-        email,
-        passwordHash,
-        role,
-        storeId:req.user!.storeId,
-        isActive:true,
+  // Send invite email (logged as fallback when email not configured)
+  const inviteUrl = `${process.env.CLIENT_APP_URL || "http://localhost:5175"}/accept-invite?token=${rawToken}`;
+  sendEmployeeInviteEmail(email, {
+    inviteUrl,
+    inviterName: req.user!.sub || "Your store manager",
+    storeName: store?.storeName || "your store",
+    role: role || "staff",
+  });
 
-        phone:{
-            countryCode:"",
-            number:"",
-        },
-
-        idVerification:{
-            type:"national_id",
-            number:"",
-        }
-
-    });
-
-    res.status(201).json({
-
-        success:true,
-        message:"Employee invited",
-        data:employee
-
-    });
-
+  res.status(201).json({
+    success: true,
+    message: "Invitation sent. The employee will receive an email to set their password.",
+    data: { id: employee._id, name, email, role },
+  });
 }
 
 export const updateEmployeeRole = async (

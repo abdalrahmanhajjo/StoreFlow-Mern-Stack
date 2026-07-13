@@ -15,7 +15,8 @@ export function useLogin(returnTo?: string) {
     mutationFn: (input) => authService.login(input),
     onSuccess: ({ user, accessToken }) => {
       setSession(user, accessToken);
-      navigate(returnTo || landingRouteForRole(user.role), { replace: true });
+      const destination = returnTo && /^\/(?!\/)/.test(returnTo) ? returnTo : landingRouteForRole(user.role);
+      navigate(destination, { replace: true });
     },
     onError: (err) => {
       if (err.code !== 'PENDING_APPROVAL') {

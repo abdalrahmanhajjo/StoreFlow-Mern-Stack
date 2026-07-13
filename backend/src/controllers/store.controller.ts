@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
 import { User } from "../models/user.model";
+import { pickAllowed, stripOperators } from "../utils/security.utils";
+
+const STORE_UPDATE_FIELDS = ['storeName', 'address', 'businessType', 'currency', 'taxRegistrationId', 'phone', 'email'] as const;
 
 // Helper to construct dynamic queries depending on user role bypasses
 const buildStoreFilter = (req: Request, baseFilter: any = {}) => {
@@ -147,7 +150,7 @@ export const updateStore = async (req: Request, res: Response, next: NextFunctio
         }
 
         // Clone the body to avoid mutating req.body directly
-        const updateData = { ...req.body };
+        const updateData = pickAllowed(stripOperators(req.body), STORE_UPDATE_FIELDS);
 
         // Safe Guardrail: Prevent regular Owners from manually changing store statuses or owners
         if (req.user?.role !== "platform_admin") {

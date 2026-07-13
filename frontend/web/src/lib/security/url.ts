@@ -40,3 +40,21 @@ export function safeImageUrl(input: string | null | undefined): string {
     return '';
   }
 }
+
+const LOGIN_MESSAGES: Record<string, string> = {
+  'session-ended': 'Your session has expired. Please sign in again.',
+  'authentication-required': 'Please sign in to continue.',
+  'signed-out': 'You have been signed out successfully.',
+};
+
+const ALLOWED_REASONS = new Set(Object.keys(LOGIN_MESSAGES));
+
+export function safeLoginReason(reason: string | null | undefined): string | null {
+  if (!reason || !ALLOWED_REASONS.has(reason)) return null;
+  return reason;
+}
+
+export function getLoginMessage(reason: string | null | undefined): string {
+  if (!reason || !ALLOWED_REASONS.has(reason)) return 'Please sign in to continue.';
+  return LOGIN_MESSAGES[reason];
+}

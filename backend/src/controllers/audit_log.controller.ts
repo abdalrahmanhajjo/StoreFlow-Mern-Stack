@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import AuditLog from "../models/audit_log.model";
+import { escapeRegex, safeRegex } from "../utils/security.utils";
 import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all audit logs
@@ -25,18 +26,15 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         }
 
         if (performedByName) {
-            filter.performedByName = {
-                $regex: performedByName,
-                $options: "i",
-            };
+            Object.assign(filter, safeRegex('performedByName', performedByName));
         }
 
         if (search) {
             filter.$or = [
-                { action: { $regex: search, $options: "i" } },
-                { entity: { $regex: search, $options: "i" } },
-                { description: { $regex: search, $options: "i" } },
-                { performedByName: { $regex: search, $options: "i" } },
+                safeRegex('action', search),
+                safeRegex('entity', search),
+                safeRegex('description', search),
+                safeRegex('performedByName', search),
             ];
         }
 

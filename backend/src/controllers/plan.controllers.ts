@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 import { Plan } from "../models/plan.model";
 import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
+import { pickAllowed, stripOperators } from "../utils/security.utils";
+
+const PLAN_UPDATE_FIELDS = ['name', 'priceMonthly', 'description', 'features', 'isPopular'] as const;
 
 // 1. CREATE PLAN
 export const createPlan = async (req: Request, res: Response, next: NextFunction) => {
@@ -12,7 +15,7 @@ export const createPlan = async (req: Request, res: Response, next: NextFunction
             return next(new AppError("A plan with this slug already exists.", 409));
         }
 
-        const plan = await Plan.create(req.body);
+        const plan = await Plan.create(pickAllowed(stripOperators(req.body), PLAN_UPDATE_FIELDS));
 
         res.status(201).json({
             success: true,
@@ -89,7 +92,7 @@ export const updatePlan = async (req: Request, res: Response, next: NextFunction
             }
         }
 
-        const plan = await Plan.findByIdAndUpdate(id, req.body, {
+        const plan = await Plan.findByIdAndUpdate(id, pickAllowed(stripOperators(req.body), PLAN_UPDATE_FIELDS), {
             new: true,
             runValidators: true,
         });

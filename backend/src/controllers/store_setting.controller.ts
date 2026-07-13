@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import StoreSetting from "../models/store_setting.model";
+import { escapeRegex, pickAllowed, stripOperators } from "../utils/security.utils";
 import { requireStoreId } from "../utils/tenant.utils";
+
+const STORE_SETTING_UPDATE_FIELDS = ['storeName', 'phone', 'email', 'address', 'businessType', 'currency', 'taxRate', 'lowStockThreshold', 'criticalLevel', 'alertRecipients', 'orderEmail', 'lowStockEmail', 'receiptFooter', 'accentColor', 'logoUrl'] as const;
 
 const DEFAULTS = {
     storeName: "StoreFlow Store",
@@ -57,8 +60,13 @@ export const createStoreSetting = async (req: Request, res: Response) => {
             return;
         }
 
+        const allowed = pickAllowed<Record<string, unknown>>(
+            stripOperators(req.body),
+            STORE_SETTING_UPDATE_FIELDS
+        ) as Record<string, unknown>;
+
         // storeId last so the body can never write another store's settings.
-        const setting = await StoreSetting.create({ ...req.body, storeId });
+        const setting = await StoreSetting.create({ ...allowed, storeId });
 
         res.status(201).json({
             success: true,
@@ -82,8 +90,10 @@ export const updateStoreSetting = async (req: Request, res: Response) => {
 
         const setting = await getOrCreateSetting(storeId);
 
-        const { storeId: _ignored, ...patch } = req.body ?? {};
-        void _ignored;
+        const patch = pickAllowed<Record<string, unknown>>(
+            stripOperators(req.body ?? {}),
+            STORE_SETTING_UPDATE_FIELDS
+        );
         const updatedSetting = await StoreSetting.findByIdAndUpdate(
             setting._id,
             patch,

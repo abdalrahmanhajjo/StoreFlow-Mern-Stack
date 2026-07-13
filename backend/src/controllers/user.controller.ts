@@ -11,6 +11,9 @@ import {
     sendEmployeeInviteEmail,
 } from "../utils/auth.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+import { pickAllowed, stripOperators } from "../utils/security.utils";
+
+const USER_CREATE_FIELDS = ['name', 'email', 'role', 'storeId', 'phone', 'idVerification'] as const;
 
 const INVITE_TTL_DAYS = 7;
 
@@ -125,7 +128,7 @@ export const createUser = async (
         //    could never sign in, since there is no verification path for
         //    admin-created accounts. `isActive` stays true so they can log in.
         const user = await User.create({
-            ...userData,
+            ...pickAllowed(stripOperators(userData), USER_CREATE_FIELDS),
             passwordHash,
             isEmailVerified: userData.isEmailVerified ?? true,
         });

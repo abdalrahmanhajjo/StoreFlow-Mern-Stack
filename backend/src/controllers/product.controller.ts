@@ -3,6 +3,12 @@ import mongoose from "mongoose";
 import Product from "../models/product.model";
 import Category from "../models/category.model";
 import { tenantFilter } from "../utils/tenant.utils";
+import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
+
+const PRODUCT_UPDATE_FIELDS = [
+  'name', 'sku', 'barcode', 'description', 'price', 'cost',
+  'quantity', 'reorderThreshold', 'imageUrl', 'emoji', 'categoryId',
+] as const;
 
 // GET all products with filters and pagination
 export const getProducts = async (req: Request, res: Response) => {
@@ -41,18 +47,12 @@ export const getProducts = async (req: Request, res: Response) => {
 
     // Name filter
     if (name) {
-      filter.name = {
-        $regex: name,
-        $options: "i",
-      };
+      Object.assign(filter, safeRegex('name', name));
     }
 
     // Barcode filter
     if (barcode) {
-      filter.barcode = {
-        $regex: barcode,
-        $options: "i",
-      };
+      Object.assign(filter, safeRegex('barcode', barcode));
     }
 
     // Category filter
@@ -71,24 +71,9 @@ export const getProducts = async (req: Request, res: Response) => {
     // General search filter: name, sku, barcode
     if (search) {
       filter.$or = [
-        {
-          name: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-        {
-          sku: {
-            $regex: search,
-            $options: "i",
-          },
-        },
-        {
-          barcode: {
-            $regex: search,
-            $options: "i",
-          },
-        },
+        safeRegex('name', search),
+        safeRegex('sku', search),
+        safeRegex('barcode', search),
       ];
     }
 
@@ -302,16 +287,15 @@ export const updateProduct = async (req: Request, res: Response) => {
       }
     }
 
+    const allowed = pickAllowed<Record<string, unknown>>(
+      stripOperators(req.body),
+      PRODUCT_UPDATE_FIELDS
+    );
+
     const product = await Product.findOneAndUpdate(
-            { ...tenantFilter(req),
-        _id: id,
-        isActive: true,
-      },
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
+      { ...tenantFilter(req), _id: id, isActive: true },
+      allowed,
+      { new: true, runValidators: true }
     ).populate("categoryId", "name description");
 
     if (!product) {

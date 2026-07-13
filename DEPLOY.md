@@ -42,8 +42,10 @@ You need three free accounts: **GitHub**, **Render** (backend), **Vercel**
    - `MONGO_URI` → your Atlas **standard** connection string (the long
      `mongodb://...` one, same as your local `backend/.env`).
    - `JWT_ACCESS_SECRET` → any long random string (keep it secret).
-   - `EMAIL_USER` → `storeflow.noreply@gmail.com`
-   - `EMAIL_PASS` → your Gmail app password.
+   - `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`,
+     `GMAIL_SENDER` → email credentials. **Do section 1a below first** to get
+     these; you can leave them blank for now (the app still runs — codes just
+     print to the Render logs — and you can fill them in later).
    - `CLIENT_APP_URL` → leave a placeholder for now (e.g. `https://example.com`);
      you'll set the real value in step 3.
 4. Click **Apply**. Wait for the build to go green.
@@ -52,6 +54,58 @@ You need three free accounts: **GitHub**, **Render** (backend), **Vercel**
 
 > Free Render services sleep after 15 min idle and take ~30s to wake on the
 > first request. Fine for a demo; upgrade the plan to keep it always-on.
+
+---
+
+## 1a. Email: Gmail API credentials (10 min, one time)
+
+The app sends verification & password-reset codes **from your own Gmail using
+the Gmail API over HTTPS** — not SMTP. This matters: Render's free plan blocks
+outbound SMTP ports, so `smtp.gmail.com` can never send from there. The Gmail
+API uses port 443 (like any website), so it works.
+
+You need four values: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`,
+`GMAIL_REFRESH_TOKEN`, and `GMAIL_SENDER` (your Gmail address).
+
+1. **Create a project + enable the API.** Go to
+   [console.cloud.google.com](https://console.cloud.google.com) → create a new
+   project → search **"Gmail API"** → **Enable**.
+
+2. **Configure the OAuth consent screen.** APIs & Services → **OAuth consent
+   screen** → User type **External** → fill the app name + your email →
+   **Add scope** `https://www.googleapis.com/auth/gmail.send` → Save.
+   **Then set Publishing status to "In production"** (Publish app → Confirm).
+   ⚠️ If you leave it in **Testing**, Google expires the refresh token after
+   **7 days** and email silently stops. Publishing (even unverified, you'll see
+   a warning you can click past) gives a long-lived token.
+
+3. **Create an OAuth client ID.** Credentials → **Create credentials → OAuth
+   client ID** → Application type **Web application** → under **Authorized
+   redirect URIs** add `https://developers.google.com/oauthplayground` →
+   Create. Copy the **Client ID** and **Client secret**.
+
+4. **Mint the refresh token** with the OAuth Playground:
+   - Open [developers.google.com/oauthplayground](https://developers.google.com/oauthplayground).
+   - Click the ⚙️ (top right) → check **"Use your own OAuth credentials"** →
+     paste your Client ID + secret.
+   - In the left "Input your own scopes" box, enter
+     `https://www.googleapis.com/auth/gmail.send` → **Authorize APIs** → sign in
+     with the Gmail you want to send from → allow (click past the "unverified"
+     warning).
+   - Click **Exchange authorization code for tokens** → copy the
+     **Refresh token** (starts with `1//`).
+
+5. **Put them in Render.** Your service → **Environment** → set:
+   - `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`
+   - `GMAIL_SENDER` = the Gmail address you authorized in step 4
+   Save → Render redeploys. In the **Logs** you should see
+   `[mail] Gmail API ready (sending as you@gmail.com).`
+   - `Gmail API auth FAILED: ...invalid_grant` → the refresh token expired
+     (app still in Testing — redo step 2's publish, then re-mint in step 4).
+   - `Gmail API auth FAILED: ...invalid_client` → wrong client id/secret.
+   - `Gmail API not configured` → the env vars didn't save.
+
+Gmail's free send limit is ~500/day — plenty for verification codes.
 
 ---
 

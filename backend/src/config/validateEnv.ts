@@ -31,10 +31,16 @@ export function validateEnv(): void {
         );
     }
 
-    if (isProd && (!process.env.BREVO_API_KEY || !(process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER))) {
+    const gmailConfigured =
+        process.env.GMAIL_CLIENT_ID &&
+        process.env.GMAIL_CLIENT_SECRET &&
+        process.env.GMAIL_REFRESH_TOKEN &&
+        (process.env.GMAIL_SENDER || process.env.EMAIL_USER);
+    if (isProd && !gmailConfigured) {
         warnings.push(
-            "BREVO_API_KEY / sender not set — verification & reset codes will print to the log instead of sending. " +
-            "(Email uses Brevo's HTTPS API; SMTP is blocked on most free hosts.)"
+            "Gmail API not configured (need GMAIL_CLIENT_ID/SECRET/REFRESH_TOKEN/SENDER) — " +
+            "verification & reset codes will print to the log instead of sending. " +
+            "(Email uses the Gmail HTTPS API; SMTP is blocked on most free hosts.)"
         );
     }
 

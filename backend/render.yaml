@@ -19,12 +19,18 @@ services:
         sync: false        # any long random string
       - key: CLIENT_APP_URL
         sync: false        # your deployed frontend URL, e.g. https://storeflow.vercel.app
-      # Email is sent via Brevo's HTTPS API (port 443). SMTP ports are blocked
-      # on Render's free plan, which is why smtp.gmail.com never worked here.
-      # Create a free Brevo account, verify your sender email, make an API key.
-      - key: BREVO_API_KEY
-        sync: false        # your Brevo API key (Settings → SMTP & API → API Keys)
-      - key: BREVO_SENDER_EMAIL
-        sync: false        # a verified sender address, e.g. your Gmail
-      - key: BREVO_SENDER_NAME
+      # Email is sent via the Gmail API over HTTPS (port 443). SMTP ports are
+      # blocked on Render's free plan, which is why smtp.gmail.com never worked.
+      # See DEPLOY.md for how to create the OAuth credentials + refresh token.
+      # IMPORTANT: publish the OAuth consent screen ("In production") or the
+      # refresh token expires after 7 days.
+      - key: GMAIL_CLIENT_ID
+        sync: false        # OAuth client ID
+      - key: GMAIL_CLIENT_SECRET
+        sync: false        # OAuth client secret
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false        # long-lived refresh token
+      - key: GMAIL_SENDER
+        sync: false        # the Gmail address you authorized, e.g. you@gmail.com
+      - key: GMAIL_SENDER_NAME
         value: StoreFlow

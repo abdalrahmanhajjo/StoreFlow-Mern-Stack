@@ -71,18 +71,24 @@ You need four values: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`,
    [console.cloud.google.com](https://console.cloud.google.com) → create a new
    project → search **"Gmail API"** → **Enable**.
 
-2. **Configure the OAuth consent screen.** APIs & Services → **OAuth consent
-   screen** → User type **External** → fill the app name + your email →
-   **Add scope** `https://www.googleapis.com/auth/gmail.send` → Save.
-   **Then set Publishing status to "In production"** (Publish app → Confirm).
+2. **Configure the consent screen** (Google's newer "Google Auth Platform" UI
+   splits this across pages). APIs & Services → **OAuth consent screen** →
+   **Get started** → App name + support email → **Audience: External** →
+   contact email → Create. You'll get a left menu: Branding / Audience /
+   Data access / Clients.
+   - **Add the scope:** left menu → **Data access** → **Add or remove scopes**
+     → paste `https://www.googleapis.com/auth/gmail.send` in the manual box →
+     **Add to table** → **Update** → **Save**.
+   - **Publish:** left menu → **Audience** → click **Publish app** → Confirm.
+     Status goes from *Testing* to *In production*. (Do **not** click "Prepare
+     for verification" — not needed for your own account.)
    ⚠️ If you leave it in **Testing**, Google expires the refresh token after
-   **7 days** and email silently stops. Publishing (even unverified, you'll see
-   a warning you can click past) gives a long-lived token.
+   **7 days** and email silently stops. Publishing gives a long-lived token.
 
-3. **Create an OAuth client ID.** Credentials → **Create credentials → OAuth
-   client ID** → Application type **Web application** → under **Authorized
-   redirect URIs** add `https://developers.google.com/oauthplayground` →
-   Create. Copy the **Client ID** and **Client secret**.
+3. **Create an OAuth client ID.** Left menu → **Clients** → **Create client**
+   → Application type **Web application** → under **Authorized redirect URIs**
+   add `https://developers.google.com/oauthplayground` → Create. Copy the
+   **Client ID** and **Client secret**.
 
 4. **Mint the refresh token** with the OAuth Playground:
    - Open [developers.google.com/oauthplayground](https://developers.google.com/oauthplayground).

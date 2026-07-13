@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Category from "../models/category.model";
 import Product from "../models/product.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all categories with product count
 export const getCategories = async (req: Request, res: Response) => {
@@ -9,7 +10,7 @@ export const getCategories = async (req: Request, res: Response) => {
         const search = req.query.search as string | undefined;
         const status = req.query.status as string | undefined;
 
-        const filter: any = {};
+        const filter: any = { ...tenantFilter(req) };
 
         // status=active → active categories
         // status=inactive → inactive categories
@@ -51,7 +52,7 @@ export const getCategories = async (req: Request, res: Response) => {
 
         const categoriesWithProductCount = await Promise.all(
             categories.map(async (category) => {
-                const productCount = await Product.countDocuments({
+                const productCount = await Product.countDocuments({ ...tenantFilter(req),
                     categoryId: category._id,
                     isActive: true,
                 });
@@ -90,7 +91,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
             return;
         }
 
-        const category = await Category.findOne({
+        const category = await Category.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         });
@@ -103,7 +104,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
             return;
         }
 
-        const productCount = await Product.countDocuments({
+        const productCount = await Product.countDocuments({ ...tenantFilter(req),
             categoryId: category._id,
             isActive: true,
         });
@@ -127,7 +128,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
 // CREATE category
 export const createCategory = async (req: Request, res: Response) => {
     try {
-        const { name, description } = req.body;
+        const { name, description, emoji, imageUrl } = req.body;
 
         if (!name) {
             res.status(400).json({
@@ -137,9 +138,11 @@ export const createCategory = async (req: Request, res: Response) => {
             return;
         }
 
-        const category = await Category.create({
+        const category = await Category.create({ storeId: req.storeId!, 
             name,
             description,
+            emoji,
+            imageUrl,
         });
 
         res.status(201).json({
@@ -181,7 +184,7 @@ export const updateCategory = async (req: Request, res: Response) => {
         }
 
         const category = await Category.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },
@@ -200,7 +203,7 @@ export const updateCategory = async (req: Request, res: Response) => {
             return;
         }
 
-        const productCount = await Product.countDocuments({
+        const productCount = await Product.countDocuments({ ...tenantFilter(req),
             categoryId: category._id,
             isActive: true,
         });
@@ -243,7 +246,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
             return;
         }
 
-        const category = await Category.findOne({
+        const category = await Category.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         });
@@ -256,7 +259,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
             return;
         }
 
-        const assignedProductsCount = await Product.countDocuments({
+        const assignedProductsCount = await Product.countDocuments({ ...tenantFilter(req),
             categoryId: id,
             isActive: true,
         });

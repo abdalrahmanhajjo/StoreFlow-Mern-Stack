@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCart, useCartTotals, maxPctForRole, maxFixedForRole, TAX_RATE } from './cartStore';
+import { useCart, useCartTotals, maxPctForRole, maxFixedForRole } from './cartStore';
 import { useParkedSales } from './parkedSalesStore';
 import { completeSale } from './checkout';
 import { useCustomers } from '@/features/customers/customersStore';
@@ -15,6 +15,7 @@ export function Cart() {
   const cashier = useSession((s) => s.user?.name ?? 'Cashier');
   const role = useSession((s) => s.user?.role ?? null);
   const { items, payMethod, customer, redeeming, discountMode, discountRate, discountFixed, changeQty, remove, setPay, setCustomer, toggleRedeem, setDiscountMode, setDiscountRate, setDiscountFixed, reset } = useCart();
+  const taxRate = useCart((s) => s.taxRate); // this store's own rate
   const t = useCartTotals();
   const { parked, park, resume, remove: removeParked } = useParkedSales();
   const [parkedOpen, setParkedOpen] = useState(false);
@@ -38,8 +39,8 @@ export function Cart() {
     toggleRedeem();
   };
 
-  const finishSale = useCallback(() => {
-    const res = completeSale(cashier);
+  const finishSale = useCallback(async () => {
+    const res = await completeSale(cashier);
     if (!res.ok) { return toast(res.error); }
     toast(`Sale ${res.sale.invoiceNo} · ${money(res.sale.total)} by ${res.sale.payment}` + (res.sale.customerName ? ` · +${res.sale.pointsEarned} pts` : ''));
     navigate(`/sales/${res.sale.invoiceNo}/receipt`);
@@ -250,7 +251,7 @@ export function Cart() {
                   <span className="mono" style={{ fontSize: 12, color: 'var(--ink)', fontWeight: 600 }}>{money(t.tax)}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
-                  <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>TAX GST {Math.round(TAX_RATE * 100)}%</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Tax {Math.round(taxRate * 1000) / 10}%</span>
                   <span className="mono" style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700 }}>−{money(t.redeem)}</span>
                   <span className="mono" style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700 }}>−{money(t.discount)}</span>
                   <span className="mono" style={{ fontSize: 12, color: 'var(--ink)', fontWeight: 600 }}>{money(t.tax)}</span>

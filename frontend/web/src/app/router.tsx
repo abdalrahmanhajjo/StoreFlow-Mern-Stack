@@ -14,6 +14,7 @@ const LegalNoticePage = lazy(() => import('@/features/legal/LegalNoticePage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
 const ResetPage = lazy(() => import('@/features/auth/ResetPage'));
+const AcceptInvitePage = lazy(() => import('@/features/auth/AcceptInvitePage'));
 const PendingApprovalPage = lazy(() => import('@/features/auth/PendingApprovalPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const SuppliersPage = lazy(() => import('@/features/suppliers/SuppliersPage'));
@@ -25,6 +26,7 @@ const ReceiptPage = lazy(() => import('@/features/sales/ReceiptPage'));
 const CustomersPage = lazy(() => import('@/features/customers/CustomersPage'));
 const CustomerProfile = lazy(() => import('@/features/customers/CustomerProfile'));
 const ProductsPage = lazy(() => import('@/features/products/ProductsPage'));
+const ProductsImportPage = lazy(() => import('@/features/import/ProductsImportPage'));
 const CategoriesPage = lazy(() => import('@/features/categories/CategoriesPage'));
 const InventoryPage = lazy(() => import('@/features/inventory/InventoryPage'));
 const SalesPage = lazy(() => import('@/features/sales/SalesPage'));
@@ -70,6 +72,10 @@ export function AppRouter() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset" element={<ResetPage />} />
+          {/* Target of the emailed reset link (?token=…) */}
+          <Route path="/reset-password" element={<ResetPage />} />
+          {/* Target of the employee invite email */}
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/403" element={<Forbidden />} />
           <Route path="/500" element={<Error500 />} />
@@ -78,18 +84,19 @@ export function AppRouter() {
           <Route element={<RequireAuth><AppShell /></RequireAuth>}>
             {/* store */}
             <Route path="/dashboard" element={<RequireRole roles={['owner', 'manager']}><DashboardPage /></RequireRole>} />
-            <Route path="/pos" element={<RequireRole roles={['owner', 'cashier']}><PosPage /></RequireRole>} />
+            <Route path="/pos" element={<RequireRole roles={['owner', 'manager', 'cashier']}><PosPage /></RequireRole>} />
             <Route path="/sales" element={<RequireRole roles={[...STORE]}><SalesPage /></RequireRole>} />
             <Route path="/sales/:invoiceNo/receipt" element={<RequireRole roles={[...STORE]}><ReceiptPage /></RequireRole>} />
             <Route path="/products" element={<RequireRole roles={['owner', 'manager']}><ProductsPage /></RequireRole>} />
-            <Route path="/categories" element={<RequireRole roles={['owner']}><CategoriesPage /></RequireRole>} />
+            <Route path="/products/import" element={<RequireRole roles={['owner', 'manager']}><ProductsImportPage /></RequireRole>} />
+            <Route path="/categories" element={<RequireRole roles={['owner', 'manager']}><CategoriesPage /></RequireRole>} />
             <Route path="/inventory" element={<RequireRole roles={['owner', 'manager']}><InventoryPage /></RequireRole>} />
             <Route path="/customers" element={<RequireRole roles={[...STORE]}><CustomersPage /></RequireRole>} />
             <Route path="/customers/:id" element={<RequireRole roles={[...STORE]}><CustomerProfile /></RequireRole>} />
-            <Route path="/suppliers" element={<RequireRole roles={['owner']}><SuppliersPage /></RequireRole>} />
-            <Route path="/purchase-orders" element={<RequireRole roles={['owner']}><PurchaseOrdersPage /></RequireRole>} />
+            <Route path="/suppliers" element={<RequireRole roles={['owner', 'manager']}><SuppliersPage /></RequireRole>} />
+            <Route path="/purchase-orders" element={<RequireRole roles={['owner', 'manager']}><PurchaseOrdersPage /></RequireRole>} />
             <Route path="/reports" element={<RequireRole roles={['owner', 'manager']}><ReportsPage /></RequireRole>} />
-            <Route path="/employees" element={<RequireRole roles={['owner', 'manager']}><EmployeesPage /></RequireRole>} />
+            <Route path="/employees" element={<RequireRole roles={['owner']}><EmployeesPage /></RequireRole>} />
             <Route path="/settings" element={<RequireRole roles={['owner']}><StoreSettingsPage /></RequireRole>} />
             {/* platform admin */}
             <Route path="/admin/overview" element={<RequireRole roles={['platform_admin']}><OverviewPage /></RequireRole>} />

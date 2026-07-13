@@ -13,7 +13,7 @@ import {
   signAccessToken,
   generateRawToken,
   hashToken,
-  sendPasswordResetEmail,
+  sendPasswordResetCode,
   sendEmailVerificationCode,
 } from '../utils/auth.utils';
 
@@ -22,6 +22,8 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  verifyResetCodeSchema,
+  acceptInviteSchema,
   verifyEmailCodeSchema,
   resendVerificationCodeSchema,
 } from '../validators/auth.validator';
@@ -32,17 +34,26 @@ const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_LOCK_MINUTES = 15;
 
-const RESET_TOKEN_TTL_MINUTES = 30;
+const RESET_CODE_TTL_MINUTES = 10;
 
 const EMAIL_VERIFICATION_CODE_TTL_MINUTES = 10;
 
-const cookieOptions = (expires?: Date) => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  path: '/api/auth',
-  expires,
-});
+// Over HTTPS (the deployed site, where the frontend and API are on different
+// domains) the refresh cookie must be SameSite=None + Secure or the browser
+// drops it on cross-site requests and silent refresh breaks. Over plain HTTP
+// (local dev) that combo is invalid, so we use Lax + insecure. We key off the
+// actual request protocol (req.secure, via `trust proxy`) rather than
+// NODE_ENV, so it's always correct regardless of how NODE_ENV is spelled.
+const cookieBase = (req: Request) => {
+  const https = req.secure;
+  return {
+    httpOnly: true,
+    secure: https,
+    sameSite: (https ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/api/auth',
+  };
+};
+const cookieOptions = (req: Request, expires?: Date) => ({ ...cookieBase(req), expires });
 
 const generateEmailVerificationCode = () => {
   return randomInt(100000, 1000000).toString();
@@ -121,7 +132,6 @@ export const register = async (req: Request, res: Response) => {
         status: 'pending' as const,
         ownerId: owner._id,
         subscription: {
-          plan: 'trial',
           trialEndsAt,
           status: 'trial' as const,
         },
@@ -141,16 +151,21 @@ export const register = async (req: Request, res: Response) => {
 
       await owner.save();
 
-      await sendEmailVerificationCode(owner.email, verificationCode);
+      // Email failure must NOT roll back the account (the code send is outside
+      // the store-creation rollback, and the sender never throws) — the user
+      // can request a fresh code from the verify screen if it didn't arrive.
+      const emailSent = await sendEmailVerificationCode(owner.email, verificationCode);
 
       res.status(201).json({
-        message:
-          'Store registered. Verification code sent to your email. Please verify your email before logging in.',
+        message: emailSent
+          ? 'Store registered. Verification code sent to your email. Please verify your email before logging in.'
+          : "Store registered, but we couldn't send the verification email. Use \"Resend code\" on the next screen.",
         data: {
           userId: owner._id,
           storeId: store._id,
           email: owner.email,
           isEmailVerified: owner.isEmailVerified,
+          emailSent,
         },
       });
     } catch (storeErr) {
@@ -356,27 +371,45 @@ export const login = async (req: Request, res: Response) => {
       return invalidCreds();
     }
 
+    // Invited staff who haven't accepted yet are inactive with no usable
+    // password; treat as "still needs setup".
+    if (user.isActive === false) {
+      return res.status(403).json({
+        code: 'INVITE_PENDING',
+        message: 'Finish setting up your account from your invite email first.',
+      });
+    }
+
     if (!user.isEmailVerified) {
       return res.status(403).json({
+        code: 'EMAIL_UNVERIFIED',
         message: 'Please verify your email before logging in.',
       });
     }
-  
-    // platform_admin has no storeId and bypasses store-status checks entirely.
-    if (user.role !== 'platform_admin' && user.storeId) {
-      const store = await Store.findById(user.storeId);
-      if (!store || store.status !== 'active') {
-        await LoginAttempt.create({
-          email: input.email,
-          ip,
-          success: false,
-        });
 
+    const store = user.storeId ? await Store.findById(user.storeId) : null;
+
+    // Store owners/staff can't sign in until a platform admin approves the
+    // store. Blocked sign-ins still land in the login-attempt log.
+    if (store && store.status !== 'active') {
+      await LoginAttempt.create({
+        email: input.email,
+        ip,
+        success: false,
+      });
+
+      if (store.status === 'pending') {
         return res.status(403).json({
-          code: 'STORE_NOT_ACTIVE',
-          message: 'Your store is awaiting admin approval.',
+          code: 'PENDING_APPROVAL',
+          message:
+            "Your account is still under review. We'll notify you once approved.",
         });
       }
+
+      return res.status(403).json({
+        code: 'STORE_SUSPENDED',
+        message: 'This store is suspended. Contact support for help.',
+      });
     }
 
     user.failedLoginAttempts = 0;
@@ -393,7 +426,7 @@ export const login = async (req: Request, res: Response) => {
     const { accessToken, rawRefreshToken, refreshTokenExpiresAt } =
       await issueTokens(user);
 
-    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(refreshTokenExpiresAt));
+    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(req, refreshTokenExpiresAt));
 
     res.json({
       accessToken,
@@ -403,6 +436,7 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         storeId: user.storeId,
+        businessType: store?.businessType ?? null,
         isEmailVerified: user.isEmailVerified,
       },
     });
@@ -482,7 +516,7 @@ export const refresh = async (req: Request, res: Response) => {
     stored.revokedAt = new Date();
     await stored.save();
 
-    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(refreshTokenExpiresAt));
+    res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(req, refreshTokenExpiresAt));
 
     res.json({
       accessToken,
@@ -513,9 +547,8 @@ export const logout = async (req: Request, res: Response) => {
     );
   }
 
-  res.clearCookie(REFRESH_COOKIE, {
-    path: '/api/auth',
-  });
+  // Must match the attributes the cookie was set with, or it won't clear.
+  res.clearCookie(REFRESH_COOKIE, cookieBase(req));
 
   res.status(204).send();
 };
@@ -529,13 +562,97 @@ export const me = async (req: Request, res: Response) => {
     });
   }
 
+  const store = user.storeId ? await Store.findById(user.storeId) : null;
+
   res.json({
     id: user._id,
     name: user.name,
     email: user.email,
     role: user.role,
     storeId: user.storeId,
+    businessType: store?.businessType ?? null,
     isEmailVerified: user.isEmailVerified,
+  });
+};
+
+
+
+
+export const sessionStatus = async (req: Request, res: Response) => {
+  try {
+    const incoming = req.cookies?.[REFRESH_COOKIE];
+
+    if (!incoming) {
+      return res.status(401).json({
+        active: false,
+        message: 'No active session',
+      });
+    }
+
+    const tokenHash = hashToken(incoming);
+
+    const stored = await RefreshToken.findOne({ tokenHash });
+
+    if (!stored || stored.revokedAt || stored.expiresAt.getTime() < Date.now()) {
+      res.clearCookie(REFRESH_COOKIE, cookieBase(req));
+
+      return res.status(401).json({
+        active: false,
+        message: 'Session ended',
+      });
+    }
+
+    res.json({
+      active: true,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      active: false,
+      message: 'Could not check session',
+    });
+  }
+};
+
+
+
+
+
+// ---------------------------------------------------------------------------
+// Approval status — polled by the registration pending screen (public).
+// Step mirrors the review pipeline: 0=submitted, 1=identity, 2=business,
+// 3=activated, 4=approved.
+// ---------------------------------------------------------------------------
+export const approvalStatus = async (req: Request, res: Response) => {
+  const email = String(req.query.email ?? '').trim().toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ message: 'email query param is required' });
+  }
+
+  const user = await User.findOne({ email });
+  const store = user?.storeId ? await Store.findById(user.storeId) : null;
+
+  // Unknown emails read as approved so the endpoint can't be used to
+  // enumerate which addresses have an account.
+  if (!user || !store) {
+    return res.json({ status: 'approved', name: '', step: 4 });
+  }
+
+  if (store.status === 'suspended') {
+    return res.json({ status: 'rejected', name: user.name, step: 0 });
+  }
+
+  if (store.status === 'active') {
+    return res.json({ status: 'approved', name: user.name, step: 4 });
+  }
+
+  // Pending: email verification is the first concrete milestone we can show.
+  return res.json({
+    status: 'pending',
+    name: user.name,
+    step: user.isEmailVerified ? 2 : 1,
   });
 };
 
@@ -549,22 +666,21 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const user = await User.findOne({ email });
 
     if (user) {
-      const rawToken = generateRawToken(32);
+      // Same OTP experience as registration: a 6-digit emailed code.
+      const code = generateEmailVerificationCode();
 
-      user.passwordResetTokenHash = hashToken(rawToken);
+      user.passwordResetTokenHash = hashToken(code);
       user.passwordResetExpires = new Date(
-        Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000
+        Date.now() + RESET_CODE_TTL_MINUTES * 60 * 1000
       );
 
       await user.save();
 
-      const resetUrl = `${process.env.CLIENT_APP_URL}/reset-password?token=${rawToken}`;
-
-      await sendPasswordResetEmail(user.email, resetUrl);
+      await sendPasswordResetCode(user.email, code);
     }
 
     res.json({
-      message: 'If that email exists, a reset link has been sent.',
+      message: 'If that email exists, a reset code has been sent.',
     });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -582,13 +698,47 @@ export const forgotPassword = async (req: Request, res: Response) => {
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
+/** Validates a reset code without consuming it — the reset page's OTP step. */
+export const verifyResetCode = async (req: Request, res: Response) => {
   try {
-    const { token, newPassword } = resetPasswordSchema.parse(req.body);
-    const tokenHash = hashToken(token);
+    const { email, code } = verifyResetCodeSchema.parse(req.body);
 
     const user = await User.findOne({
-      passwordResetTokenHash: tokenHash,
+      email,
+      passwordResetTokenHash: hashToken(code),
+      passwordResetExpires: { $gt: new Date() },
+    }).select('+passwordResetTokenHash +passwordResetExpires');
+
+    if (!user) {
+      return res.status(400).json({
+        message: 'Reset code is invalid or has expired',
+      });
+    }
+
+    res.json({ message: 'Code verified' });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: err.flatten(),
+      });
+    }
+
+    console.error(err);
+
+    res.status(500).json({
+      message: 'Could not verify code',
+    });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { email, code, newPassword } = resetPasswordSchema.parse(req.body);
+
+    const user = await User.findOne({
+      email,
+      passwordResetTokenHash: hashToken(code),
       passwordResetExpires: {
         $gt: new Date(),
       },
@@ -596,7 +746,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(400).json({
-        message: 'Password reset token is invalid or has expired',
+        message: 'Reset code is invalid or has expired',
       });
     }
 
@@ -636,5 +786,72 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(500).json({
       message: 'Could not reset password',
     });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Employee invites — the invitee finishes their own account (public).
+// The token is the same hashed-token mechanism as password reset.
+// ---------------------------------------------------------------------------
+
+/** Read-only: name/email/store for the accept-invite page (no token consumed). */
+export const inviteInfo = async (req: Request, res: Response) => {
+  const token = String(req.query.token ?? '');
+  if (!token) return res.status(400).json({ message: 'Missing invite token' });
+
+  const user = await User.findOne({
+    passwordResetTokenHash: hashToken(token),
+    passwordResetExpires: { $gt: new Date() },
+    isActive: false,
+  }).select('name email role storeId');
+
+  if (!user) {
+    return res.status(400).json({ message: 'This invite is invalid or has expired' });
+  }
+
+  const store = user.storeId ? await Store.findById(user.storeId).select('storeName') : null;
+  res.json({
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    storeName: store?.storeName ?? null,
+  });
+};
+
+export const acceptInvite = async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword, name } = acceptInviteSchema.parse(req.body);
+
+    const user = await User.findOne({
+      passwordResetTokenHash: hashToken(token),
+      passwordResetExpires: { $gt: new Date() },
+      isActive: false,
+    }).select('+passwordResetTokenHash +passwordResetExpires');
+
+    if (!user) {
+      return res.status(400).json({ message: 'This invite is invalid or has expired' });
+    }
+
+    user.passwordHash = await hashPassword(newPassword);
+    if (name && name.trim()) user.name = name.trim();
+    // Accepting the invite proves the invitee controls the mailbox it went to.
+    user.isActive = true;
+    user.isEmailVerified = true;
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpires = null;
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+
+    res.json({ message: 'Account set up. You can now sign in.' });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: err.flatten(),
+      });
+    }
+    console.error(err);
+    res.status(500).json({ message: 'Could not complete the invite' });
   }
 };

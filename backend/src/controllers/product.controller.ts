@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import Product from "../models/product.model";
 import Category from "../models/category.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all products with filters and pagination
 export const getProducts = async (req: Request, res: Response) => {
@@ -18,7 +19,7 @@ export const getProducts = async (req: Request, res: Response) => {
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const filter: any = {};
+    const filter: any = { ...tenantFilter(req) };
 
     // Status filter
     // status=active → active products
@@ -151,7 +152,7 @@ export const getProductById = async (req: Request, res: Response) => {
       return;
     }
 
-    const product = await Product.findOne({
+    const product = await Product.findOne({ ...tenantFilter(req),
       _id: id,
       isActive: true,
     }).populate("categoryId", "name description");
@@ -190,6 +191,7 @@ export const createProduct = async (req: Request, res: Response) => {
       quantity = 0,
       reorderThreshold = 5,
       imageUrl,
+      emoji,
       categoryId,
     } = req.body;
 
@@ -209,7 +211,7 @@ export const createProduct = async (req: Request, res: Response) => {
       return;
     }
 
-    const category = await Category.findOne({
+    const category = await Category.findOne({ ...tenantFilter(req),
       _id: categoryId,
       isActive: true,
     });
@@ -222,7 +224,7 @@ export const createProduct = async (req: Request, res: Response) => {
       return;
     }
 
-    const product = await Product.create({
+    const product = await Product.create({ storeId: req.storeId!, 
       name,
       sku,
       barcode,
@@ -232,6 +234,7 @@ export const createProduct = async (req: Request, res: Response) => {
       quantity,
       reorderThreshold,
       imageUrl,
+      emoji,
       categoryId,
     });
 
@@ -241,6 +244,20 @@ export const createProduct = async (req: Request, res: Response) => {
       data: product,
     });
   } catch (error: any) {
+    // A unique-index violation (duplicate SKU/barcode within the store) must
+    // return a clean 409 — never the raw Mongo error, which leaks the database
+    // name, collection, index and a real ObjectId.
+    if (error?.code === 11000) {
+      // The unique index is compound (storeId + sku); report the meaningful
+      // field to the user, never the internal tenant key.
+      const field =
+        Object.keys(error.keyValue ?? {}).find((k) => k !== "storeId") ?? "SKU";
+      res.status(409).json({
+        success: false,
+        message: `A product with this ${field} already exists.`,
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: "Failed to create product",
@@ -271,7 +288,7 @@ export const updateProduct = async (req: Request, res: Response) => {
         return;
       }
 
-      const category = await Category.findOne({
+      const category = await Category.findOne({ ...tenantFilter(req),
         _id: req.body.categoryId,
         isActive: true,
       });
@@ -286,7 +303,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     const product = await Product.findOneAndUpdate(
-      {
+            { ...tenantFilter(req),
         _id: id,
         isActive: true,
       },
@@ -311,6 +328,17 @@ export const updateProduct = async (req: Request, res: Response) => {
       data: product,
     });
   } catch (error: any) {
+    if (error?.code === 11000) {
+      // The unique index is compound (storeId + sku); report the meaningful
+      // field to the user, never the internal tenant key.
+      const field =
+        Object.keys(error.keyValue ?? {}).find((k) => k !== "storeId") ?? "SKU";
+      res.status(409).json({
+        success: false,
+        message: `A product with this ${field} already exists.`,
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: "Failed to update product",
@@ -333,7 +361,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
     }
 
     const product = await Product.findOneAndUpdate(
-      {
+            { ...tenantFilter(req),
         _id: id,
         isActive: true,
       },
@@ -369,7 +397,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
 // GET low stock products
 export const getLowStockProducts = async (req: Request, res: Response) => {
   try {
-    const products = await Product.find({
+    const products = await Product.find({ ...tenantFilter(req),
       isActive: true,
       $expr: {
         $lte: ["$quantity", "$reorderThreshold"],
@@ -415,7 +443,7 @@ export const updateProductStock = async (req: Request, res: Response) => {
     }
 
     const product = await Product.findOneAndUpdate(
-      {
+            { ...tenantFilter(req),
         _id: id,
         isActive: true,
       },

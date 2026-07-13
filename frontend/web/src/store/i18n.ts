@@ -12,7 +12,13 @@ interface I18nState {
   configure: (locale: string, currency: string, timezone: string) => void;
 }
 
-const DEFAULT_LOCALE = 'en-US';
+// The app is English-only (all UI text is authored in English, no translation
+// layer), so the whole product formats numbers/dates in English and lays out
+// left-to-right regardless of a store's business-type locale. Only currency is
+// per-store. Import UI_LOCALE wherever a store profile would otherwise supply
+// its own locale.
+export const UI_LOCALE = 'en-US';
+const DEFAULT_LOCALE = UI_LOCALE;
 const DEFAULT_CURRENCY = 'USD';
 const DEFAULT_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

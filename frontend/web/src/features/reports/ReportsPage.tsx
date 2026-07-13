@@ -62,10 +62,6 @@ export default function ReportsPage() {
     toast(`${filtered.length} sale${filtered.length !== 1 ? 's' : ''} exported`);
   };
 
-  const exportPdf = () => {
-    toast('PDF report generation — coming soon');
-  };
-
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-end', marginBottom: isMobile ? 14 : 18, gap: 10, flexDirection: isMobile ? 'column' : 'row' }}>
@@ -75,8 +71,7 @@ export default function ReportsPage() {
           <p style={{ margin: '2px 0 0', color: 'var(--ink-soft)', fontSize: isMobile ? 12 : 13 }}>{filtered.length} of {sales.length} invoices · {money(revenue)} total revenue</p>
         </div>
         <div style={{ display: 'flex', gap: 6, width: isMobile ? '100%' : undefined, flexDirection: isMobile ? 'row' : 'row' }}>
-          <Button variant="ghost" size="sm" onClick={exportCsv} disabled={filtered.length === 0} style={{ flex: isMobile ? 1 : undefined, justifyContent: 'center' }}>⤓ CSV</Button>
-          <Button variant="ghost" size="sm" onClick={exportPdf} disabled={filtered.length === 0} style={{ flex: isMobile ? 1 : undefined, justifyContent: 'center' }}>⤓ PDF</Button>
+          <Button variant="ghost" size="sm" onClick={exportCsv} disabled={filtered.length === 0} style={{ flex: isMobile ? 1 : undefined, justifyContent: 'center' }}>⤓ Export CSV</Button>
         </div>
       </div>
 

@@ -33,8 +33,19 @@ export const forgotPasswordSchema = z.object({
   email: z.string().email(),
 });
 
+const resetCode = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, 'Reset code must be 6 digits');
+
+export const verifyResetCodeSchema = z.object({
+  email: z.string().trim().email().toLowerCase(),
+  code: resetCode,
+});
+
 export const resetPasswordSchema = z.object({
-  token: z.string().min(10),
+  email: z.string().trim().email().toLowerCase(),
+  code: resetCode,
   newPassword: z.string().min(8).max(72),
 });
 
@@ -58,4 +69,10 @@ export const resendVerificationCodeSchema = z.object({
     .trim()
     .email('Email must be valid')
     .toLowerCase(),
+});
+
+export const acceptInviteSchema = z.object({
+  token: z.string().min(10),
+  newPassword: z.string().min(8).max(72),
+  name: z.string().trim().min(2).max(120).optional(),
 });

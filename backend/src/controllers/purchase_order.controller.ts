@@ -4,6 +4,7 @@ import PurchaseOrder from "../models/purchase_order.model";
 import Supplier from "../models/supplier.model";
 import Product from "../models/product.model";
 import AuditLog from "../models/audit_log.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 const generateOrderNumber = (): string => {
     const date = new Date();
@@ -35,6 +36,7 @@ export const getPurchaseOrders = async (req: Request, res: Response) => {
         const status = req.query.status as string | undefined;
 
         const filter: any = {
+        ...tenantFilter(req),
             isActive: true,
         };
 
@@ -74,7 +76,7 @@ export const getPurchaseOrderById = async (req: Request, res: Response) => {
             return;
         }
 
-        const purchaseOrder = await PurchaseOrder.findOne({
+        const purchaseOrder = await PurchaseOrder.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         })
@@ -118,7 +120,7 @@ export const getPurchaseOrdersBySupplier = async (
             return;
         }
 
-        const supplier = await Supplier.findOne({
+        const supplier = await Supplier.findOne({ ...tenantFilter(req),
             _id: supplierId,
             isActive: true,
         });
@@ -131,7 +133,7 @@ export const getPurchaseOrdersBySupplier = async (
             return;
         }
 
-        const purchaseOrders = await PurchaseOrder.find({
+        const purchaseOrders = await PurchaseOrder.find({ ...tenantFilter(req),
             supplierId,
             isActive: true,
         })
@@ -171,7 +173,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
             return;
         }
 
-        const supplier = await Supplier.findOne({
+        const supplier = await Supplier.findOne({ ...tenantFilter(req),
             _id: supplierId,
             isActive: true,
         });
@@ -227,7 +229,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
                 return;
             }
 
-            const product = await Product.findOne({
+            const product = await Product.findOne({ ...tenantFilter(req),
                 _id: productId,
                 isActive: true,
             });
@@ -256,7 +258,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
 
         const orderNumber = generateOrderNumber();
 
-        const purchaseOrder = await PurchaseOrder.create({
+        const purchaseOrder = await PurchaseOrder.create({ storeId: req.storeId!, 
             supplierId,
             supplierName: supplier.name,
             orderNumber,
@@ -299,7 +301,7 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
             return;
         }
 
-        const purchaseOrder = await PurchaseOrder.findOne({
+        const purchaseOrder = await PurchaseOrder.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         });
@@ -400,7 +402,7 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
             return;
         }
 
-        const purchaseOrder = await PurchaseOrder.findOne({
+        const purchaseOrder = await PurchaseOrder.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         });
@@ -478,7 +480,7 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
                 return;
             }
 
-            const productBeforeUpdate = await Product.findOne({
+            const productBeforeUpdate = await Product.findOne({ ...tenantFilter(req),
                 _id: productId,
                 isActive: true,
             });
@@ -525,7 +527,7 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
                 newQuantity: updatedProduct.quantity,
             });
 
-            await AuditLog.create({
+            await AuditLog.create({ storeId: req.storeId!, 
                 action: "PO_STOCK_INCREASE",
                 entity: "Product",
                 entityId: updatedProduct._id,
@@ -565,7 +567,7 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
 
         await purchaseOrder.save();
 
-        await AuditLog.create({
+        await AuditLog.create({ storeId: req.storeId!, 
             action: "RECEIVE_PURCHASE_ORDER",
             entity: "PurchaseOrder",
             entityId: purchaseOrder._id,
@@ -612,7 +614,7 @@ export const cancelPurchaseOrder = async (req: Request, res: Response) => {
             return;
         }
 
-        const purchaseOrder = await PurchaseOrder.findOne({
+        const purchaseOrder = await PurchaseOrder.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         });
@@ -667,7 +669,7 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
         }
 
         const purchaseOrder = await PurchaseOrder.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },

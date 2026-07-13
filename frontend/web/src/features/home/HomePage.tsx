@@ -168,6 +168,9 @@ const CHAPTERS = [
   { title: 'Receipt & restock', desc: 'Stock decrements and the ledger updates itself.', dur: 5200 },
 ];
 
+/** Full runtime of one sale, all chapters — shown in the tour kicker. */
+const TOUR_RUNTIME = CHAPTERS.reduce((sum, c) => sum + c.dur, 0);
+
 const SERVICES = [
   'Point of Sale',
   'Inventory & Stock',
@@ -266,6 +269,7 @@ export default function HomePage() {
   const [tourBiz, setTourBiz] = useState<BusinessType>('restaurant');
   const [scene, setScene] = useState(0);
   const [tourPaused, setTourPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
   const [tourInView, setTourInView] = useState(false);
   const tourRef = useRef<HTMLDivElement>(null);
   const [quotePage, setQuotePage] = useState(0);
@@ -345,7 +349,7 @@ export default function HomePage() {
   // full sale the next store takes the counter. Hover/focus pauses, reduced
   // motion stops autoplay entirely.
   useEffect(() => {
-    if (!tourInView || tourPaused) return;
+    if (!tourInView || tourPaused || userPaused) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const id = setTimeout(() => {
       if (scene < CHAPTERS.length - 1) {
@@ -357,7 +361,7 @@ export default function HomePage() {
       }
     }, CHAPTERS[scene].dur);
     return () => clearTimeout(id);
-  }, [scene, tourBiz, tourPaused, tourInView]);
+  }, [scene, tourBiz, tourPaused, userPaused, tourInView]);
 
   const totalUsers = tenants.reduce((sum, tenant) => sum + tenant.users, 0);
   const pendingOrders = purchaseOrders.filter((order) => order.status === 'pending');
@@ -483,11 +487,27 @@ export default function HomePage() {
           </div>
           <span className="sf-belt-scanner" />
         </div>
+
+        {/* Tonal water under the counter: one filled swell + two hairline sines,
+            drifting at different speeds and directions. Inline SVG so the
+            strokes/fills pick up theme tokens in both light and dark. */}
+        <div className="sf-hero-waves" aria-hidden>
+          <svg className="w1" viewBox="0 0 1440 160" preserveAspectRatio="none">
+            <path d="M0,80 C120,40 240,40 360,80 C480,120 600,120 720,80 C840,40 960,40 1080,80 C1200,120 1320,120 1440,80 L1440,160 0,160 Z" />
+          </svg>
+          <svg className="w2" viewBox="0 0 1440 160" preserveAspectRatio="none">
+            <path vectorEffect="non-scaling-stroke" d="M0,84 C120,124 240,124 360,84 C480,44 600,44 720,84 C840,124 960,124 1080,84 C1200,44 1320,44 1440,84" />
+          </svg>
+          <svg className="w3" viewBox="0 0 1440 160" preserveAspectRatio="none">
+            <path vectorEffect="non-scaling-stroke" d="M0,110 C120,86 240,86 360,110 C480,134 600,134 720,110 C840,86 960,86 1080,110 C1200,134 1320,134 1440,110" />
+          </svg>
+        </div>
       </section>
 
       <section id="features" className="sf-features">
         <div className="sf-shell">
           <div className="sf-section-head centered" data-reveal>
+            <span className="sf-kicker mono">Product tour · one sale in ~{Math.round(TOUR_RUNTIME / 1000)} seconds</span>
             <h2 className="display">Watch the <em>Full Process</em></h2>
             <p>
               One sale, start to finish, on real seed data — now playing at{' '}
@@ -497,7 +517,7 @@ export default function HomePage() {
 
           <div
             ref={tourRef}
-            className={`sf-tour${tourPaused ? ' paused' : ''}${tourInView && !tourPaused ? ' playing' : ''}`}
+            className={`sf-tour${tourPaused || userPaused ? ' paused' : ''}${tourInView && !tourPaused && !userPaused ? ' playing' : ''}`}
             data-reveal
             onMouseEnter={() => pauseTour(true)}
             onMouseLeave={() => pauseTour(false)}
@@ -526,6 +546,7 @@ export default function HomePage() {
 
                   <div className="sf-movie-pos" aria-hidden>
                     <div className="sf-movie-grid">
+                      {scene === 0 && <i className="sf-scan-beam" aria-hidden />}
                       {tourItems.map((item, i) => (
                         <div
                           key={item.id}
@@ -564,6 +585,9 @@ export default function HomePage() {
                           <span>
                             <b>{tourCustomer.name}</b>
                             <small>{tourCustomer.points} pts on file</small>
+                            <i className="sf-points-bar" aria-hidden>
+                              <em style={{ width: `${Math.min(100, (tourCustomer.points / 500) * 100)}%` }} />
+                            </i>
                           </span>
                           <em className={`sf-tier t-${tourTier.toLowerCase()}`}>{tourTier}</em>
                         </div>
@@ -590,6 +614,10 @@ export default function HomePage() {
                       <div className="sf-terminal-head">
                         <i /> Secure terminal · RF-01
                       </div>
+                      <div className="sf-terminal-pad">
+                        <span className="sf-nfc"><i /><i /><i /></span>
+                        <i className="sf-term-card"><b /><em /></i>
+                      </div>
                       <div className="sf-terminal-phases">
                         <span className="ph-a">Insert or tap card</span>
                         <span className="ph-b">Authorizing transaction…</span>
@@ -604,21 +632,22 @@ export default function HomePage() {
                       <b dir="auto">{tp.name}</b>
                       <small className="mono">Receipt · {tourTax}{tp.taxProfile.inclusive ? ' inclusive' : ''}</small>
                       <ul>
-                        {tourItems.map((item) => (
-                          <li key={item.id}>
+                        {tourItems.map((item, i) => (
+                          <li key={item.id} style={{ animationDelay: `${0.35 + i * 0.14}s` }}>
                             <span>{item.name}</span>
                             <b className="mono">{tourFmt.format(item.price)}</b>
                           </li>
                         ))}
-                        <li className="dis">
+                        <li className="dis" style={{ animationDelay: `${0.35 + tourItems.length * 0.14}s` }}>
                           <span>Discount 10%</span>
                           <b className="mono">−{tourFmt.format(tourDiscount)}</b>
                         </li>
-                        <li className="tot">
+                        <li className="tot" style={{ animationDelay: `${0.5 + tourItems.length * 0.14}s` }}>
                           <span>Total</span>
                           <b className="mono">{tourFmt.format(tourTotal)}</b>
                         </li>
                       </ul>
+                      <em className="sf-receipt-paid">PAID</em>
                       <p dir="ltr">+{tourPoints} pts for {tourCustomer.name.split(' ')[0]} · stock −1 each · sale in the audit log</p>
                       <small dir="ltr">
                         Back office already knows: {formatShortMoney(totalSales)} rung up platform-wide MTD,
@@ -675,12 +704,26 @@ export default function HomePage() {
             </div>
 
               <div className="sf-player">
-                <div className="sf-player-now">
-                  <i aria-hidden />
-                  <span>
-                    Now playing · <b dir="auto">{tp.name}</b> · {TYPE_LABEL[tourBiz]}
-                  </span>
-                  <em>{CHAPTERS[scene].desc}</em>
+                <div className="sf-player-bar">
+                  <button
+                    type="button"
+                    className="sf-play-btn"
+                    onClick={() => setUserPaused((p) => !p)}
+                    aria-label={userPaused ? 'Play the tour' : 'Pause the tour'}
+                  >
+                    {userPaused ? (
+                      <svg viewBox="0 0 16 16" aria-hidden><path d="M5.2 3.2v9.6l8-4.8z" fill="currentColor" /></svg>
+                    ) : (
+                      <svg viewBox="0 0 16 16" aria-hidden><path d="M4.4 3.2h2.7v9.6H4.4zM8.9 3.2h2.7v9.6H8.9z" fill="currentColor" /></svg>
+                    )}
+                  </button>
+                  <div className="sf-player-now">
+                    <i aria-hidden />
+                    <span>
+                      Now playing · <b dir="auto">{tp.name}</b> · {TYPE_LABEL[tourBiz]}
+                    </span>
+                    <em>{CHAPTERS[scene].desc}</em>
+                  </div>
                 </div>
                 <div className="sf-player-chapters" role="tablist" aria-label="Chapters of the sale">
                   {CHAPTERS.map((chapter, i) => (
@@ -694,17 +737,37 @@ export default function HomePage() {
                       className={scene === i ? 'active' : i < scene ? 'done' : undefined}
                       onClick={() => setScene(i)}
                     >
-                      <span>{chapter.title}</span>
+                      <span>
+                        <small className="mono">0{i + 1}</small>
+                        {chapter.title}
+                      </span>
                       <i className="sf-chap-track" aria-hidden>
                         {scene === i && (
                           <em
-                            key={`${tourBiz}-${i}-${tourPaused}-${tourInView}`}
+                            key={`${tourBiz}-${i}-${tourPaused}-${userPaused}-${tourInView}`}
                             style={{ animationDuration: `${chapter.dur}ms` }}
                           />
                         )}
                       </i>
                     </button>
                   ))}
+                </div>
+                <div className="sf-player-stores" role="group" aria-label="Pick the store the tour plays in">
+                  {TOUR_TYPES.map((t) => {
+                    const prof = getMockStore(t).profile;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        className={t === tourBiz ? 'active' : undefined}
+                        aria-pressed={t === tourBiz}
+                        onClick={() => pickBiz(t)}
+                      >
+                        <b dir="auto">{prof.name}</b>
+                        <small>{TYPE_LABEL[t]}</small>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

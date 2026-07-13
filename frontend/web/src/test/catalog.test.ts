@@ -26,14 +26,14 @@ describe('categories store (SF-602)', () => {
 
   it('blocks duplicate category names', () => {
     const { create } = useCategories.getState();
-    const dup = create('Bakery', '🍞', '');
+    const dup = create({ name: 'Bakery', emoji: '🍞', image: '', description: '' });
     expect(dup.ok).toBe(false);
   });
 
   it('creates a new unique category', () => {
     const { create, categories } = useCategories.getState();
     const before = categories.length;
-    const res = create('Frozen ' + Date.now(), '🧊', 'cold');
+    const res = create({ name: 'Frozen ' + Date.now(), emoji: '🧊', image: '', description: 'cold' });
     expect(res.ok).toBe(true);
     expect(useCategories.getState().categories.length).toBe(before + 1);
   });

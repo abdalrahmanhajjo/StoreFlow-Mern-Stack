@@ -3,7 +3,6 @@ import { useEmployees, type Employee, type StaffRole } from './employeesStore';
 import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { isConnected, apiResetEmployeePassword } from '@/lib/api/resources';
 import { Modal, Button, Badge, toast, confirm } from '@/components/ui';
 
 const ROLE_COLORS: Record<StaffRole, { bg: string; text: string }> = {
@@ -62,23 +61,6 @@ export default function EmployeesPage() {
     if (ok) {
       remove(e.id);
       toast(`${e.name} removed`);
-    }
-  };
-
-  const onResetPassword = async (e: Employee) => {
-    if (!isConnected) {
-      toast.success(`Password reset email sent to ${e.email}`, `${e.name} can set a new password from the "Forgot password" page.`);
-      return;
-    }
-    try {
-      const { emailSent } = await apiResetEmployeePassword(e.id);
-      if (emailSent) {
-        toast.success(`Password reset code emailed to ${e.email}`, `${e.name} can set a new password from the "Forgot password" page on the login screen.`);
-      } else {
-        toast.error(`Couldn't email the reset code to ${e.email}`, 'Check the email configuration and try again.');
-      }
-    } catch (err) {
-      toast.error((err as Error)?.message || 'Could not send the reset email');
     }
   };
 
@@ -197,15 +179,6 @@ export default function EmployeesPage() {
                         >
                           {e.status === 'active' ? 'Deactivate' : 'Activate'}
                         </button>
-                      )}
-
-                      {/* Reset password — owner only */}
-                      {can(myRole, 'employee.reset') && (
-                        <button type="button" onClick={() => onResetPassword(e)}
-                          style={{ flex: 1, padding: isMobile ? '10px 0' : '6px 0', fontSize: isMobile ? 13 : 11.5, fontWeight: 600, color: 'var(--ink-soft)', background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                          onMouseEnter={(e2) => e2.currentTarget.style.background = 'var(--paper-dim)'}
-                          onMouseLeave={(e2) => e2.currentTarget.style.background = 'transparent'}
-                        >Reset</button>
                       )}
 
                       {/* Delete */}

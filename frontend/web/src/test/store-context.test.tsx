@@ -69,11 +69,13 @@ describe('StoreProfileProvider', () => {
     expect(screen.getByTestId('money').textContent).not.toContain('$');
   });
 
-  it('sets dir/lang for RTL locales', () => {
+  it('renders English LTR even for an RTL-locale store (English-only UI)', () => {
+    // The pharmacy profile is ar-EG/RTL, but the app is English-only: the
+    // wrapper must stay en-US/ltr so layout and formatting never flip.
     const { container } = wrap(makeProfile(), 'manager', <Probe />);
     const wrapper = container.querySelector('div[dir]');
-    expect(wrapper).toHaveAttribute('dir', 'rtl');
-    expect(wrapper).toHaveAttribute('lang', 'ar-EG');
+    expect(wrapper).toHaveAttribute('dir', 'ltr');
+    expect(wrapper).toHaveAttribute('lang', 'en-US');
   });
 
   it('throws if hooks are used without the provider', () => {

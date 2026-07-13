@@ -9,7 +9,7 @@ import { completeSale } from '@/features/pos/checkout';
 describe('POS checkout flow (integration)', () => {
   beforeEach(() => useCart.getState().reset());
 
-  it('completes a sale: decrements stock, awards points, records the invoice', () => {
+  it('completes a sale: decrements stock, awards points, records the invoice', async () => {
     const product = useProducts.getState().products.find((p) => p.stock > 5)!;
     const stockBefore = product.stock;
     const customer = useCustomers.getState().customers.find((c) => c.points >= 100)!;
@@ -22,7 +22,7 @@ describe('POS checkout flow (integration)', () => {
     useCart.getState().setCustomer({ id: customer.id, name: customer.name, points: customer.points });
     useCart.getState().toggleRedeem();
 
-    const res = completeSale('Test Cashier');
+    const res = await completeSale('Test Cashier');
     expect(res.ok).toBe(true);
     if (!res.ok) return;
 
@@ -39,8 +39,8 @@ describe('POS checkout flow (integration)', () => {
     expect(useCart.getState().items.length).toBe(0);
   });
 
-  it('blocks checkout on an empty cart', () => {
-    const res = completeSale('Test Cashier');
+  it('blocks checkout on an empty cart', async () => {
+    const res = await completeSale('Test Cashier');
     expect(res.ok).toBe(false);
   });
 });

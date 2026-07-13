@@ -3,7 +3,7 @@ import { useProducts } from '@/features/products/productsStore';
 import { useInventory, type AdjustReason } from './inventoryStore';
 import { useSession } from '@/store/session';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { Modal, Button, Input, Badge, toast, confirmDialog } from '@/components/ui';
+import { Modal, Button, Input, Badge, toast, confirm } from '@/components/ui';
 
 const REASONS: AdjustReason[] = ['Restock', 'Damage', 'Recount', 'Expired'];
 
@@ -106,9 +106,9 @@ export default function InventoryPage() {
 
   const clearHistory = async () => {
     if (adjustments.length === 0) return;
-    if (await confirmDialog('Clear the entire adjustment history?')) {
+    if (await confirm({ title: 'Clear adjustment history?', message: 'This clears the history shown here. Stock levels are unchanged.', confirmLabel: 'Clear', danger: true })) {
       useInventory.getState().clear();
-      toast('History cleared');
+      toast('History view cleared');
     }
   };
 

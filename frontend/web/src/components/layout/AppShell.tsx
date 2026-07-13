@@ -9,14 +9,44 @@ import { useSession } from '@/store/session';
 import { StoreProfileProvider } from '@/config/StoreProfileContext';
 import { authRoleToStoreRole } from '@/config/roleMap';
 import { getMockStore } from '@/mocks';
+import { useStoreIdentity } from '@/lib/api/storeIdentity';
+import { useI18n, UI_LOCALE } from '@/store/i18n';
 
+/** In connected mode the store's real identity (name, currency) overlays the
+ * business-type template, so the shell and receipts never show demo branding. */
 function StoreProfileGate({ children }: { children: ReactNode }) {
   const user = useSession((s) => s.user);
   const businessType = user?.businessType ?? 'supermarket';
   const role = user ? authRoleToStoreRole(user.role) : 'cashier';
   const { profile } = getMockStore(businessType);
+  const realStore = useStoreIdentity((s) => s.store);
+  const storeId = user?.storeId ?? null;
+  // Pages format money through the global i18n store (non-reactive reads), so
+  // when the real currency arrives we configure it FIRST and then remount the
+  // subtree — every page re-renders against the correct formatters.
+  const [identityEpoch, setIdentityEpoch] = useState(0);
+  useEffect(() => {
+    if (storeId) useStoreIdentity.getState().load(storeId);
+  }, [storeId]);
+  useEffect(() => {
+    if (realStore) {
+      useI18n.getState().configure(UI_LOCALE, realStore.currency, profile.timezone ?? 'UTC');
+      setIdentityEpoch((e) => e + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realStore]);
+  const effective = realStore
+    ? {
+        ...profile,
+        name: realStore.name,
+        currency: realStore.currency,
+        // The store's own configured tax rate (stored as a percent) drives the
+        // POS, receipts and reports — not the business-type template default.
+        taxProfile: { ...profile.taxProfile, defaultRate: realStore.taxRate / 100 },
+      }
+    : profile;
   return (
-    <StoreProfileProvider profile={profile} role={role}>
+    <StoreProfileProvider key={identityEpoch} profile={effective} role={role}>
       {children}
     </StoreProfileProvider>
   );

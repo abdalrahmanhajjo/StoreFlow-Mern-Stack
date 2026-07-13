@@ -7,7 +7,7 @@ import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { money, points as fmtPoints } from '@/lib/format';
-import { Modal, Button, TierBadge, toast, confirmDialog } from '@/components/ui';
+import { Modal, Button, TierBadge, toast, confirm } from '@/components/ui';
 
 const TIER_COLORS: Record<string, string> = {
   Bronze: 'var(--amber-deep)', Silver: 'var(--ink-faint)', Gold: 'var(--amber-deep)',
@@ -47,6 +47,7 @@ export default function CustomersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const rows = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -64,16 +65,21 @@ export default function CustomersPage() {
   const avgSpent = useMemo(() => customers.length ? customers.reduce((s, c) => s + c.spent, 0) / customers.length : 0, [customers]);
 
   const openNew = () => {
-    setEditingId(null); setName(''); setPhone(''); setFormOpen(true);
+    setEditingId(null); setName(''); setPhone(''); setSaving(false); setFormOpen(true);
   };
 
   const openEdit = (c: typeof rows[number]) => {
-    setEditingId(c.id); setName(c.name); setPhone(c.phone); setFormOpen(true);
+    setEditingId(c.id); setName(c.name); setPhone(c.phone); setSaving(false); setFormOpen(true);
   };
 
   const onSave = () => {
+    if (saving) return;
     const trimmed = name.trim();
     if (trimmed.length < 2) return toast('Enter a customer name');
+    if (phone.trim() && !/^[0-9+\-\s()]{6,20}$/.test(phone.trim())) {
+      return toast('Enter a valid phone number');
+    }
+    setSaving(true);
     if (editingId) {
       update(editingId, { name: trimmed, phone });
       toast('Customer updated');
@@ -86,7 +92,7 @@ export default function CustomersPage() {
 
   const onDelete = async (c: typeof rows[number]) => {
     if (c.orders > 0) return toast(`Cannot delete — ${c.orders} sale(s) linked to “${c.name}”`);
-    if (await confirmDialog(`Remove customer “${c.name}”?`)) {
+    if (await confirm({ title: `Remove customer “${c.name}”?`, confirmLabel: 'Remove', danger: true })) {
       remove(c.id);
       toast(`“${c.name}” removed`);
     }
@@ -238,8 +244,8 @@ export default function CustomersPage() {
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 0134" style={{ width: '100%', padding: isMobile ? '12px 14px' : '11px 13px', border: '1px solid var(--line)', borderRadius: 11, fontFamily: 'inherit', fontSize: isMobile ? 16 : 14, color: 'var(--ink)', background: 'var(--paper)' }} />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }}>Cancel</Button>
-            <Button onClick={onSave} style={{ flex: 2 }}>{editingId ? 'Save changes' : 'Add customer'}</Button>
+            <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }} disabled={saving}>Cancel</Button>
+            <Button onClick={onSave} style={{ flex: 2 }} isLoading={saving}>{editingId ? 'Save changes' : 'Add customer'}</Button>
           </div>
         </Modal>
       )}

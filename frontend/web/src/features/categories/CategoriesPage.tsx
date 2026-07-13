@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useCategories } from './categoriesStore';
 import { useProducts } from '@/features/products/productsStore';
 import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
-import { Modal, Button, Input, confirmDialog, toast } from '@/components/ui';
+import { Modal, Button, Input, confirm, toast } from '@/components/ui';
 
-interface Row { id: string; name: string; emoji: string; description: string; count: number }
+interface Row { id: string; name: string; emoji: string; image: string; description: string; count: number }
 
 const EMOJI_GROUPS: { label: string; items: string[] }[] = [
   { label: 'Beverages', items: ['🥤', '🧃', '☕', '🍵', '🧉', '🥛', '🍺', '🍷', '🧊'] },
@@ -30,11 +30,13 @@ export default function CategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('');
+  const [image, setImage] = useState('');
   const [desc, setDesc] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const rows: Row[] = useMemo(
     () => categories.map((c) => ({
-      id: c.id, name: c.name, emoji: c.emoji, description: c.description,
+      id: c.id, name: c.name, emoji: c.emoji, image: c.image, description: c.description,
       count: products.filter((p) => p.category === c.name).length,
     })),
     [categories, products]
@@ -46,6 +48,7 @@ export default function CategoriesPage() {
     setEditingId(null);
     setName('');
     setEmoji('');
+    setImage('');
     setDesc('');
     setFormOpen(true);
   };
@@ -54,19 +57,30 @@ export default function CategoriesPage() {
     setEditingId(r.id);
     setName(r.name);
     setEmoji(r.emoji);
+    setImage(r.image ?? '');
     setDesc(r.description ?? '');
     setFormOpen(true);
+  };
+
+  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return toast('Please select an image file');
+    if (f.size > 2 * 1024 * 1024) return toast('Image must be under 2 MB');
+    const reader = new FileReader();
+    reader.onload = () => setImage(reader.result as string);
+    reader.readAsDataURL(f);
   };
 
   const onSave = () => {
     const trimmed = name.trim();
     if (trimmed.length < 2) return toast('Enter a category name');
     if (editingId) {
-      const res = update(editingId, { name: trimmed, emoji, description: desc });
+      const res = update(editingId, { name: trimmed, emoji, image, description: desc });
       if (!res.ok) return toast(res.error ?? 'Could not update');
       toast('Category updated');
     } else {
-      const res = create(trimmed, emoji, desc);
+      const res = create({ name: trimmed, emoji, image, description: desc });
       if (!res.ok) return toast(res.error ?? 'Could not create');
       toast(`Category “${trimmed}” added`);
     }
@@ -77,7 +91,7 @@ export default function CategoriesPage() {
     if (r.count > 0) {
       return toast(`Cannot delete — ${r.count} product(s) still use “${r.name}”`);
     }
-    if (await confirmDialog(`Delete category “${r.name}”?`)) {
+    if (await confirm({ title: `Delete category “${r.name}”?`, confirmLabel: 'Delete', danger: true })) {
       remove(r.id);
       toast(`“${r.name}” deleted`);
     }
@@ -122,7 +136,11 @@ export default function CategoriesPage() {
               <div key={r.id} className="sf-cat-card" style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
                 <div style={{ padding: 16, paddingBottom: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 28, lineHeight: 1 }}>{r.emoji || '📦'}</span>
+                    {r.image ? (
+                      <img src={r.image} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line-soft)' }} />
+                    ) : (
+                      <span style={{ fontSize: 28, lineHeight: 1 }}>{r.emoji || '📦'}</span>
+                    )}
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 9px', borderRadius: 6, background: r.count > 0 ? 'var(--blue-soft)' : 'var(--paper)', color: r.count > 0 ? 'var(--blue-deep)' : 'var(--ink-faint)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       {r.count} product{r.count !== 1 ? 's' : ''}
                     </span>
@@ -188,6 +206,24 @@ export default function CategoriesPage() {
 
           <div style={{ marginBottom: 18 }}>
             <Input label="Description (optional)" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="e.g. Chilled & frozen goods" />
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Image (optional)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 10, border: '1px solid var(--line-soft)', background: 'var(--paper)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 26 }}>
+                {image ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (emoji || '📦')}
+              </div>
+              <div>
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--line)', background: 'transparent', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'inherit' }}>
+                  Choose image
+                </button>
+                {image && <button type="button" onClick={() => setImage('')} style={{ display: 'block', marginTop: 6, padding: 0, border: 'none', background: 'transparent', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: 'var(--red)', fontFamily: 'inherit' }}>Remove</button>}
+              </div>
+            </div>
+            <p style={{ fontSize: 11.5, color: 'var(--ink-faint)', margin: '7px 0 0', lineHeight: 1.4 }}>PNG or JPG, max 2 MB. Falls back to the emoji when empty.</p>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>

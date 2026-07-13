@@ -3,7 +3,7 @@ import { useEmployees, type Employee, type StaffRole } from './employeesStore';
 import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { Modal, Button, Badge, toast, confirmDialog } from '@/components/ui';
+import { Modal, Button, Badge, toast, confirm } from '@/components/ui';
 
 const ROLE_COLORS: Record<StaffRole, { bg: string; text: string }> = {
   owner: { bg: 'var(--amber-soft)', text: 'var(--amber)' },
@@ -23,6 +23,7 @@ export default function EmployeesPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [newRole, setNewRole] = useState<StaffRole>(myRole === 'manager' ? 'cashier' : 'manager');
+  const [sending, setSending] = useState(false);
 
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -40,21 +41,24 @@ export default function EmployeesPage() {
   }, [employees, query, roleFilter]);
 
   const openNew = () => {
-    setName(''); setEmail(''); setNewRole(myRole === 'manager' ? 'cashier' : 'manager'); setFormOpen(true);
+    setName(''); setEmail(''); setNewRole(myRole === 'manager' ? 'cashier' : 'manager'); setSending(false); setFormOpen(true);
   };
 
   const submitInvite = () => {
+    if (sending) return;
     if (name.trim().length < 2) return toast('Enter a name');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('Enter a valid email');
+    setSending(true);
     const res = invite(name, email, newRole);
-    if (!res.ok) return toast(res.error ?? 'Could not add');
+    if (!res.ok) { setSending(false); return toast(res.error ?? 'Could not add'); }
     toast(`Invite sent to ${email}`);
     setFormOpen(false); setName(''); setEmail('');
   };
 
   const onDelete = async (e: Employee) => {
     if (e.role === 'owner') return;
-    if (await confirmDialog(`Remove ${e.name}?`)) {
+    const ok = await confirm({ title: `Remove ${e.name}?`, message: `${e.name}'s account will be permanently removed.`, confirmLabel: 'Remove', danger: true });
+    if (ok) {
       remove(e.id);
       toast(`${e.name} removed`);
     }
@@ -177,15 +181,6 @@ export default function EmployeesPage() {
                         </button>
                       )}
 
-                      {/* Reset password — owner only */}
-                      {can(myRole, 'employee.reset') && (
-                        <button type="button" onClick={() => toast(`Reset link sent to ${e.name}`)}
-                          style={{ flex: 1, padding: isMobile ? '10px 0' : '6px 0', fontSize: isMobile ? 13 : 11.5, fontWeight: 600, color: 'var(--ink-soft)', background: 'transparent', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                          onMouseEnter={(e2) => e2.currentTarget.style.background = 'var(--paper-dim)'}
-                          onMouseLeave={(e2) => e2.currentTarget.style.background = 'transparent'}
-                        >Reset</button>
-                      )}
-
                       {/* Delete */}
                       {canManage && (
                         <button type="button" onClick={() => onDelete(e)}
@@ -228,8 +223,8 @@ export default function EmployeesPage() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }}>Cancel</Button>
-          <Button onClick={submitInvite} style={{ flex: 2 }}>Send invite</Button>
+          <Button variant="ghost" onClick={() => setFormOpen(false)} style={{ flex: 1 }} disabled={sending}>Cancel</Button>
+          <Button onClick={submitInvite} style={{ flex: 2 }} isLoading={sending}>Send invite</Button>
         </div>
       </Modal>
     </>

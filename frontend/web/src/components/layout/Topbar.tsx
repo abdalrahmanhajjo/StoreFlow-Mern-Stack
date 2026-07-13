@@ -9,6 +9,7 @@ export function Topbar({ title, onMenu, showMenu, isOpen }: { title: string; onM
   const clear = useSession((s) => s.clear);
   const navigate = useNavigate();
   const [theme, setThemeState] = useState<Theme>(getTheme);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const toggleTheme = () => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
@@ -17,9 +18,14 @@ export function Topbar({ title, onMenu, showMenu, isOpen }: { title: string; onM
   };
 
   const logout = async () => {
-    await authService.logout();
-    clear();
-    navigate('/login', { replace: true });
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await authService.logout();
+    } finally {
+      clear();
+      navigate('/login', { replace: true });
+    }
   };
 
   return (
@@ -97,7 +103,7 @@ export function Topbar({ title, onMenu, showMenu, isOpen }: { title: string; onM
             }} />
             {theme === 'dark' ? 'Dark' : 'Light'}
           </button>
-          <Button variant="ghost" size="sm" onClick={logout}>Log out</Button>
+          <Button variant="ghost" size="sm" onClick={logout} isLoading={loggingOut}>Log out</Button>
         </div>
       </header>
     </>

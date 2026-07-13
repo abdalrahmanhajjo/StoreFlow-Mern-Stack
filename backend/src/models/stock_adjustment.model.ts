@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export type AdjustmentType = "increase" | "decrease" | "set";
 
 export interface IStockAdjustment extends Document {
+    storeId: mongoose.Types.ObjectId;
     productId: mongoose.Types.ObjectId;
     productName: string;
     sku: string;
@@ -19,6 +20,12 @@ export interface IStockAdjustment extends Document {
 
 const stockAdjustmentSchema = new Schema<IStockAdjustment>(
     {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
         productId: {
             type: Schema.Types.ObjectId,
             ref: "Product",

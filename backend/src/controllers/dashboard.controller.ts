@@ -3,18 +3,20 @@ import Sale from "../models/sale.model";
 import Customer from "../models/customer.model";
 import Product from "../models/product.model";
 import StoreSetting from "../models/store_setting.model";
+import { tenantFilter, tenantMatch } from "../utils/tenant.utils";
 
 export const getDashboardData = async (req: Request, res: Response) => {
     try {
         const recentLimit = Number(req.query.recentLimit) || 5;
 
-        const setting = await StoreSetting.findOne({ isActive: true });
+        const setting = await StoreSetting.findOne({ ...tenantFilter(req), isActive: true });
 
         const lowStockThreshold = setting?.lowStockThreshold || 5;
 
         const revenueResult = await Sale.aggregate([
             {
                 $match: {
+                    ...tenantMatch(req),
                     isActive: true,
                     status: "completed",
                 },
@@ -38,30 +40,38 @@ export const getDashboardData = async (req: Request, res: Response) => {
         };
 
         const totalCustomers = await Customer.countDocuments({
+            ...tenantFilter(req),
             isActive: true,
         });
 
         const totalProducts = await Product.countDocuments({
+            ...tenantFilter(req),
             isActive: true,
         });
 
+        // A product is low-stock when its on-hand quantity is at or below its
+        // own reorder threshold; products without a per-item threshold fall
+        // back to the store-wide setting. (The old aggregation read
+        // `stockQuantity`/`stock`, fields that don't exist on the Product
+        // model, so every product counted as low-stock.)
         const lowStockProducts = await Product.aggregate([
             {
                 $match: {
+                    ...tenantMatch(req),
                     isActive: true,
                 },
             },
             {
                 $addFields: {
-                    currentStock: {
-                        $ifNull: ["$stockQuantity", "$stock"],
+                    effectiveThreshold: {
+                        $ifNull: ["$reorderThreshold", lowStockThreshold],
                     },
                 },
             },
             {
                 $match: {
                     $expr: {
-                        $lte: ["$currentStock", lowStockThreshold],
+                        $lte: ["$quantity", "$effectiveThreshold"],
                     },
                 },
             },
@@ -73,6 +83,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
         const lowStockCount = lowStockProducts[0]?.count || 0;
 
         const recentSales = await Sale.find({
+            ...tenantFilter(req),
             isActive: true,
         })
             .sort({ createdAt: -1 })

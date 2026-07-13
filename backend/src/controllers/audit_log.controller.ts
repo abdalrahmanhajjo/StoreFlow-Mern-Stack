@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import AuditLog from "../models/audit_log.model";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all audit logs
 export const getAuditLogs = async (req: Request, res: Response) => {
@@ -11,6 +12,7 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         const search = req.query.search as string | undefined;
 
         const filter: any = {
+        ...tenantFilter(req),
             isActive: true,
         };
 
@@ -69,7 +71,7 @@ export const getAuditLogById = async (req: Request, res: Response) => {
             return;
         }
 
-        const log = await AuditLog.findOne({
+        const log = await AuditLog.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         });
@@ -109,7 +111,7 @@ export const getAuditLogsByEntity = async (req: Request, res: Response) => {
             return;
         }
 
-        const logs = await AuditLog.find({
+        const logs = await AuditLog.find({ ...tenantFilter(req),
             entity,
             entityId,
             isActive: true,
@@ -145,7 +147,7 @@ export const deleteAuditLog = async (req: Request, res: Response) => {
         }
 
         const log = await AuditLog.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },

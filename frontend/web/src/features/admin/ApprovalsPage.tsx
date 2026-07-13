@@ -1,10 +1,33 @@
-import { useApprovals, type Application } from './adminStore';
+import { useEffect, useState } from 'react';
+import { useApprovals, useTenants, type Application } from './adminStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Badge, Button, confirmDialog, toast } from '@/components/ui';
+import { isConnected } from '@/lib/api/resources';
+import { refreshAdminStores } from '@/lib/api/hydrate';
 
 export default function ApprovalsPage() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { applications, approve, reject } = useApprovals();
+  const activeStores = useTenants((s) => s.tenants.filter((t) => t.status === 'active').length);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const pull = async () => {
+    if (!isConnected) return;
+    setRefreshing(true);
+    try { await refreshAdminStores(); } catch { /* toasts handled upstream */ }
+    finally { setRefreshing(false); }
+  };
+
+  // Pull the latest pending registrations whenever the page opens, and keep it
+  // current with light polling — so registrations from any device show up
+  // without the admin reloading the app.
+  useEffect(() => {
+    void pull();
+    if (!isConnected) return;
+    const id = setInterval(() => { void refreshAdminStores(); }, 20000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const flaggedCount = applications.filter((a) => a.flagged).length;
 
@@ -29,8 +52,13 @@ export default function ApprovalsPage() {
         <div>
           <div style={{ fontSize: isMobile ? 10 : 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--blue)', fontWeight: 600, marginBottom: isMobile ? 4 : 6 }}>Platform</div>
           <h2 className="display" style={{ fontSize: isMobile ? 19 : 22, margin: 0, color: 'var(--ink)', fontWeight: 800 }}>Store approvals</h2>
-          <p style={{ margin: '2px 0 0', color: 'var(--ink-soft)', fontSize: isMobile ? 12 : 13 }}>New store registrations awaiting review before activation.</p>
+          <p style={{ margin: '2px 0 0', color: 'var(--ink-soft)', fontSize: isMobile ? 12 : 13 }}>New store registrations from every device, awaiting review before activation.</p>
         </div>
+        {isConnected && (
+          <Button variant="ghost" onClick={pull} disabled={refreshing} style={{ width: isMobile ? '100%' : undefined, justifyContent: 'center' }}>
+            {refreshing ? 'Refreshing…' : '↻ Refresh'}
+          </Button>
+        )}
       </div>
 
       {/* Stats row */}
@@ -38,7 +66,7 @@ export default function ApprovalsPage() {
         {[
           { label: 'Pending review', value: applications.length, color: 'var(--amber)' },
           { label: 'Flagged', value: flaggedCount, color: flaggedCount ? 'var(--red)' : 'var(--ink-faint)' },
-          { label: 'Approved today', value: '3', color: 'var(--green)' },
+          { label: 'Active stores', value: activeStores, color: 'var(--green)' },
         ].map((s) => (
           <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: isMobile ? '10px 14px' : '12px 16px', boxShadow: 'var(--shadow)' }}>
             <div style={{ fontSize: isMobile ? 10 : 10.5, fontWeight: 600, color: 'var(--ink-faint)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>

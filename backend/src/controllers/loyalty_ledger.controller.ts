@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import LoyaltyLedger from "../models/loyalty_ledger.model";
 import Customer from "../models/customer.model";
 import { calculateLoyaltyTier } from "../utils/loyalty_tier.utils";
+import { tenantFilter } from "../utils/tenant.utils";
 
 // GET all loyalty ledger records
 export const getLoyaltyLedgers = async (req: Request, res: Response) => {
@@ -11,6 +12,7 @@ export const getLoyaltyLedgers = async (req: Request, res: Response) => {
         const customerId = req.query.customerId as string | undefined;
 
         const filter: any = {
+        ...tenantFilter(req),
             isActive: true,
         };
 
@@ -61,7 +63,7 @@ export const getLoyaltyLedgerById = async (req: Request, res: Response) => {
             return;
         }
 
-        const ledger = await LoyaltyLedger.findOne({
+        const ledger = await LoyaltyLedger.findOne({ ...tenantFilter(req),
             _id: id,
             isActive: true,
         }).populate(
@@ -106,7 +108,7 @@ export const getCustomerLoyaltyLedger = async (
             return;
         }
 
-        const customer = await Customer.findOne({
+        const customer = await Customer.findOne({ ...tenantFilter(req),
             _id: customerId,
             isActive: true,
         });
@@ -119,7 +121,7 @@ export const getCustomerLoyaltyLedger = async (
             return;
         }
 
-        const ledgers = await LoyaltyLedger.find({
+        const ledgers = await LoyaltyLedger.find({ ...tenantFilter(req),
             customerId,
             isActive: true,
         }).sort({ createdAt: -1 });
@@ -183,7 +185,7 @@ export const earnPoints = async (req: Request, res: Response) => {
             return;
         }
 
-        const customer = await Customer.findOne({
+        const customer = await Customer.findOne({ ...tenantFilter(req),
             _id: customerId,
             isActive: true,
         });
@@ -205,7 +207,7 @@ export const earnPoints = async (req: Request, res: Response) => {
 
         await customer.save();
 
-        const ledger = await LoyaltyLedger.create({
+        const ledger = await LoyaltyLedger.create({ storeId: req.storeId!, 
             customerId,
             type: "earn",
             points: numericPoints,
@@ -258,7 +260,7 @@ export const redeemPoints = async (req: Request, res: Response) => {
             return;
         }
 
-        const customer = await Customer.findOne({
+        const customer = await Customer.findOne({ ...tenantFilter(req),
             _id: customerId,
             isActive: true,
         });
@@ -288,7 +290,7 @@ export const redeemPoints = async (req: Request, res: Response) => {
 
         await customer.save();
 
-        const ledger = await LoyaltyLedger.create({
+        const ledger = await LoyaltyLedger.create({ storeId: req.storeId!, 
             customerId,
             type: "redeem",
             points: -numericPoints,
@@ -340,7 +342,7 @@ export const adjustPoints = async (req: Request, res: Response) => {
             return;
         }
 
-        const customer = await Customer.findOne({
+        const customer = await Customer.findOne({ ...tenantFilter(req),
             _id: customerId,
             isActive: true,
         });
@@ -375,7 +377,7 @@ export const adjustPoints = async (req: Request, res: Response) => {
 
         await customer.save();
 
-        const ledger = await LoyaltyLedger.create({
+        const ledger = await LoyaltyLedger.create({ storeId: req.storeId!, 
             customerId,
             type: "adjust",
             points: numericPoints,
@@ -418,7 +420,7 @@ export const deleteLoyaltyLedger = async (req: Request, res: Response) => {
         }
 
         const ledger = await LoyaltyLedger.findOneAndUpdate(
-            {
+            { ...tenantFilter(req),
                 _id: id,
                 isActive: true,
             },

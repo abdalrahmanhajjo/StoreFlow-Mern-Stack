@@ -1,0 +1,36 @@
+# One-click backend deploy on Render (https://render.com).
+# In the Render dashboard: New + → Blueprint → pick this repo. It reads this
+# file. Then fill in the env vars marked sync:false (they're secrets).
+services:
+  - type: web
+    name: storeflow-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false        # your Atlas connection string
+      - key: JWT_ACCESS_SECRET
+        sync: false        # any long random string
+      - key: CLIENT_APP_URL
+        sync: false        # your deployed frontend URL, e.g. https://storeflow.vercel.app
+      # Email is sent via the Gmail API over HTTPS (port 443). SMTP ports are
+      # blocked on Render's free plan, which is why smtp.gmail.com never worked.
+      # See DEPLOY.md for how to create the OAuth credentials + refresh token.
+      # IMPORTANT: publish the OAuth consent screen ("In production") or the
+      # refresh token expires after 7 days.
+      - key: GMAIL_CLIENT_ID
+        sync: false        # OAuth client ID
+      - key: GMAIL_CLIENT_SECRET
+        sync: false        # OAuth client secret
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false        # long-lived refresh token
+      - key: GMAIL_SENDER
+        sync: false        # the Gmail address you authorized, e.g. you@gmail.com
+      - key: GMAIL_SENDER_NAME
+        value: StoreFlow

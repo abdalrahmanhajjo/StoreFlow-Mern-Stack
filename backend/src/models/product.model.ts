@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IProduct extends Document {
+    storeId: mongoose.Types.ObjectId;
   name: string;
   sku: string;
   barcode?: string;
@@ -10,12 +11,19 @@ export interface IProduct extends Document {
   quantity: number;
   reorderThreshold: number;
   imageUrl?: string;
+  emoji?: string;
   categoryId: mongoose.Types.ObjectId;
   isActive: boolean;
 }
 
 const productSchema = new Schema<IProduct>(
   {
+        storeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Store",
+            required: [true, "storeId is required"],
+            index: true,
+        },
     name: {
       type: String,
       required: [true, "Product name is required"],
@@ -26,7 +34,6 @@ const productSchema = new Schema<IProduct>(
       type: String,
       required: [true, "SKU is required"],
       trim: true,
-      unique: true,
     },
 
     barcode: {
@@ -68,6 +75,12 @@ const productSchema = new Schema<IProduct>(
       type: String,
     },
 
+    emoji: {
+      type: String,
+      trim: true,
+      maxlength: [8, "Emoji is too long"],
+    },
+
     categoryId: {
       type: Schema.Types.ObjectId,
       ref: "Category",
@@ -83,6 +96,9 @@ const productSchema = new Schema<IProduct>(
     timestamps: true,
   }
 );
+
+// SKU is unique within a store, not across the platform.
+productSchema.index({ storeId: 1, sku: 1 }, { unique: true });
 
 const Product = mongoose.model<IProduct>("Product", productSchema);
 

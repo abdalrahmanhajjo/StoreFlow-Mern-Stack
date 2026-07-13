@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { tenantFilter, tenantMatch } from "../utils/tenant.utils";
 import Sale from "../models/sale.model";
 import Customer from "../models/customer.model";
 
@@ -32,12 +33,14 @@ export const getReportsSummary = async (req: Request, res: Response) => {
         const dateFilter = buildDateFilter(startDate, endDate);
 
         const completedSalesFilter = {
+            ...tenantMatch(req),
             isActive: true,
             status: "completed",
             ...dateFilter,
         };
 
         const refundSalesFilter = {
+            ...tenantMatch(req),
             isActive: true,
             status: {
                 $in: ["voided", "refunded"],
@@ -86,6 +89,7 @@ export const getReportsSummary = async (req: Request, res: Response) => {
         ]);
 
         const newCustomers = await Customer.countDocuments({
+            ...tenantFilter(req),
             isActive: true,
             ...dateFilter,
         });
@@ -142,6 +146,7 @@ export const getTopProductsReport = async (req: Request, res: Response) => {
         const dateFilter = buildDateFilter(startDate, endDate);
 
         const matchFilter: any = {
+            ...tenantMatch(req),
             isActive: true,
             status: "completed",
             ...dateFilter,
@@ -232,6 +237,7 @@ export const getCashierPerformanceReport = async (
         const cashierPerformance = await Sale.aggregate([
             {
                 $match: {
+                    ...tenantMatch(req),
                     isActive: true,
                     status: "completed",
                     ...dateFilter,

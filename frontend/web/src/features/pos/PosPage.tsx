@@ -5,6 +5,8 @@ import { useCart, useCartTotals } from './cartStore';
 import { useSession } from '@/store/session';
 import { money } from '@/lib/format';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useStoreConfig } from '@/config/StoreProfileContext';
+import { isConnected, apiGetStoreSettings } from '@/lib/api/resources';
 
 export default function PosPage() {
   const cashier = useSession((s) => s.user?.name ?? 'Cashier');
@@ -13,6 +15,23 @@ export default function PosPage() {
   const [time, setTime] = useState(new Date());
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [cartOpen, setCartOpen] = useState(false);
+
+  // This store's own tax rate drives every total on the register. Connected
+  // mode reads store-settings — the SAME authoritative source the server uses
+  // to compute the sale — so what the register shows always equals what the
+  // server charges. Demo mode falls back to the business-type template.
+  const templateTaxRate = useStoreConfig().effective.tax.defaultRate;
+  useEffect(() => {
+    if (!isConnected) {
+      useCart.getState().setTaxRate(templateTaxRate);
+      return;
+    }
+    let alive = true;
+    apiGetStoreSettings()
+      .then((s) => { if (alive) useCart.getState().setTaxRate((s.taxRate ?? 0) / 100); })
+      .catch(() => { if (alive) useCart.getState().setTaxRate(templateTaxRate); });
+    return () => { alive = false; };
+  }, [templateTaxRate]);
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 30000);

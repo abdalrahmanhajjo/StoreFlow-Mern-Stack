@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProducts } from './productsStore';
 import { useCategories } from '@/features/categories/categoriesStore';
 import { useSession } from '@/store/session';
@@ -9,6 +10,7 @@ import { SearchField, CategoryPills, Button } from '@/components/ui';
 import type { Product } from './productsStore';
 
 export default function ProductsPage() {
+  const navigate = useNavigate();
   const role = useSession((s) => s.user!.role);
   const writable = can(role, 'product.write');
   const { products } = useProducts();
@@ -54,7 +56,12 @@ export default function ProductsPage() {
           <h2 className="display" style={{ fontSize: 22, margin: 0, color: 'var(--ink)', fontWeight: 800 }}>Products</h2>
           <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)', fontSize: 13 }}>{products.length} products across {categories.length} categories.</p>
         </div>
-        {writable && <Button onClick={openNew}>+ Add product</Button>}
+        {writable && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="ghost" onClick={() => navigate('/products/import')}>⤒ Import CSV</Button>
+            <Button onClick={openNew}>+ Add product</Button>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>

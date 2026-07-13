@@ -85,18 +85,20 @@ const userSchema = new Schema<IUser>(
       default: null,
       select: false,
     },
+    // Collected during owner registration; staff accounts created by an
+    // owner don't carry them, so they're optional at the schema level (the
+    // registration validator still requires them for owners).
     phone: {
-      countryCode: { type: String, required: true },
-      number: { type: String, required: true },
+      countryCode: { type: String },
+      number: { type: String },
     },
 
     idVerification: {
       type: {
         type: String,
         enum: ["national_id", "passport", "drivers_license"],
-        required: true,
       },
-      number: {type: String, required: true },
+      number: { type: String },
     },
 
     failedLoginAttempts: { type: Number, default: 0 },

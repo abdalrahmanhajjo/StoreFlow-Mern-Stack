@@ -56,9 +56,10 @@ export const createStore = async (req: Request, res: Response, next: NextFunctio
             ownerId,
             status: "pending",
             subscription: {
-                plan: 'trial',
                 trialEndsAt,
                 status: 'trial',
+                // planId intentionally omitted — defaults to null until an
+                // admin assigns a plan via PATCH /api/plans/stores/:storeId/assign
             },
             isVerified: false,
         });
@@ -87,7 +88,9 @@ export const createStore = async (req: Request, res: Response, next: NextFunctio
 export const getStores = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const filter = buildStoreFilter(req);
-        const stores = await Store.find(filter).populate("ownerId", "name email role");
+        const stores = await Store.find(filter)
+            .populate("ownerId", "name email role")
+            .populate("subscription.planId", "name slug priceMonthly");
 
         res.status(200).json({
             success: true,
@@ -113,7 +116,9 @@ export const getStoreById = async (req: Request, res: Response, next: NextFuncti
             return next(new AppError("Access denied: You are not authorized to view this store's data profile", 403));
         }
 
-        const store = await Store.findById(id).populate("ownerId", "name email role");
+        const store = await Store.findById(id)
+            .populate("ownerId", "name email role")
+            .populate("subscription.planId", "name slug priceMonthly");
 
         if (!store) {
             return next(new AppError("Store profile not found", 404));
@@ -148,6 +153,7 @@ export const updateStore = async (req: Request, res: Response, next: NextFunctio
         if (req.user?.role !== "platform_admin") {
             delete updateData.status;
             delete updateData.ownerId;
+            delete updateData.subscription; // no self-service plan upgrades — use /api/plans/stores/:storeId/assign
         }
 
         const updatedStore = await Store.findByIdAndUpdate(

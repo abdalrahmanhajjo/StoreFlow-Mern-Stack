@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { useMemo } from 'react';
 import { earn, redeemValue, pointsUsed } from '@/features/customers/loyalty';
+import { roundMoney, lineAmount } from '@/lib/money';
 import type { Product } from '@/features/products/productsStore';
 import type { Role } from '@/store/session';
 
+// Fallback only — the live rate comes from each store's own config (set via
+// setTaxRate from the POS). Kept exported for tests and demo defaults.
 export const TAX_RATE = 0.054;
-export const DEFAULT_DISCOUNT = 0.1; // 10% promo
+export const DEFAULT_DISCOUNT = 0; // no discount until the cashier applies one
 export const DEFAULT_DISCOUNT_FIXED = 0;
 export type DiscountMode = 'percent' | 'fixed';
 
@@ -54,6 +57,8 @@ interface CartState {
   discountMode: DiscountMode;
   discountRate: number;
   discountFixed: number;
+  /** This store's sales-tax rate as a fraction (0.054 = 5.4%). */
+  taxRate: number;
   add: (p: Product) => void;
   changeQty: (id: string, delta: number) => void;
   remove: (id: string) => void;
@@ -63,6 +68,7 @@ interface CartState {
   setDiscountMode: (m: DiscountMode) => void;
   setDiscountRate: (rate: number, role: Role | null) => void;
   setDiscountFixed: (amount: number, role: Role | null) => void;
+  setTaxRate: (rate: number) => void;
   reset: () => void;
 }
 
@@ -74,6 +80,7 @@ export const useCart = create<CartState>((set) => ({
   discountMode: 'percent',
   discountRate: DEFAULT_DISCOUNT,
   discountFixed: DEFAULT_DISCOUNT_FIXED,
+  taxRate: TAX_RATE,
 
   add: (p) =>
     set((s) => {
@@ -96,7 +103,9 @@ export const useCart = create<CartState>((set) => ({
     set({ discountRate: Math.min(maxPctForRole(role), Math.max(0, rate)) }),
   setDiscountFixed: (amount, role) =>
     set({ discountFixed: Math.min(maxFixedForRole(role), Math.max(0, amount)) }),
-  reset: () => set({ items: [], customer: null, redeeming: false, discountMode: 'percent', discountRate: DEFAULT_DISCOUNT, discountFixed: DEFAULT_DISCOUNT_FIXED, payMethod: 'Cash' }),
+  setTaxRate: (rate) => set({ taxRate: Number.isFinite(rate) && rate >= 0 ? rate : 0 }),
+  // Tax rate is a store setting, not per-sale — preserve it across resets.
+  reset: () => set((s) => ({ items: [], customer: null, redeeming: false, discountMode: 'percent', discountRate: DEFAULT_DISCOUNT, discountFixed: DEFAULT_DISCOUNT_FIXED, payMethod: 'Cash', taxRate: s.taxRate })),
 }));
 
 export interface CartTotals {
@@ -112,21 +121,20 @@ export interface CartTotals {
   pointsEarned: number;
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-export function computeTotals(state: Pick<CartState, 'items' | 'customer' | 'redeeming' | 'discountMode' | 'discountRate' | 'discountFixed'>): CartTotals {
-  const subtotal = round2(state.items.reduce((s, i) => s + i.price * i.qty, 0));
-  const discountPct = round2(subtotal * state.discountRate);
+export function computeTotals(state: Pick<CartState, 'items' | 'customer' | 'redeeming' | 'discountMode' | 'discountRate' | 'discountFixed'> & { taxRate?: number }): CartTotals {
+  const rate = state.taxRate ?? TAX_RATE;
+  // Round each line to cents first, then sum — the same order the server uses,
+  // so the register total always equals the server-issued receipt total.
+  const subtotal = roundMoney(state.items.reduce((s, i) => s + lineAmount(i.price, i.qty), 0));
+  const discountPct = roundMoney(subtotal * state.discountRate);
   const discountFixed = state.discountMode === 'fixed' ? Math.min(state.discountFixed, subtotal) : 0;
-  const discount = state.discountMode === 'percent' ? discountPct : round2(discountFixed);
-  const afterDiscount = round2(subtotal - discount);
+  const discount = state.discountMode === 'percent' ? discountPct : roundMoney(discountFixed);
+  const afterDiscount = roundMoney(subtotal - discount);
   const redeem = state.redeeming && state.customer ? redeemValue(state.customer.points, afterDiscount) : 0;
   const redeemPoints = pointsUsed(redeem);
-  const taxable = round2(afterDiscount - redeem);
-  const tax = round2(taxable * TAX_RATE);
-  const total = round2(taxable + tax);
+  const taxable = roundMoney(afterDiscount - redeem);
+  const tax = roundMoney(taxable * rate);
+  const total = roundMoney(taxable + tax);
   return { subtotal, discount, discountFixed, discountPct, redeem, redeemPoints, taxable, tax, total, pointsEarned: earn(total) };
 }
 
@@ -137,5 +145,6 @@ export const useCartTotals = (): CartTotals => {
   const discountMode = useCart((s) => s.discountMode);
   const discountRate = useCart((s) => s.discountRate);
   const discountFixed = useCart((s) => s.discountFixed);
-  return useMemo(() => computeTotals({ items, customer, redeeming, discountMode, discountRate, discountFixed }), [items, customer, redeeming, discountMode, discountRate, discountFixed]);
+  const taxRate = useCart((s) => s.taxRate);
+  return useMemo(() => computeTotals({ items, customer, redeeming, discountMode, discountRate, discountFixed, taxRate }), [items, customer, redeeming, discountMode, discountRate, discountFixed, taxRate]);
 };

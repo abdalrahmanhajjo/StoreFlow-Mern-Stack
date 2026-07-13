@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
 
 import { UserRole } from '../models/user.model';
 
@@ -36,37 +35,60 @@ export const generateRawToken = (bytes = 40) =>
 export const hashToken = (raw: string) =>
   crypto.createHash('sha256').update(raw).digest('hex');
 
-// ---- email sender (Gmail SMTP) ----
+// ---- email sender (Brevo transactional email over HTTPS) ----
+//
+// We send through Brevo's HTTP API (port 443) rather than SMTP because most
+// managed hosts — Render's free plan included — block outbound SMTP ports
+// (25/465/587), so smtp.gmail.com is unreachable from the deployed server even
+// with correct credentials. HTTPS is never blocked.
+//
+// Setup: create a free Brevo account, verify your sender email (e.g. your
+// Gmail) under Senders, create an API key, then set:
+//   BREVO_API_KEY       — the API key (secret)
+//   BREVO_SENDER_EMAIL  — the verified sender address (falls back to EMAIL_USER)
+//   BREVO_SENDER_NAME   — optional display name (default "StoreFlow")
+// With those unset the app still runs and prints codes to the log.
 
-const transporter = process.env.EMAIL_USER && process.env.EMAIL_PASS
-  ? nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      pool: true,
-      maxConnections: 3,
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 20_000,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    })
-  : null;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const SENDER_EMAIL =
+  process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || process.env.EMAIL_FROM || '';
+const SENDER_NAME = process.env.BREVO_SENDER_NAME || 'StoreFlow';
 
-/** Verifies the SMTP connection at boot. */
+/** Mail is only live when we have both an API key and a verified sender. */
+const mailEnabled = Boolean(BREVO_API_KEY && SENDER_EMAIL);
+
+/** Wraps fetch with a timeout so a hung request can't stall the caller. */
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Validates the Brevo API key at boot (no email sent), so a misconfiguration
+ *  shows up in the logs immediately instead of on the first send. */
 export const verifyMailer = async (): Promise<void> => {
-  if (!transporter) {
-    console.log("[mail] EMAIL_USER/PASS not set — codes will print to console.");
+  if (!mailEnabled) {
+    console.log("[mail] BREVO_API_KEY/sender not set — codes will print to console.");
     return;
   }
   try {
-    await transporter.verify();
-    console.log(`[mail] Gmail SMTP ready (${process.env.EMAIL_USER}).`);
+    const res = await fetchWithTimeout(
+      'https://api.brevo.com/v3/account',
+      { headers: { 'api-key': BREVO_API_KEY as string, accept: 'application/json' } },
+      10_000
+    );
+    if (res.ok) {
+      console.log(`[mail] Brevo ready (sending as ${SENDER_EMAIL}).`);
+    } else {
+      const body = (await res.text().catch(() => '')).slice(0, 200);
+      console.error(`[mail] Brevo key check FAILED: HTTP ${res.status} ${body}`);
+    }
   } catch (err) {
-    console.error("[mail] Gmail SMTP verification FAILED:", (err as Error).message);
+    console.error("[mail] Brevo verification FAILED:", (err as Error).message);
   }
 };
 
@@ -75,27 +97,57 @@ function logFallback(to: string, content: string, label: string) {
   console.log(`[mail] ${label} for ${to}: ${content}`);
 }
 
-/** Sends with one retry; never throws. Returns true if sent successfully. */
+/** POSTs one email to Brevo. Resolves to the outcome; never throws. */
+async function sendViaBrevo(
+  to: string,
+  subject: string,
+  html: string
+): Promise<{ ok: boolean; status?: number; body?: string }> {
+  const res = await fetchWithTimeout(
+    'https://api.brevo.com/v3/smtp/email',
+    {
+      method: 'POST',
+      headers: {
+        'api-key': BREVO_API_KEY as string,
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    },
+    15_000
+  );
+  if (res.ok) return { ok: true, status: res.status };
+  return { ok: false, status: res.status, body: (await res.text().catch(() => '')).slice(0, 300) };
+}
+
+/** Sends with one retry; never throws. Returns true if accepted by Brevo. */
 async function sendMailSafe(
   to: string,
   subject: string,
   html: string,
   label: string
 ): Promise<boolean> {
-  if (!transporter) return false;
-
-  const from = `"StoreFlow" <${process.env.EMAIL_USER}>`;
+  if (!mailEnabled) return false;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      await transporter.sendMail({ from, to, subject, html });
-      console.log(`[mail] ${label} sent to ${to}.`);
-      return true;
+      const r = await sendViaBrevo(to, subject, html);
+      if (r.ok) {
+        console.log(`[mail] ${label} sent to ${to}.`);
+        return true;
+      }
+      console.error(`[mail] ${label} attempt ${attempt} rejected: HTTP ${r.status} ${r.body ?? ''}`);
+      // 4xx (invalid key, unverified sender, bad address) won't pass on retry.
+      if (r.status && r.status >= 400 && r.status < 500) return false;
     } catch (err) {
       console.error(`[mail] ${label} attempt ${attempt} failed:`, (err as Error).message);
-      if (attempt === 2) return false;
-      await new Promise((r) => setTimeout(r, 800));
     }
+    if (attempt === 1) await new Promise((r) => setTimeout(r, 800));
   }
   return false;
 }

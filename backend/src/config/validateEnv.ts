@@ -31,9 +31,10 @@ export function validateEnv(): void {
         );
     }
 
-    if (isProd && (!process.env.EMAIL_HOST || !process.env.EMAIL_USER)) {
+    if (isProd && (!process.env.BREVO_API_KEY || !(process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER))) {
         warnings.push(
-            "EMAIL_HOST/EMAIL_USER not set — verification & reset codes will print to the log instead of sending."
+            "BREVO_API_KEY / sender not set — verification & reset codes will print to the log instead of sending. " +
+            "(Email uses Brevo's HTTPS API; SMTP is blocked on most free hosts.)"
         );
     }
 

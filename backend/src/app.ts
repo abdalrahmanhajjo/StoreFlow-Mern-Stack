@@ -172,7 +172,8 @@ if (isProduction()) {
 
     // SPA catch-all: any non-API request serves index.html so React Router
     // handles the path client-side (prevents 404 on refresh/direct nav).
-    app.get("*", (_req: Request, res: Response) => {
+    app.use((req: Request, res: Response) => {
+        if (req.path.startsWith("/api")) return;
         res.sendFile(path.join(frontendDist, "index.html"));
     });
 }

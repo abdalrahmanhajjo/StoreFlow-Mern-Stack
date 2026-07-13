@@ -132,7 +132,6 @@ export const register = async (req: Request, res: Response) => {
         status: 'pending' as const,
         ownerId: owner._id,
         subscription: {
-          plan: 'trial',
           trialEndsAt,
           status: 'trial' as const,
         },

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
-import { randomBytes } from "crypto";
+import { randomBytes, randomInt } from "crypto";
 import { User } from "../models/user.model";
 import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
@@ -9,10 +9,12 @@ import {
     generateRawToken,
     hashToken,
     sendEmployeeInviteEmail,
+    sendPasswordResetCode,
 } from "../utils/auth.utils";
 import { tenantFilter } from "../utils/tenant.utils";
 
 const INVITE_TTL_DAYS = 7;
+const RESET_CODE_TTL_MINUTES = 10;
 
 // INVITE STAFF — creates an inactive account and emails a set-password link.
 // The invitee finishes via POST /api/auth/accept-invite. No password is set
@@ -89,6 +91,50 @@ export const inviteUser = async (
                 emailSent,
                 inviteUrl,
             },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// RESET STAFF PASSWORD — an owner/admin triggers a password reset for one of
+// their staff. Emails a 6-digit code (the same reliable, link-free channel as
+// verification codes), and reports honestly whether it actually sent. The
+// staff then completes the reset from the "Forgot password" page. Scoped to
+// the caller's store; owners may only reset manager/cashier accounts.
+export const resetStaffPassword = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    try {
+        const id = req.params.id as string;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next(new AppError("Invalid User ID format", 400));
+        }
+
+        const user = await User.findOne({ _id: id, ...tenantFilter(req) });
+        if (!user) {
+            return next(new AppError("User not found", 404));
+        }
+
+        if (req.user!.role !== "platform_admin" && !["manager", "cashier"].includes(user.role)) {
+            return next(new AppError("You can only reset manager or cashier accounts", 403));
+        }
+
+        const code = randomInt(100000, 1000000).toString();
+        user.passwordResetTokenHash = hashToken(code);
+        user.passwordResetExpires = new Date(Date.now() + RESET_CODE_TTL_MINUTES * 60 * 1000);
+        await user.save();
+
+        const emailSent = await sendPasswordResetCode(user.email, code);
+
+        res.status(200).json({
+            success: true,
+            message: emailSent
+                ? "Password reset code emailed"
+                : "Couldn't email the reset code — check the mail configuration.",
+            data: { emailSent, email: user.email },
         });
     } catch (error) {
         next(error);

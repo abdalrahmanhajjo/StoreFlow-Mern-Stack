@@ -425,6 +425,13 @@ export async function apiUpdateEmployee(
   await api.put(`/users/${userId}`, patch);
 }
 
+/** Owner-triggered password reset for a staff member. Emails them a reset
+ *  code; returns whether the email actually sent. */
+export async function apiResetEmployeePassword(userId: string): Promise<{ emailSent: boolean }> {
+  const { data } = await api.post<Envelope<Doc>>(`/users/${userId}/reset`);
+  return { emailSent: Boolean(data.data?.emailSent) };
+}
+
 export async function apiDeleteEmployee(userId: string): Promise<void> {
   await api.delete(`/users/${userId}`);
 }

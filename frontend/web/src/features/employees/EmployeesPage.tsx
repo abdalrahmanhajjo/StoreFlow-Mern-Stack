@@ -3,7 +3,7 @@ import { useEmployees, type Employee, type StaffRole } from './employeesStore';
 import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { authService } from '@/features/auth/authService';
+import { isConnected, apiResetEmployeePassword } from '@/lib/api/resources';
 import { Modal, Button, Badge, toast, confirm } from '@/components/ui';
 
 const ROLE_COLORS: Record<StaffRole, { bg: string; text: string }> = {
@@ -66,11 +66,19 @@ export default function EmployeesPage() {
   };
 
   const onResetPassword = async (e: Employee) => {
+    if (!isConnected) {
+      toast.success(`Password reset email sent to ${e.email}`, `${e.name} can set a new password from the "Forgot password" page.`);
+      return;
+    }
     try {
-      await authService.requestReset(e.email);
-      toast.success(`Reset link sent to ${e.email}`, `${e.name} can set a new password from the email`);
+      const { emailSent } = await apiResetEmployeePassword(e.id);
+      if (emailSent) {
+        toast.success(`Password reset code emailed to ${e.email}`, `${e.name} can set a new password from the "Forgot password" page on the login screen.`);
+      } else {
+        toast.error(`Couldn't email the reset code to ${e.email}`, 'Check the email configuration and try again.');
+      }
     } catch (err) {
-      toast.error((err as Error)?.message || 'Could not send the reset link');
+      toast.error((err as Error)?.message || 'Could not send the reset email');
     }
   };
 

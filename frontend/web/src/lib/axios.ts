@@ -5,7 +5,9 @@ import { type ApiError, messageForStatus, parseRetryAfter } from '@/lib/http/err
 
 // withCredentials sends the HttpOnly refresh cookie to /auth/* endpoints.
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000',
+  // Default to relative /api — works when backend serves frontend (same origin).
+  // For local dev with a different API port, set VITE_API_BASE_URL in .env.
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
   withCredentials: true,
   timeout: 15_000, // fail fast instead of hanging the UI indefinitely
 });

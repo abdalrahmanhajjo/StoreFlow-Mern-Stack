@@ -86,12 +86,19 @@ export const register = async (req: Request, res: Response) => {
   try {
     const input = registerSchema.parse(req.body);
 
-    const existing = await User.findOne({ email: input.email });
+    const existing = await User.findOne({ email: input.email })
+      .select('+passwordResetExpires +passwordResetTokenHash');
 
     if (existing) {
-      return res.status(409).json({
-        message: 'An account with this email already exists',
-      });
+      // If the existing user is an invited staff who never accepted, remove
+      // the stale record and let the registration proceed as a new owner.
+      if (!existing.isActive && existing.passwordResetExpires) {
+        await User.deleteOne({ _id: existing._id });
+      } else {
+        return res.status(409).json({
+          message: 'An account with this email already exists',
+        });
+      }
     }
 
     const passwordHash = await hashPassword(input.password);

@@ -16,6 +16,8 @@ router.post('/refresh', authController.refresh);
 
 router.post('/logout', authController.logout);
 
+router.get('/session-status', authController.sessionStatus);
+
 router.get('/me', authenticate, authController.me);
 
 router.get('/approval-status', authController.approvalStatus);

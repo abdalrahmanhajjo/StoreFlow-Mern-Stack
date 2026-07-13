@@ -598,6 +598,16 @@ export async function apiListSessions(): Promise<Session[]> {
   });
 }
 
+
+
+export async function apiRevokeSession(sessionId: string): Promise<void> {
+  await api.patch(`/security/sessions/${sessionId}/revoke`);
+}
+
+export async function apiRevokeAllSessions(): Promise<void> {
+  await api.patch('/security/sessions/revoke-all');
+}
+
 const AUDIT_KIND: Record<string, AuditEntry['kind']> = {
   Store: 'store', User: 'user', Sale: 'billing', Auth: 'auth',
 };

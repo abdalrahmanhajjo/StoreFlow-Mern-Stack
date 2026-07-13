@@ -575,6 +575,50 @@ export const me = async (req: Request, res: Response) => {
   });
 };
 
+
+
+
+export const sessionStatus = async (req: Request, res: Response) => {
+  try {
+    const incoming = req.cookies?.[REFRESH_COOKIE];
+
+    if (!incoming) {
+      return res.status(401).json({
+        active: false,
+        message: 'No active session',
+      });
+    }
+
+    const tokenHash = hashToken(incoming);
+
+    const stored = await RefreshToken.findOne({ tokenHash });
+
+    if (!stored || stored.revokedAt || stored.expiresAt.getTime() < Date.now()) {
+      res.clearCookie(REFRESH_COOKIE, cookieBase(req));
+
+      return res.status(401).json({
+        active: false,
+        message: 'Session ended',
+      });
+    }
+
+    res.json({
+      active: true,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      active: false,
+      message: 'Could not check session',
+    });
+  }
+};
+
+
+
+
+
 // ---------------------------------------------------------------------------
 // Approval status — polled by the registration pending screen (public).
 // Step mirrors the review pipeline: 0=submitted, 1=identity, 2=business,

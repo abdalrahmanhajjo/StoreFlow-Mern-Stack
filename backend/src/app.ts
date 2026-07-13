@@ -25,6 +25,7 @@ import securityRoutes from "./routes/security.routes";
 
 import cookieParser from "cookie-parser";
 import storeRoutes from "./routes/store.routes";
+import employeeRoutes from "./routes/employee.routes";
 
 import { authenticate } from "./middleware/auth.middleware";
 import { authorize } from "./middleware/role.middleware";

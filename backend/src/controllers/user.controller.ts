@@ -63,7 +63,11 @@ export const inviteUser = async (
         ]);
         const inviteUrl = `${process.env.CLIENT_APP_URL}/accept-invite?token=${rawToken}`;
 
-        await sendEmployeeInviteEmail(email, {
+        // The sender never throws; it returns whether the email was actually
+        // accepted so the owner gets truthful feedback instead of a blind
+        // "sent". The invite URL is handed back too, so if email failed the
+        // owner (who created this invite) can copy the link and share it.
+        const emailSent = await sendEmployeeInviteEmail(email, {
             inviteUrl,
             inviterName: inviterDoc?.name ?? "Your manager",
             storeName: store?.storeName ?? "your store",
@@ -72,7 +76,9 @@ export const inviteUser = async (
 
         res.status(201).json({
             success: true,
-            message: "Invite sent",
+            message: emailSent
+                ? "Invite sent"
+                : "Invite created, but the email could not be sent — share the link manually.",
             data: {
                 id: user._id,
                 name: user.name,
@@ -80,6 +86,8 @@ export const inviteUser = async (
                 role: user.role,
                 storeId: user.storeId,
                 isActive: user.isActive,
+                emailSent,
+                inviteUrl,
             },
         });
     } catch (error) {

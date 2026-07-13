@@ -391,19 +391,31 @@ export async function apiListEmployees(): Promise<Employee[]> {
   return (data.data ?? []).map(mapEmployee);
 }
 
+export interface InviteResult {
+  employee: Employee;
+  /** True only if the server confirmed the invite email was actually sent. */
+  emailSent: boolean;
+  /** The accept-invite link, so the owner can share it if email failed. */
+  inviteUrl?: string;
+}
+
 /** Invites a staff member: creates an inactive account and emails them a
  * set-password link. They appear as "disabled" until they accept. */
 export async function apiInviteEmployee(input: {
   name: string;
   email: string;
   role: StaffRole;
-}): Promise<Employee> {
+}): Promise<InviteResult> {
   const { data } = await api.post<Envelope<Doc>>('/users/invite', {
     name: input.name,
     email: input.email,
     role: input.role,
   });
-  return mapEmployee(data.data);
+  return {
+    employee: mapEmployee(data.data),
+    emailSent: Boolean(data.data.emailSent),
+    inviteUrl: data.data.inviteUrl,
+  };
 }
 
 export async function apiUpdateEmployee(

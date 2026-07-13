@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import categoriesData from '@/data/categories.json';
 import { toast } from '@/components/ui';
+import { useProducts } from '@/features/products/productsStore';
 import {
   isConnected,
   apiCreateCategory,
@@ -81,6 +82,16 @@ export const useCategories = create<CategoriesState>((set, get) => ({
         c.id === id ? { ...c, name, emoji: input.emoji ?? c.emoji, image: input.image ?? c.image, description: input.description ?? c.description } : c
       ),
     }));
+    // Products reference the category by id on the server, so a rename
+    // propagates there automatically. The frontend caches the category *name*
+    // on each product for display, so re-point those rows to the new name
+    // immediately — otherwise the product list (and per-category counts) would
+    // show the old name until the next refetch.
+    if (name !== existing.name) {
+      useProducts.setState((s) => ({
+        products: s.products.map((p) => (p.category === existing.name ? { ...p, category: name } : p)),
+      }));
+    }
     if (isConnected) {
       apiUpdateCategory(id, { name: input.name?.trim(), description: input.description, emoji: input.emoji, image: input.image }).catch((err) => {
         toast.error(err?.message || 'Could not save category changes to the server');

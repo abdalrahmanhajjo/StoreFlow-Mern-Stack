@@ -48,9 +48,18 @@ export const useEmployees = create<EmployeesState>((set, get) => ({
       const storeId = useSession.getState().user?.storeId;
       if (!storeId) return { ok: false, error: 'No store on this session' };
       apiInviteEmployee({ name: name.trim(), email: email.trim(), role })
-        .then((server) => {
-          set((s) => ({ employees: s.employees.map((e) => (e.id === localId ? server : e)) }));
-          toast.success(`Invite emailed to ${email.trim()}`, `${name.trim()} will set their own password`);
+        .then(({ employee, emailSent, inviteUrl }) => {
+          set((s) => ({ employees: s.employees.map((e) => (e.id === localId ? employee : e)) }));
+          if (emailSent) {
+            toast.success(`Invite emailed to ${email.trim()}`, `${name.trim()} will set their own password`);
+          } else {
+            // The account exists, but the email didn't go out — tell the truth
+            // and hand over the link so the owner can share it another way.
+            toast.error(
+              `Couldn't email the invite to ${email.trim()}`,
+              inviteUrl ? `Copy this link and send it to them: ${inviteUrl}` : 'Try again in a moment.'
+            );
+          }
         })
         .catch((err) => {
           set((s) => ({ employees: s.employees.filter((e) => e.id !== localId) }));

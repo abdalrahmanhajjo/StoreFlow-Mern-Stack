@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import path from "path";
 
 import categoryRoutes from "./routes/category.routes";
 import productRoutes from "./routes/product.routes";
@@ -163,7 +164,19 @@ app.use("/api/dashboard", authenticate, tenantScope, authorize("platform_admin",
 
 app.use("/api/plans", planRoutes); // admin-only, own chain
 
-// Not found route
+// ---- serve built frontend in production ----
+if (isProduction()) {
+    const frontendDist = path.join(__dirname, "../../frontend/web/dist");
+    app.use(express.static(frontendDist));
+
+    // SPA catch-all: any non-API request serves index.html so React Router
+    // handles the path client-side (prevents 404 on refresh/direct nav).
+    app.get("*", (_req: Request, res: Response) => {
+        res.sendFile(path.join(frontendDist, "index.html"));
+    });
+}
+
+// Not found route (API only)
 app.use((req: Request, res: Response) => {
     res.status(404).json({
         success: false,

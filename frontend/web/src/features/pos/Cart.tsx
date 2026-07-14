@@ -188,10 +188,9 @@ export function Cart() {
         style={{
           background: 'var(--card)',
           color: 'var(--ink)',
-          display: 'grid',
-          gridTemplateRows: 'auto auto 1fr auto',
           height: '100%',
-          overflow: 'hidden',
+          overflowY: 'auto',
+          overflowX: 'hidden',
           borderLeft: '1px solid var(--line)',
         }}
       >
@@ -387,7 +386,7 @@ export function Cart() {
         </div>
 
         {/* Modern Items Area */}
-        <div style={{ overflow: 'auto', minHeight: 0, padding: empty ? 0 : '14px 20px' }}>
+        <div style={{ padding: empty ? 0 : '14px 20px' }}>
           {empty ? (
             <div style={{ padding: '64px 20px', textAlign: 'center' }}>
               <div

@@ -60,19 +60,20 @@ export const inviteUser = async (
             passwordResetExpires: new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000),
         });
 
-        const [store, inviterDoc] = await Promise.all([
-            Store.findById(storeId),
-            User.findById(inviter.sub).select("name"),
-        ]);
+        const store = await Store.findById(storeId);
         const inviteUrl = `${process.env.CLIENT_APP_URL}/accept-invite?token=${rawToken}`;
 
         // The sender never throws; it returns whether the email was actually
         // accepted so the owner gets truthful feedback instead of a blind
         // "sent". The invite URL is handed back too, so if email failed the
         // owner (who created this invite) can copy the link and share it.
+        //
+        // `name` here is the INVITEE's own name — the seeded employee-invite
+        // template greets "Hello {{name}}," addressing the person being
+        // invited, not whoever sent the invite.
         const emailSent = await sendEmployeeInviteEmail(email, {
             inviteUrl,
-            inviterName: inviterDoc?.name ?? "Your manager",
+            name,
             storeName: store?.storeName ?? "your store",
             role: targetRole,
         });

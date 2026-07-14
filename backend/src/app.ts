@@ -22,6 +22,7 @@ import planRoutes from "./routes/plan.routes";
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import securityRoutes from "./routes/security.routes";
+import emailTemplateRoutes from "./routes/email_templates.routes"
 
 import cookieParser from "cookie-parser";
 import storeRoutes from "./routes/store.routes";
@@ -162,6 +163,8 @@ app.use("/api/inventory", authenticate, tenantScope, managerWrites, inventoryRou
 // Cashiers get the POS/sales/customers surface only.
 app.use("/api/reports", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), reportsRoutes);
 app.use("/api/dashboard", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), dashboardRoutes);
+
+app.use("/api/email-templates", emailTemplateRoutes); 
 
 app.use("/api/plans", planRoutes); // admin-only, own chain
 

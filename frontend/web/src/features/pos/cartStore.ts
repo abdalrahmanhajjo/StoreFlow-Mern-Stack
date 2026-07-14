@@ -19,6 +19,7 @@ const MAX_DISCOUNT_PCT: Record<Role, number> = {
   manager: 0.35,
   cashier: 0.25,
 };
+
 const MAX_DISCOUNT_FIXED: Record<Role, number> = {
   platform_admin: Infinity,
   owner: 500,
@@ -29,6 +30,7 @@ const MAX_DISCOUNT_FIXED: Record<Role, number> = {
 export function maxPctForRole(role: Role | null): number {
   return role ? MAX_DISCOUNT_PCT[role] : MAX_DISCOUNT_PCT.cashier;
 }
+
 export function maxFixedForRole(role: Role | null): number {
   return role ? MAX_DISCOUNT_FIXED[role] : MAX_DISCOUNT_FIXED.cashier;
 }
@@ -42,11 +44,14 @@ export interface CartItem {
   emoji: string;
   image: string;
 }
+
 export interface CartCustomer {
   id: string;
   name: string;
+  phone?: string;
   points: number;
 }
+
 export type PayMethod = 'Cash' | 'Card';
 
 interface CartState {
@@ -85,27 +90,88 @@ export const useCart = create<CartState>((set) => ({
   add: (p) =>
     set((s) => {
       const existing = s.items.find((i) => i.id === p.id);
-      if (existing) return { items: s.items.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i)) };
-      return { items: [...s.items, { id: p.id, name: p.name, sku: p.sku, price: p.price, qty: 1, emoji: p.emoji, image: p.image }] };
+
+      if (existing) {
+        return {
+          items: s.items.map((i) =>
+            i.id === p.id ? { ...i, qty: i.qty + 1 } : i
+          ),
+        };
+      }
+
+      return {
+        items: [
+          ...s.items,
+          {
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            price: p.price,
+            qty: 1,
+            emoji: p.emoji,
+            image: p.image,
+          },
+        ],
+      };
     }),
+
   changeQty: (id, delta) =>
     set((s) => ({
       items: s.items
         .map((i) => (i.id === id ? { ...i, qty: i.qty + delta } : i))
         .filter((i) => i.qty > 0),
     })),
-  remove: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+
+  remove: (id) =>
+    set((s) => ({
+      items: s.items.filter((i) => i.id !== id),
+    })),
+
   setPay: (payMethod) => set({ payMethod }),
-  setCustomer: (customer) => set({ customer, redeeming: false }),
-  toggleRedeem: () => set((s) => ({ redeeming: !s.redeeming })),
-  setDiscountMode: (mode) => set({ discountMode: mode }),
+
+  setCustomer: (customer) =>
+    set({
+      customer,
+      redeeming: false,
+    }),
+
+  toggleRedeem: () =>
+    set((s) => ({
+      redeeming: !s.redeeming,
+    })),
+
+  setDiscountMode: (mode) =>
+    set({
+      discountMode: mode,
+    }),
+
   setDiscountRate: (rate, role) =>
-    set({ discountRate: Math.min(maxPctForRole(role), Math.max(0, rate)) }),
+    set({
+      discountRate: Math.min(maxPctForRole(role), Math.max(0, rate)),
+    }),
+
   setDiscountFixed: (amount, role) =>
-    set({ discountFixed: Math.min(maxFixedForRole(role), Math.max(0, amount)) }),
-  setTaxRate: (rate) => set({ taxRate: Number.isFinite(rate) && rate >= 0 ? rate : 0 }),
+    set({
+      discountFixed: Math.min(maxFixedForRole(role), Math.max(0, amount)),
+    }),
+
+  setTaxRate: (rate) =>
+    set({
+      taxRate: Number.isFinite(rate) && rate >= 0 ? rate : 0,
+    }),
+
   // Tax rate is a store setting, not per-sale — preserve it across resets.
-  reset: () => set((s) => ({ items: [], customer: null, redeeming: false, discountMode: 'percent', discountRate: DEFAULT_DISCOUNT, discountFixed: DEFAULT_DISCOUNT_FIXED, payMethod: 'Cash', taxRate: s.taxRate })),
+  reset: () =>
+    set((s) => ({
+      items: [],
+      customer: null,
+      redeeming: false,
+      discountMode: 'percent',
+      discountRate: DEFAULT_DISCOUNT,
+      discountFixed: DEFAULT_DISCOUNT_FIXED,
+      payMethod: 'Cash',
+      taxRate: s.taxRate,
+    })),
 }));
 
 export interface CartTotals {
@@ -121,21 +187,58 @@ export interface CartTotals {
   pointsEarned: number;
 }
 
-export function computeTotals(state: Pick<CartState, 'items' | 'customer' | 'redeeming' | 'discountMode' | 'discountRate' | 'discountFixed'> & { taxRate?: number }): CartTotals {
+export function computeTotals(
+  state: Pick<
+    CartState,
+    | 'items'
+    | 'customer'
+    | 'redeeming'
+    | 'discountMode'
+    | 'discountRate'
+    | 'discountFixed'
+  > & { taxRate?: number }
+): CartTotals {
   const rate = state.taxRate ?? TAX_RATE;
+
   // Round each line to cents first, then sum — the same order the server uses,
   // so the register total always equals the server-issued receipt total.
-  const subtotal = roundMoney(state.items.reduce((s, i) => s + lineAmount(i.price, i.qty), 0));
+  const subtotal = roundMoney(
+    state.items.reduce((s, i) => s + lineAmount(i.price, i.qty), 0)
+  );
+
   const discountPct = roundMoney(subtotal * state.discountRate);
-  const discountFixed = state.discountMode === 'fixed' ? Math.min(state.discountFixed, subtotal) : 0;
-  const discount = state.discountMode === 'percent' ? discountPct : roundMoney(discountFixed);
+  const discountFixed =
+    state.discountMode === 'fixed'
+      ? Math.min(state.discountFixed, subtotal)
+      : 0;
+
+  const discount =
+    state.discountMode === 'percent' ? discountPct : roundMoney(discountFixed);
+
   const afterDiscount = roundMoney(subtotal - discount);
-  const redeem = state.redeeming && state.customer ? redeemValue(state.customer.points, afterDiscount) : 0;
+
+  const redeem =
+    state.redeeming && state.customer
+      ? redeemValue(state.customer.points, afterDiscount)
+      : 0;
+
   const redeemPoints = pointsUsed(redeem);
   const taxable = roundMoney(afterDiscount - redeem);
   const tax = roundMoney(taxable * rate);
   const total = roundMoney(taxable + tax);
-  return { subtotal, discount, discountFixed, discountPct, redeem, redeemPoints, taxable, tax, total, pointsEarned: earn(total) };
+
+  return {
+    subtotal,
+    discount,
+    discountFixed,
+    discountPct,
+    redeem,
+    redeemPoints,
+    taxable,
+    tax,
+    total,
+    pointsEarned: earn(total),
+  };
 }
 
 export const useCartTotals = (): CartTotals => {
@@ -146,5 +249,26 @@ export const useCartTotals = (): CartTotals => {
   const discountRate = useCart((s) => s.discountRate);
   const discountFixed = useCart((s) => s.discountFixed);
   const taxRate = useCart((s) => s.taxRate);
-  return useMemo(() => computeTotals({ items, customer, redeeming, discountMode, discountRate, discountFixed, taxRate }), [items, customer, redeeming, discountMode, discountRate, discountFixed, taxRate]);
+
+  return useMemo(
+    () =>
+      computeTotals({
+        items,
+        customer,
+        redeeming,
+        discountMode,
+        discountRate,
+        discountFixed,
+        taxRate,
+      }),
+    [
+      items,
+      customer,
+      redeeming,
+      discountMode,
+      discountRate,
+      discountFixed,
+      taxRate,
+    ]
+  );
 };

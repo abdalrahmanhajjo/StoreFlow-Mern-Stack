@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Supplier from "../models/supplier.model";
 import Product from "../models/product.model";
 import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
+import { logMutation } from "../services/audit.service";
 
 const SUPPLIER_UPDATE_FIELDS = ['name', 'email', 'phone', 'address', 'contactPerson'] as const;
 
@@ -141,6 +142,10 @@ export const createSupplier = async (req: Request, res: Response) => {
             "name sku price quantity"
         );
 
+        logMutation(req, 'CREATE', 'supplier', fullSupplier!._id.toString(), {
+            description: `Created supplier: ${fullSupplier!.name}`,
+        });
+
         res.status(201).json({
             success: true,
             message: "Supplier created successfully",
@@ -205,6 +210,10 @@ export const updateSupplier = async (req: Request, res: Response) => {
             return;
         }
 
+        logMutation(req, 'UPDATE', 'supplier', id, {
+            description: `Updated supplier: ${supplier.name}`,
+        }).catch(() => {});
+
         res.status(200).json({
             success: true,
             message: "Supplier updated successfully",
@@ -246,6 +255,10 @@ export const deleteSupplier = async (req: Request, res: Response) => {
             });
             return;
         }
+
+        logMutation(req, 'DELETE', 'supplier', id, {
+            description: `Deleted supplier: ${supplier.name}`,
+        }).catch(() => {});
 
         res.status(200).json({
             success: true,

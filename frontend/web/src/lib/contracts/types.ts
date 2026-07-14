@@ -25,13 +25,18 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
 ] as const;
 
 /** Store-facing roles used to shape UX. Distinct from platform auth roles. */
-export type StoreRole = 'admin' | 'manager' | 'cashier' | 'inventory_clerk' | 'customer';
+export type StoreRole = 'admin' | 'administrator' | 'owner' | 'manager' | 'cashier' | 'inventory_manager' | 'inventory_clerk' | 'employee' | 'viewer' | 'customer';
 
 export const STORE_ROLES: readonly StoreRole[] = [
   'admin',
+  'administrator',
+  'owner',
   'manager',
   'cashier',
+  'inventory_manager',
   'inventory_clerk',
+  'employee',
+  'viewer',
   'customer',
 ] as const;
 

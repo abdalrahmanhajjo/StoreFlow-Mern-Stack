@@ -26,7 +26,6 @@ export default function ApprovalsPage() {
     if (!isConnected) return;
     const id = setInterval(() => { void refreshAdminStores(); }, 20000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const flaggedCount = applications.filter((a) => a.flagged).length;

@@ -4,6 +4,7 @@ import Category from "../models/category.model";
 import Product from "../models/product.model";
 import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+import { logMutation } from "../services/audit.service";
 
 const CATEGORY_UPDATE_FIELDS = ['name', 'description', 'isActive'] as const;
 
@@ -136,7 +137,11 @@ export const createCategory = async (req: Request, res: Response) => {
             description,
             emoji,
             imageUrl,
-        });
+        }) as any;
+
+        logMutation(req, 'CREATE', 'category', category._id.toString(), {
+            description: `Created category: ${category.name}`,
+        }).catch(() => {});
 
         res.status(201).json({
             success: true,
@@ -206,6 +211,10 @@ export const updateCategory = async (req: Request, res: Response) => {
             isActive: true,
         });
 
+        logMutation(req, 'UPDATE', 'category', (category as any)._id.toString(), {
+            description: `Updated category: ${(category as any).name}`,
+        }).catch(() => {});
+
         res.status(200).json({
             success: true,
             message: "Category updated successfully",
@@ -273,6 +282,10 @@ export const deleteCategory = async (req: Request, res: Response) => {
 
         category.isActive = false;
         await category.save();
+
+        logMutation(req, 'DELETE', 'category', id, {
+            description: `Deleted category: ${category!.name}`,
+        }).catch(() => {});
 
         res.status(200).json({
             success: true,

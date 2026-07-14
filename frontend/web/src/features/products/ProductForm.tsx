@@ -150,7 +150,7 @@ export function ProductForm({ open, onClose, editing }: Props) {
         const res = create(clean);
         if (!res.ok) {
           setErrors({ sku: res.error ?? 'Could not create' });
-          touched.has('sku') || setTouched((prev) => new Set(prev).add('sku'));
+          if (!touched.has('sku')) setTouched((prev) => new Set(prev).add('sku'));
           toast.error(res.error ?? 'Could not create', 'Duplicate SKU');
           setTimeout(() => scrollToError(['sku']), 100);
           return;

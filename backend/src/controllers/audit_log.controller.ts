@@ -13,7 +13,7 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         const search = req.query.search as string | undefined;
 
         const filter: any = {
-        ...tenantFilter(req),
+        ...tenantFilter(req, 'store'),
             isActive: true,
         };
 
@@ -22,7 +22,7 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         }
 
         if (entity) {
-            filter.entity = entity;
+            filter.resourceType = entity;
         }
 
         if (performedByName) {
@@ -32,7 +32,7 @@ export const getAuditLogs = async (req: Request, res: Response) => {
         if (search) {
             filter.$or = [
                 safeRegex('action', search),
-                safeRegex('entity', search),
+                safeRegex('resourceType', search),
                 safeRegex('description', search),
                 safeRegex('performedByName', search),
             ];
@@ -69,7 +69,7 @@ export const getAuditLogById = async (req: Request, res: Response) => {
             return;
         }
 
-        const log = await AuditLog.findOne({ ...tenantFilter(req),
+        const log = await AuditLog.findOne({ ...tenantFilter(req, 'store'),
             _id: id,
             isActive: true,
         });
@@ -109,9 +109,9 @@ export const getAuditLogsByEntity = async (req: Request, res: Response) => {
             return;
         }
 
-        const logs = await AuditLog.find({ ...tenantFilter(req),
-            entity,
-            entityId,
+        const logs = await AuditLog.find({ ...tenantFilter(req, 'store'),
+            resourceType: entity,
+            resourcePublicId: entityId,
             isActive: true,
         }).sort({
             createdAt: -1,
@@ -145,7 +145,7 @@ export const deleteAuditLog = async (req: Request, res: Response) => {
         }
 
         const log = await AuditLog.findOneAndUpdate(
-            { ...tenantFilter(req),
+            { ...tenantFilter(req, 'store'),
                 _id: id,
                 isActive: true,
             },

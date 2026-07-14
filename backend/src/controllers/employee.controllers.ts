@@ -4,6 +4,7 @@ import { User } from "../models/user.model";
 import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
 import { hashPassword, generateRawToken, hashToken, sendEmployeeInviteEmail } from "../utils/auth.utils";
+import { logMutation } from "../services/audit.service";
 
 const INVITE_TTL_DAYS = 7;
 
@@ -57,16 +58,23 @@ export const inviteEmployee = async (
     idVerification: { type: "national_id", number: "" },
   });
 
-  const store = await Store.findById(req.user!.storeId).select('storeName').lean();
+  const store = await Store.findById(req.user!.storeId).select('name').lean();
 
   // Send invite email (logged as fallback when email not configured)
   const inviteUrl = `${process.env.CLIENT_APP_URL || "http://localhost:5175"}/accept-invite?token=${rawToken}`;
+  // `name` is the invitee's own name — the seeded employee-invite template
+  // greets "Hello {{name}}," addressing the person being invited.
   sendEmployeeInviteEmail(email, {
     inviteUrl,
-    inviterName: req.user!.sub || "Your store manager",
-    storeName: store?.storeName || "your store",
+    name,
+    storeName: store?.name || "your store",
     role: role || "staff",
   });
+
+  logMutation(req, 'INVITE', 'employee', employee._id.toString(), {
+    description: `Invited employee: ${name} (${email})`,
+    metadata: { role, email },
+  }).catch(() => {});
 
   res.status(201).json({
     success: true,
@@ -99,6 +107,11 @@ export const updateEmployeeRole = async (
     if(!employee)
         return next(new AppError("Employee not found",404));
 
+    logMutation(req, 'UPDATE', 'employee', employee._id.toString(), {
+        description: `Updated employee role to ${role} for ${employee.name}`,
+        metadata: { newRole: role },
+    }).catch(() => {});
+
     res.json({
 
         success:true,
@@ -128,6 +141,10 @@ export const toggleEmployeeStatus = async (
 
     await employee.save();
 
+    logMutation(req, 'UPDATE', 'employee', employee._id.toString(), {
+        description: `Toggled employee status for ${employee.name}: ${employee.isActive ? 'activated' : 'deactivated'}`,
+    }).catch(() => {});
+
     res.json({
 
         success:true,
@@ -154,6 +171,10 @@ export const deleteEmployee = async (
 
     if(employee.role==="owner")
         return next(new AppError("Owner cannot be deleted",400));
+
+    logMutation(req, 'DELETE', 'employee', employee._id.toString(), {
+        description: `Deleted employee: ${employee.name} (${employee.email})`,
+    }).catch(() => {});
 
     await employee.deleteOne();
 

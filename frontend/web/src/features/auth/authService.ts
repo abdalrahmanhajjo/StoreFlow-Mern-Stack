@@ -1,4 +1,5 @@
 import { api } from '@/lib/axios';
+import { errorMessage } from '@/lib/http/errors';
 import type { Role, SessionUser } from '@/store/session';
 import type { BusinessType } from '@/lib/contracts/types';
 import { BUSINESS_TYPES } from '@/lib/contracts/types';
@@ -184,17 +185,28 @@ export const authService = {
     return { accessToken: data.accessToken, user: sessionUserFromApi(data.user) };
   },
 
-  async register(input: RegisterInput): Promise<void> {
+  async register(input: RegisterInput): Promise<{ checkout?: { url: string | null; sessionId: string } | null; plan?: { code: string; name: string; billingInterval: string; isFree: boolean } | null }> {
     if (USE_MOCK) {
+      const isPaid = input.planPublicId && input.planPublicId !== 'plan_free';
       pendingApprovals.set(input.email.toLowerCase(), {
         name: input.ownerName,
         businessType: input.businessType,
         step: 0,
       });
-      return delay(undefined);
+      if (isPaid) {
+        const fakeSessionId = `fake_${Math.random().toString(36).slice(2, 10)}`;
+        return delay({
+          checkout: {
+            url: `/billing/checkout/complete?session_id=${fakeSessionId}&mock=true`,
+            sessionId: fakeSessionId,
+          },
+          plan: { code: 'pro', name: 'Pro', billingInterval: input.billingInterval ?? 'monthly', isFree: false },
+        });
+      }
+      return delay({ checkout: null, plan: { code: 'free', name: 'Free', billingInterval: 'monthly', isFree: true } });
     }
 
-    await api.post('/auth/register', {
+    const { data } = await api.post('/auth/register', {
       storeName: input.storeName,
       address: input.businessAddress,
       businessType: BUSINESS_TYPE_TO_API[input.businessType] ?? 'retail',
@@ -211,7 +223,10 @@ export const authService = {
         type: input.ownerIdType,
         number: input.ownerIdNumber,
       },
+      planPublicId: input.planPublicId || undefined,
+      billingInterval: input.billingInterval || undefined,
     });
+    return data?.data ?? {};
   },
 
   /** Confirms the 6-digit email code. Demo mode accepts any code. */
@@ -278,6 +293,25 @@ export const authService = {
     // Best-effort: the server revokes the refresh token and clears the cookie,
     // but a network failure must never block signing out locally.
     await api.post('/auth/logout').catch(() => undefined);
+  },
+
+  /**
+   * Permanently deletes the signed-in account (owners: the store and all its
+   * data too). Throws with the server's message on failure so the dialog can
+   * explain why (wrong password, provider error, …).
+   */
+  async deleteAccount(password: string, confirmText: string): Promise<void> {
+    if (USE_MOCK) {
+      clearMockRefresh();
+      return delay(undefined, 300);
+    }
+    try {
+      await api.post('/auth/delete-account', { password, confirmText });
+    } catch (err) {
+      // The axios interceptor rejects with a normalised ApiError, so the
+      // user-safe message is on `err.message` directly.
+      throw new Error(errorMessage(err, 'Account deletion failed. Please try again.'));
+    }
   },
 
   async requestReset(email: string): Promise<void> {

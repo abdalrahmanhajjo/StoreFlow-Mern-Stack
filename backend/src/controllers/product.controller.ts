@@ -4,6 +4,7 @@ import Product from "../models/product.model";
 import Category from "../models/category.model";
 import { tenantFilter } from "../utils/tenant.utils";
 import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
+import { logMutation } from "../services/audit.service";
 
 const PRODUCT_UPDATE_FIELDS = [
   'name', 'sku', 'barcode', 'description', 'price', 'cost',
@@ -223,6 +224,12 @@ export const createProduct = async (req: Request, res: Response) => {
       categoryId,
     });
 
+    logMutation(req, 'CREATE', 'product', product._id.toString(), {
+      description: `Created product: ${product.name}`,
+      performedByName: req.headers['x-performed-by'] as string || undefined,
+      metadata: { sku: product.sku, price: product.price },
+    }).catch(() => {});
+
     res.status(201).json({
       success: true,
       message: "Product created successfully",
@@ -306,6 +313,11 @@ export const updateProduct = async (req: Request, res: Response) => {
       return;
     }
 
+    logMutation(req, 'UPDATE', 'product', product._id.toString(), {
+      description: `Updated product: ${product.name}`,
+      metadata: { changes: Object.keys(allowed) },
+    }).catch(() => {});
+
     res.status(200).json({
       success: true,
       message: "Product updated successfully",
@@ -364,6 +376,10 @@ export const deleteProduct = async (req: Request, res: Response) => {
       });
       return;
     }
+
+    logMutation(req, 'DELETE', 'product', id, {
+      description: `Deleted product: ${product.name}`,
+    }).catch(() => {});
 
     res.status(200).json({
       success: true,
@@ -447,6 +463,11 @@ export const updateProductStock = async (req: Request, res: Response) => {
       });
       return;
     }
+
+    logMutation(req, 'UPDATE', 'product', product._id.toString(), {
+      description: `Updated stock for ${product.name}: ${quantity}`,
+      metadata: { newQuantity: quantity },
+    }).catch(() => {});
 
     res.status(200).json({
       success: true,

@@ -5,9 +5,9 @@ import crypto from 'crypto';
 import { UserRole } from '../models/user.model';
 import { sendDynamicTemplateEmail } from './mail.utils';
 
-// Re-exported so nothing importing verifyMailer from here needs to change —
-// its real home is mail.utils.ts now, alongside the rest of the Gmail transport.
-export { verifyMailer } from './mail.utils';
+// Re-exported so nothing importing these from here needs to change — their
+// real home is mail.utils.ts now, alongside the rest of the Gmail transport.
+export { verifyMailer, sendMailSafe } from './mail.utils';
 
 // ---- password hashing ----
 export const hashPassword = (plain: string) => bcrypt.hash(plain, 12);
@@ -47,6 +47,7 @@ export const hashToken = (raw: string) =>
 // sendDynamicTemplateEmail logs an error and returns false rather than
 // throwing, so registration/reset/invite flows degrade gracefully instead of
 // crashing.
+
 
 /** @returns true if the email was accepted. */
 export const sendPasswordResetCode = async (

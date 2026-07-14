@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import { useSupply, supplierProductCount, supplierLinkedProducts } from './supplyStore';
 import { useProducts } from '@/features/products/productsStore';
 import { Modal, Button, Input, toast, confirm } from '@/components/ui';
+import { PlanFeatureGate } from '@/components/access/PlanFeatureGate';
 
-export default function SuppliersPage() {
+function SuppliersContent() {
   const { suppliers, purchaseOrders, addSupplier, updateSupplier, removeSupplier } = useSupply();
   const products = useProducts((s) => s.products);
   const updateProduct = useProducts((s) => s.update);
@@ -196,7 +197,7 @@ export default function SuppliersPage() {
                 unlinkable.slice(0, 20).map((p) => {
                   const isLinked = p.supplierId === editingId;
                   return (
-                    <div key={p.id} onClick={() => isLinked ? unlinkProduct(p.id) : linkProduct(p.id)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') (isLinked ? unlinkProduct(p.id) : linkProduct(p.id)); }}
+                    <div key={p.id} onClick={() => isLinked ? unlinkProduct(p.id) : linkProduct(p.id)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key !== 'Enter') return; if (isLinked) unlinkProduct(p.id); else linkProduct(p.id); }}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 12.5, background: isLinked ? 'var(--blue-soft)' : 'transparent' }}
                       onMouseEnter={(e) => e.currentTarget.style.background = isLinked ? 'var(--blue-soft)' : 'var(--paper)'}
                       onMouseLeave={(e) => e.currentTarget.style.background = isLinked ? 'var(--blue-soft)' : 'transparent'}
@@ -221,5 +222,33 @@ export default function SuppliersPage() {
         </div>
       </Modal>
     </>
+  );
+}
+
+export default function SuppliersPage() {
+  return (
+    <PlanFeatureGate
+      feature="supplierManagement"
+      fallback={
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 24px', textAlign: 'center' }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 16 }}>
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.29 7 12 12 20.71 7"/>
+            <line x1="12" y1="22" x2="12" y2="12"/>
+          </svg>
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', margin: '0 0 4px' }}>Suppliers &amp; Purchase Orders</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-faint)', margin: '0 0 16px', maxWidth: 360 }}>
+            This feature requires the <strong>Pro</strong> plan or higher.
+          </p>
+          <a href="/settings/billing"
+            style={{ padding: '10px 24px', background: 'var(--ink)', color: 'var(--card)', borderRadius: 11, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+          >
+            Upgrade plan
+          </a>
+        </div>
+      }
+    >
+      <SuppliersContent />
+    </PlanFeatureGate>
   );
 }

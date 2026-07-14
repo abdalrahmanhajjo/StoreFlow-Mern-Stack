@@ -151,8 +151,9 @@ async function sendViaGmail(
   };
 }
 
-/** Sends with one retry; never throws. Returns true if accepted by Gmail. */
-async function sendMailSafe(
+/** Sends with one retry; never throws. Returns true if accepted by Gmail.
+ *  Exported for callers that build their own HTML (e.g. billing emails). */
+export async function sendMailSafe(
   to: string,
   subject: string,
   html: string,

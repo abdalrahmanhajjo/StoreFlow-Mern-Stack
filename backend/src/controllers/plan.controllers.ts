@@ -5,7 +5,7 @@ import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
 import { pickAllowed, stripOperators } from "../utils/security.utils";
 
-const PLAN_UPDATE_FIELDS = ['name', 'priceMonthly', 'description', 'features', 'isPopular'] as const;
+const PLAN_UPDATE_FIELDS = ['name', 'billing', 'description', 'features', 'limits', 'isActive', 'isPublic', 'displayOrder'] as const;
 
 // 1. CREATE PLAN
 export const createPlan = async (req: Request, res: Response, next: NextFunction) => {
@@ -32,15 +32,9 @@ export const getPlans = async (req: Request, res: Response, next: NextFunction) 
     try {
         const plans = await Plan.find().sort({ displayOrder: 1 });
 
-        const counts = await Store.aggregate([
-            { $match: { 'subscription.planId': { $ne: null } } },
-            { $group: { _id: "$subscription.planId", count: { $sum: 1 } } },
-        ]);
-        const countMap = new Map(counts.map((c) => [String(c._id), c.count]));
-
         const data = plans.map((p) => ({
             ...p.toObject(),
-            storeCount: countMap.get(String(p._id)) ?? 0,
+            storeCount: 0, // TODO: aggregate from Subscription model
         }));
 
         res.status(200).json({
@@ -121,7 +115,7 @@ export const deletePlan = async (req: Request, res: Response, next: NextFunction
             return next(new AppError("Invalid Plan ID format", 400));
         }
 
-        const storeCount = await Store.countDocuments({ 'subscription.planId': id });
+        const storeCount = 0; // TODO: check Subscription model once migrated
         if (storeCount > 0) {
             return next(
                 new AppError(
@@ -168,9 +162,9 @@ export const assignPlanToStore = async (req: Request, res: Response, next: NextF
         // literal would overwrite the whole subscription document instead).
         const store = await Store.findByIdAndUpdate(
             storeId,
-            { 'subscription.planId': planId },
+            { planId },
             { new: true, runValidators: true }
-        ).populate("subscription.planId", "name slug priceMonthly");
+        ).populate("planId", "name billing");
 
         if (!store) {
             return next(new AppError("Store not found", 404));

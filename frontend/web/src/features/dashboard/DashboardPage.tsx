@@ -222,7 +222,7 @@ export default function DashboardPage() {
               sales.length === 0 && { icon: '🛒', title: 'No sales recorded yet', desc: 'Complete your first sale in the POS.', color: 'var(--blue-deep)', action: '/pos' },
               products.length === 0 && { icon: '🏷️', title: 'No products added', desc: 'Start building your catalog.', color: 'var(--ink-faint)', action: '/products' },
               { icon: '📊', title: `${sales.length} invoice${sales.length !== 1 ? 's' : ''} this session`, desc: `${money(revenue)} total revenue generated.`, color: 'var(--green)' },
-            ].filter(Boolean).map((a: any, i) => (
+            ].filter((x): x is { icon: string; title: string; desc: string; color: string; action?: string } => Boolean(x)).map((a, i) => (
               <div key={i} style={{ display: 'flex', gap: isMobile ? 10 : 12, padding: isMobile ? '11px 0' : '13px 0', borderBottom: i < 3 ? '1px solid var(--line-soft)' : 'none', cursor: a.action ? 'pointer' : undefined }}
                 onClick={() => a.action && navigate(a.action)}
               >

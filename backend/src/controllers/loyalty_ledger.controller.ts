@@ -4,6 +4,7 @@ import LoyaltyLedger from "../models/loyalty_ledger.model";
 import Customer from "../models/customer.model";
 import { calculateLoyaltyTier } from "../utils/loyalty_tier.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+import { logMutation } from "../services/audit.service";
 
 // GET all loyalty ledger records
 export const getLoyaltyLedgers = async (req: Request, res: Response) => {
@@ -223,6 +224,11 @@ export const earnPoints = async (req: Request, res: Response) => {
             "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier"
         );
 
+        logMutation(req, 'CREATE', 'loyalty_ledger', ledger._id.toString(), {
+            description: `Earned ${numericPoints} loyalty points`,
+            metadata: { customerId, points: numericPoints, type: 'earn' },
+        });
+
         res.status(201).json({
             success: true,
             message: "Loyalty points earned successfully",
@@ -304,6 +310,11 @@ export const redeemPoints = async (req: Request, res: Response) => {
             "customerId",
             "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier"
         );
+
+        logMutation(req, 'CREATE', 'loyalty_ledger', ledger._id.toString(), {
+            description: `Redeemed ${numericPoints} loyalty points`,
+            metadata: { customerId, points: -numericPoints, type: 'redeem' },
+        });
 
         res.status(201).json({
             success: true,
@@ -391,6 +402,11 @@ export const adjustPoints = async (req: Request, res: Response) => {
             "customerId",
             "name phone email loyaltyPoints lifetimePointsEarned loyaltyTier"
         );
+
+        logMutation(req, 'CREATE', 'loyalty_ledger', ledger._id.toString(), {
+            description: `Adjusted loyalty points by ${numericPoints}`,
+            metadata: { customerId, points: numericPoints, type: 'adjust' },
+        });
 
         res.status(201).json({
             success: true,

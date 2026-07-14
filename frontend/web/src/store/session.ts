@@ -3,6 +3,9 @@ import type { BusinessType } from '@/lib/contracts/types';
 
 export type Role = 'platform_admin' | 'owner' | 'manager' | 'cashier';
 
+// Store roles from backend StoreMembership (authoritative permission source)
+export type StoreRole = 'owner' | 'administrator' | 'manager' | 'cashier' | 'inventory_manager' | 'employee' | 'viewer';
+
 export interface SessionUser {
   id: string;
   name: string;

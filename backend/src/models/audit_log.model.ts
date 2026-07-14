@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 export type AuditAction =
     | "CREATE_SALE"
@@ -12,25 +12,48 @@ export type AuditAction =
     | "DELETE_PRODUCT"
     | "STOCK_ADJUSTMENT"
     | "RECEIVE_PURCHASE_ORDER"
-    | "PO_STOCK_INCREASE";
+    | "PO_STOCK_INCREASE"
+    // New authorization-aligned actions
+    | "CREATE"
+    | "UPDATE"
+    | "DELETE"
+    | "LOGIN"
+    | "LOGOUT"
+    | "INVITE"
+    | "PERMISSION_DENIED"
+    | "FEATURE_DENIED"
+    | "LIMIT_EXCEEDED";
 
-export interface IAuditLog extends Document {
-    storeId: mongoose.Types.ObjectId;
+export interface IAuditLog {
+    _id: mongoose.Types.ObjectId;
+    actor: mongoose.Types.ObjectId;
+    store: mongoose.Types.ObjectId;
     action: AuditAction;
-    entity: string;
-    entityId?: mongoose.Types.ObjectId;
-    description: string;
+    resourceType: string;
+    resourcePublicId?: string;
+    result: 'success' | 'failure' | 'denied';
+    reasonCode?: string;
+    description?: string;
     performedByName?: string;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
+    ip?: string;
     isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 const auditLogSchema = new Schema<IAuditLog>(
     {
-        storeId: {
-            type: mongoose.Schema.Types.ObjectId,
+        actor: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: [true, "Actor is required"],
+            index: true,
+        },
+        store: {
+            type: Schema.Types.ObjectId,
             ref: "Store",
-            required: [true, "storeId is required"],
+            required: [true, "Store is required"],
             index: true,
         },
         action: {
@@ -49,44 +72,37 @@ const auditLogSchema = new Schema<IAuditLog>(
                 "STOCK_ADJUSTMENT",
                 "RECEIVE_PURCHASE_ORDER",
                 "PO_STOCK_INCREASE",
+                "CREATE",
+                "UPDATE",
+                "DELETE",
+                "LOGIN",
+                "LOGOUT",
+                "INVITE",
+                "PERMISSION_DENIED",
+                "FEATURE_DENIED",
+                "LIMIT_EXCEEDED",
             ],
         },
-
-        entity: {
+        resourceType: { type: String, required: true, trim: true },
+        resourcePublicId: { type: String, trim: true },
+        result: {
             type: String,
-            required: [true, "Entity is required"],
-            trim: true,
+            enum: ['success', 'failure', 'denied'],
+            default: 'success',
         },
-
-        entityId: {
-            type: Schema.Types.ObjectId,
-        },
-
-        description: {
-            type: String,
-            required: [true, "Description is required"],
-            trim: true,
-        },
-
-        performedByName: {
-            type: String,
-            trim: true,
-            default: "System",
-        },
-
-        metadata: {
-            type: Schema.Types.Mixed,
-        },
-
-        isActive: {
-            type: Boolean,
-            default: true,
-        },
+        reasonCode: { type: String, trim: true },
+        description: { type: String, trim: true },
+        performedByName: { type: String, trim: true, default: "System" },
+        metadata: { type: Schema.Types.Mixed },
+        ip: { type: String },
+        isActive: { type: Boolean, default: true },
     },
-    {
-        timestamps: true,
-    }
+    { timestamps: true }
 );
+
+auditLogSchema.index({ createdAt: -1 });
+auditLogSchema.index({ actor: 1, createdAt: -1 });
+auditLogSchema.index({ store: 1, createdAt: -1 });
 
 const AuditLog = mongoose.model<IAuditLog>("AuditLog", auditLogSchema);
 

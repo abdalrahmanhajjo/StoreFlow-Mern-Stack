@@ -20,6 +20,10 @@ router.get('/session-status', authController.sessionStatus);
 
 router.get('/me', authenticate, authController.me);
 
+// Permanent account (and, for owners, store) deletion. Requires the current
+// password; owners must also send confirmText: "DELETE".
+router.post('/delete-account', authenticate, authController.deleteAccount);
+
 router.get('/approval-status', authController.approvalStatus);
 
 router.post('/forgot-password', authController.forgotPassword);

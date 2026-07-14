@@ -3,8 +3,9 @@ import { useSales } from '@/features/sales/salesStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { money } from '@/lib/format';
 import { Button, toast } from '@/components/ui';
+import { PlanFeatureGate } from '@/components/access/PlanFeatureGate';
 
-export default function ReportsPage() {
+function ReportsContent() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const sales = useSales((s) => s.sales);
   const [from, setFrom] = useState('');
@@ -170,5 +171,33 @@ export default function ReportsPage() {
 
       </div>
     </>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <PlanFeatureGate
+      feature="analytics"
+      fallback={
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 24px', textAlign: 'center' }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 16 }}>
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', margin: '0 0 4px' }}>Reports &amp; Analytics</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-faint)', margin: '0 0 16px', maxWidth: 360 }}>
+            Full reporting requires the <strong>Pro</strong> plan or higher.
+          </p>
+          <a href="/settings/billing"
+            style={{ padding: '10px 24px', background: 'var(--ink)', color: 'var(--card)', borderRadius: 11, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+          >
+            Upgrade plan
+          </a>
+        </div>
+      }
+    >
+      <ReportsContent />
+    </PlanFeatureGate>
   );
 }

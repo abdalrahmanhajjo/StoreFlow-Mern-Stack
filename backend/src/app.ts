@@ -18,6 +18,8 @@ import inventoryRoutes from "./routes/inventory.routes";
 import reportsRoutes from "./routes/reports.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import planRoutes from "./routes/plan.routes";
+import subscriptionRoutes from "./routes/subscription.routes";
+import adminBillingRoutes from "./routes/admin/billing.routes";
 
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
@@ -28,9 +30,20 @@ import cookieParser from "cookie-parser";
 import storeRoutes from "./routes/store.routes";
 import employeeRoutes from "./routes/employee.routes";
 
+// V1 billing + webhook routes
+import billingV1Routes from "./routes/v1/billing.routes";
+import webhookRoutes from "./routes/v1/webhook.routes";
+
 import { authenticate } from "./middleware/auth.middleware";
 import { authorize } from "./middleware/role.middleware";
 import { tenantScope } from "./middleware/tenant.middleware";
+import {
+    loadStore,
+    requireMembership,
+    requireActiveSubscription,
+    requirePermission,
+    requireFeature,
+} from "./middleware/authorization.middleware";
 import errorHandler from "./middleware/error.middleware";
 import { isProduction } from "./config/env";
 
@@ -67,6 +80,12 @@ app.use(
         credentials: true,
     })
 );
+
+// Webhooks must receive raw body for signature verification — mount BEFORE
+// the express.json() parser so Stripe signature verification gets the raw
+// payload.
+app.use("/api/v1/webhooks", webhookRoutes);
+
 app.use(express.json({ limit: "3mb" })); // logos ship as data URLs
 
 // ---------------------------------------------------------------------------
@@ -102,44 +121,53 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// Workspace routes: every one requires a valid JWT and is tenant-scoped —
-// tenantScope resolves req.storeId from the token (null = platform admin).
-// managerWrites additionally restricts non-GET methods to owner/manager and
-// requires a store-scoped account, so cashiers can look but not touch and
-// nothing can ever be written without a tenant.
+// Workspace routes: every one requires a valid JWT, is tenant-scoped, loads
+// the store, verifies store membership, and checks active subscription.
+// The authorizeResource middleware maps HTTP method to resource.action:
+//   GET → resource.read, POST → resource.create, PUT/PATCH → resource.update,
+//   DELETE → resource.delete.
 // ---------------------------------------------------------------------------
-const managerWrites = (req: Request, res: Response, next: NextFunction) => {
-    if (req.method === "GET") return next();
-    if (!req.storeId) {
-        return res.status(403).json({
-            success: false,
-            message: "A store-scoped account is required for this action",
-        });
-    }
-    return authorize("owner", "manager")(req, res, next);
-};
 
-/** Non-GET requests must carry a store scope (cashier-writable resources). */
-const storeWrites = (req: Request, res: Response, next: NextFunction) => {
-    if (req.method === "GET" || req.storeId) return next();
-    return res.status(403).json({
-        success: false,
-        message: "A store-scoped account is required for this action",
-    });
-};
-
-/** Reads open to any store user, but writes are owner-only — used for
- * finance/business config (store settings) that managers must not change. */
-const ownerWrites = (req: Request, res: Response, next: NextFunction) => {
-    if (req.method === "GET") return next();
-    if (!req.storeId) {
-        return res.status(403).json({
-            success: false,
-            message: "A store-scoped account is required for this action",
-        });
+/**
+ * Maps HTTP method to the CRUD action suffix.
+ * HEAD/OPTIONS are treated as read.
+ */
+function methodAction(method: string): 'create' | 'read' | 'update' | 'delete' {
+    switch (method) {
+        case 'POST': return 'create';
+        case 'PUT':
+        case 'PATCH': return 'update';
+        case 'DELETE': return 'delete';
+        default: return 'read';
     }
-    return authorize("owner")(req, res, next);
-};
+}
+
+/**
+ * Middleware factory: returns middleware that requires the given resource
+ * permission based on the HTTP method of the request.
+ */
+function authorizeResource(resource: string) {
+    return (req: Request, _res: Response, next: NextFunction) => {
+        const action = methodAction(req.method);
+        return requirePermission(`${resource}.${action}` as any)(req, _res, next);
+    };
+}
+
+/**
+ * Full authorization chain for a route group: authenticate → tenant-scope →
+ * load store → verify membership → check active subscription → check
+ * resource permission.
+ */
+function authChain(resource: string) {
+    return [
+        authenticate,
+        tenantScope,
+        loadStore,
+        requireMembership,
+        requireActiveSubscription,
+        authorizeResource(resource),
+    ];
+}
 
 // API routes
 app.use("/api/auth", authLimiter, authRoutes);
@@ -147,26 +175,31 @@ app.use("/api/users", userRoutes); // has its own authenticate/authorize chain
 app.use("/api/stores", storeRoutes); // has its own authenticate/authorize chain
 app.use("/api/security", securityRoutes); // admin-only, own chain
 
-app.use("/api/categories", authenticate, tenantScope, managerWrites, categoryRoutes);
-app.use("/api/products", authenticate, tenantScope, managerWrites, productRoutes);
-app.use("/api/customers", authenticate, tenantScope, storeWrites, customerRoutes);
-app.use("/api/loyalty-ledger", authenticate, tenantScope, storeWrites, loyaltyLedgerRoutes);
-app.use("/api/sales", authenticate, tenantScope, storeWrites, saleRoutes);
-app.use("/api/stock-adjustments", authenticate, tenantScope, managerWrites, stockAdjustmentRoutes);
-app.use("/api/suppliers", authenticate, tenantScope, managerWrites, supplierRoutes);
-app.use("/api/purchase-orders", authenticate, tenantScope, managerWrites, purchaseOrderRoutes);
-app.use("/api/store-settings", authenticate, tenantScope, ownerWrites, storeSettingRoutes);
-app.use("/api/audit-logs", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), auditLogRoutes);
-app.use("/api/inventory", authenticate, tenantScope, managerWrites, inventoryRoutes);
-// Reports & dashboard expose store-wide financials — restricted to owners and
-// managers (and platform admins), matching what the UI navigation implies.
-// Cashiers get the POS/sales/customers surface only.
-app.use("/api/reports", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), reportsRoutes);
-app.use("/api/dashboard", authenticate, tenantScope, authorize("platform_admin", "owner", "manager"), dashboardRoutes);
+app.use("/api/categories", ...authChain('category'), categoryRoutes);
+app.use("/api/products", ...authChain('product'), productRoutes);
+app.use("/api/customers", ...authChain('customer'), customerRoutes);
+app.use("/api/loyalty-ledger", ...authChain('customer'), loyaltyLedgerRoutes);
+app.use("/api/sales", ...authChain('sale'), saleRoutes);
+app.use("/api/stock-adjustments", ...authChain('inventory'), stockAdjustmentRoutes);
+// Suppliers & purchase orders are a paid-plan capability (Pro and up) — the
+// plan gate mirrors what the pricing page advertises.
+app.use("/api/suppliers", ...authChain('supplier'), requireFeature('supplierManagement'), supplierRoutes);
+app.use("/api/purchase-orders", ...authChain('purchase_order'), requireFeature('supplierManagement'), purchaseOrderRoutes);
+app.use("/api/store-settings", ...authChain('settings'), storeSettingRoutes);
+app.use("/api/inventory", ...authChain('inventory'), inventoryRoutes);
+app.use("/api/audit-logs", ...authChain('audit_log'), auditLogRoutes);
+// Reporting requires the analytics plan feature (Pro and up).
+app.use("/api/reports", ...authChain('report'), requireFeature('analytics'), reportsRoutes);
+app.use("/api/dashboard", ...authChain('analytics'), dashboardRoutes);
 
 app.use("/api/email-templates", emailTemplateRoutes); 
 
 app.use("/api/plans", planRoutes); // admin-only, own chain
+app.use("/api/subscriptions", subscriptionRoutes); // own auth chain
+app.use("/api/admin/billing", adminBillingRoutes); // admin billing controls
+
+// V1 billing API
+app.use("/api/v1/billing", billingV1Routes);
 
 // ---- serve built frontend in production ----
 if (isProduction()) {

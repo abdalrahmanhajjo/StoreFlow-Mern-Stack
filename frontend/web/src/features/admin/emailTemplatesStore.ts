@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { errorMessage } from '@/lib/http/errors';
 import { emailTemplateService, type EmailTemplate, type EmailTemplateInput } from './emailTemplateService';
 
 interface Result { ok: boolean; error?: string }
@@ -14,7 +15,7 @@ interface EmailTemplatesState {
   testSend: (slug: string, to: string, variables: Record<string, string>) => Promise<Result>;
 }
 
-export const useEmailTemplates = create<EmailTemplatesState>((set, get) => ({
+export const useEmailTemplates = create<EmailTemplatesState>((set) => ({
   templates: [],
   loading: false,
   loaded: false,
@@ -34,8 +35,8 @@ export const useEmailTemplates = create<EmailTemplatesState>((set, get) => ({
       const template = await emailTemplateService.create(input);
       set((s) => ({ templates: [template, ...s.templates] }));
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not create template' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not create template') };
     }
   },
 
@@ -44,8 +45,8 @@ export const useEmailTemplates = create<EmailTemplatesState>((set, get) => ({
       const template = await emailTemplateService.update(id, input);
       set((s) => ({ templates: s.templates.map((t) => (t._id === id ? template : t)) }));
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not update template' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not update template') };
     }
   },
 
@@ -54,8 +55,8 @@ export const useEmailTemplates = create<EmailTemplatesState>((set, get) => ({
       await emailTemplateService.remove(id);
       set((s) => ({ templates: s.templates.filter((t) => t._id !== id) }));
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not delete template' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not delete template') };
     }
   },
 
@@ -63,8 +64,8 @@ export const useEmailTemplates = create<EmailTemplatesState>((set, get) => ({
     try {
       await emailTemplateService.testSend(slug, to, variables);
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not send test email' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not send test email') };
     }
   },
 }));

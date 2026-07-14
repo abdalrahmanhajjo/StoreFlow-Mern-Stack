@@ -4,8 +4,9 @@ import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
 import { User } from "../models/user.model";
 import { pickAllowed, stripOperators } from "../utils/security.utils";
+import { logMutation } from "../services/audit.service";
 
-const STORE_UPDATE_FIELDS = ['storeName', 'address', 'businessType', 'currency', 'taxRegistrationId', 'phone', 'email'] as const;
+const STORE_UPDATE_FIELDS = ['name', 'address', 'businessType', 'currency', 'taxRegistrationId', 'taxRate'] as const;
 
 // Helper to construct dynamic queries depending on user role bypasses
 const buildStoreFilter = (req: Request, baseFilter: any = {}) => {
@@ -50,20 +51,16 @@ export const createStore = async (req: Request, res: Response, next: NextFunctio
 
         // 3. Instantiate the new store record
         const newStore = await Store.create({
-            storeName,
+            publicId: new mongoose.Types.ObjectId().toString(),
+            name: storeName,
+            slug: storeName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
             address,
             businessType,
             currency: currency || 'USD',
             taxRate: taxRate || 0,
             taxRegistrationId: taxRegistrationId || undefined,
-            ownerId,
+            owner: ownerId,
             status: "pending",
-            subscription: {
-                trialEndsAt,
-                status: 'trial',
-                // planId intentionally omitted — defaults to null until an
-                // admin assigns a plan via PATCH /api/plans/stores/:storeId/assign
-            },
             isVerified: false,
         });
 
@@ -71,6 +68,11 @@ export const createStore = async (req: Request, res: Response, next: NextFunctio
             // 4. Connect the store's ID back to the owner's profile (Two-way sync)
             ownerUser.storeId = newStore._id as any;
             await ownerUser.save();
+
+            logMutation(req, 'CREATE', 'store', newStore._id.toString(), {
+                description: `Created store: ${newStore.name}`,
+                metadata: { businessType: newStore.businessType, storeName: newStore.name },
+            });
 
             res.status(201).json({
                 success: true,
@@ -92,8 +94,8 @@ export const getStores = async (req: Request, res: Response, next: NextFunction)
     try {
         const filter = buildStoreFilter(req);
         const stores = await Store.find(filter)
-            .populate("ownerId", "name email role")
-            .populate("subscription.planId", "name slug priceMonthly");
+            .populate("owner", "name email role")
+            .populate("planId", "name code billing");
 
         res.status(200).json({
             success: true,
@@ -120,8 +122,8 @@ export const getStoreById = async (req: Request, res: Response, next: NextFuncti
         }
 
         const store = await Store.findById(id)
-            .populate("ownerId", "name email role")
-            .populate("subscription.planId", "name slug priceMonthly");
+            .populate("owner", "name email role")
+            .populate("planId", "name code billing");
 
         if (!store) {
             return next(new AppError("Store profile not found", 404));
@@ -155,8 +157,7 @@ export const updateStore = async (req: Request, res: Response, next: NextFunctio
         // Safe Guardrail: Prevent regular Owners from manually changing store statuses or owners
         if (req.user?.role !== "platform_admin") {
             delete updateData.status;
-            delete updateData.ownerId;
-            delete updateData.subscription; // no self-service plan upgrades — use /api/plans/stores/:storeId/assign
+            delete updateData.owner;
         }
 
         const updatedStore = await Store.findByIdAndUpdate(
@@ -168,6 +169,11 @@ export const updateStore = async (req: Request, res: Response, next: NextFunctio
         if (!updatedStore) {
             return next(new AppError("Store not found", 404));
         }
+
+        logMutation(req, 'UPDATE', 'store', id, {
+            description: `Updated store: ${updatedStore.name}`,
+            metadata: { updatedFields: Object.keys(updateData) },
+        });
 
         res.status(200).json({
             success: true,
@@ -202,6 +208,11 @@ export const changeStoreStatus = async (req: Request, res: Response, next: NextF
         if (!store) {
             return next(new AppError("Store profile not found", 404));
         }
+
+        logMutation(req, 'UPDATE', 'store', id, {
+            description: `Changed store status to ${status}`,
+            metadata: { status },
+        });
 
         res.status(200).json({
             success: true,

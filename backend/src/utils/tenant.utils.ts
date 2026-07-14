@@ -8,16 +8,16 @@ import mongoose from 'mongoose';
  *
  *   Product.find({ ...tenantFilter(req), isActive: true })
  */
-export const tenantFilter = (req: Request): Record<string, unknown> =>
-  req.storeId ? { storeId: req.storeId } : {};
+export const tenantFilter = (req: Request, field = 'storeId'): Record<string, unknown> =>
+  req.storeId ? { [field]: req.storeId } : {};
 
 /**
  * Like tenantFilter, but with an explicit ObjectId cast — aggregation
  * pipelines ($match) don't auto-cast strings the way find() does.
  */
-export const tenantMatch = (req: Request): Record<string, unknown> =>
+export const tenantMatch = (req: Request, field = 'storeId'): Record<string, unknown> =>
   req.storeId
-    ? { storeId: new mongoose.Types.ObjectId(String(req.storeId)) }
+    ? { [field]: new mongoose.Types.ObjectId(String(req.storeId)) }
     : {};
 
 /**

@@ -25,6 +25,9 @@ const LIST_LIMIT = 500;
 
 interface Envelope<T> { success: boolean; data: T }
 
+// Wire documents are dynamically shaped; the map* functions below are the
+// single place that normalises them into typed domain objects.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Doc = Record<string, any>;
 
 const id = (doc: Doc): string => String(doc._id ?? doc.id);

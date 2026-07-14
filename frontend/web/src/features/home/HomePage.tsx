@@ -5,6 +5,7 @@ import { landingRouteForRole } from '@/app/navConfig';
 import { money } from '@/lib/format';
 import { useSession } from '@/store/session';
 import { getMockStore } from '@/mocks';
+import { api } from '@/lib/axios';
 import { BUSINESS_TYPES, type BusinessType } from '@/lib/contracts/types';
 import tenantsData from '@/data/tenants.json';
 import productsData from '@/data/products.json';
@@ -96,14 +97,20 @@ const navItems = [
   { label: 'Contact', href: '#contact' },
 ];
 
-/* Same plan definitions the platform admin manages in features/admin/PlansPage. */
-const PLANS = [
+/* Fallback copy of the official plans (src/scripts/seedPlans.ts). The live
+ * values are fetched from the database via /v1/billing/plans so marketing
+ * never drifts from what the backend actually enforces; this static copy is
+ * used only when the API is unreachable (or in mock mode). */
+type HomePlan = { key: string; price: string; period: string; blurb: string; cta: string; featured: boolean };
+type HomeMatrixRow = { feature: string; values: string[] };
+
+const FALLBACK_PLANS: HomePlan[] = [
   { key: 'Free', price: '$0', period: 'forever', blurb: '1 staff, 1 register, up to 50 products. Core POS only.', cta: 'Start free', featured: false },
   { key: 'Pro', price: '$49', period: 'per month', blurb: 'Up to 10 staff, suppliers, purchase orders, full reporting.', cta: 'Start with Pro', featured: true },
-  { key: 'Enterprise', price: '$99', period: 'per month', blurb: 'Unlimited staff, advanced analytics, multi-branch, priority support.', cta: 'Contact us', featured: false },
+  { key: 'Enterprise', price: '$99', period: 'per month', blurb: 'Unlimited staff, advanced analytics, multi-branch, priority support.', cta: 'Start with Enterprise', featured: false },
 ];
 
-const PLAN_MATRIX: { feature: string; values: [string, string, string] }[] = [
+const FALLBACK_MATRIX: HomeMatrixRow[] = [
   { feature: 'Product limit', values: ['50', 'Unlimited', 'Unlimited'] },
   { feature: 'Staff accounts', values: ['1', '10', 'Unlimited'] },
   { feature: 'Suppliers & purchase orders', values: ['—', '✓', '✓'] },
@@ -111,6 +118,59 @@ const PLAN_MATRIX: { feature: string; values: [string, string, string] }[] = [
   { feature: 'Multi-branch', values: ['—', '—', '✓'] },
   { feature: 'Priority support', values: ['—', '—', '✓'] },
 ];
+
+const limitLabel = (v: number | null | undefined): string =>
+  v === null || v === undefined || v < 0 ? 'Unlimited' : String(v);
+const featureMark = (on: boolean | undefined): string => (on ? '✓' : '—');
+
+/** Wire shape of a public plan as returned by GET /v1/billing/plans. */
+interface ApiPlan {
+  name?: string;
+  description?: string;
+  displayOrder?: number;
+  isRecommended?: boolean;
+  billing?: { monthlyPriceMinor?: number };
+  limits?: { productsPerStore?: number | null; membersPerStore?: number | null };
+  features?: {
+    supplierManagement?: boolean;
+    advancedAnalytics?: boolean;
+    multiStore?: boolean;
+    prioritySupport?: boolean;
+  };
+}
+
+/** Builds the pricing cards + comparison rows from the database plans. */
+function planViewFromApi(apiPlans: ApiPlan[]): { plans: HomePlan[]; matrix: HomeMatrixRow[] } | null {
+  const list = apiPlans
+    .filter((p): p is ApiPlan & { name: string; billing: NonNullable<ApiPlan['billing']> } =>
+      Boolean(p?.name && p?.billing))
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  if (list.length < 2) return null;
+
+  const plans: HomePlan[] = list.map((p) => {
+    const monthly = p.billing.monthlyPriceMinor ?? 0;
+    const dollars = monthly % 100 === 0 ? `$${monthly / 100}` : `$${(monthly / 100).toFixed(2)}`;
+    return {
+      key: p.name,
+      price: dollars,
+      period: monthly === 0 ? 'forever' : 'per month',
+      blurb: p.description ?? '',
+      cta: monthly === 0 ? 'Start free' : `Start with ${p.name}`,
+      featured: !!p.isRecommended,
+    };
+  });
+
+  const matrix: HomeMatrixRow[] = [
+    { feature: 'Product limit', values: list.map((p) => limitLabel(p.limits?.productsPerStore)) },
+    { feature: 'Staff accounts', values: list.map((p) => limitLabel(p.limits?.membersPerStore)) },
+    { feature: 'Suppliers & purchase orders', values: list.map((p) => featureMark(p.features?.supplierManagement)) },
+    { feature: 'Advanced analytics', values: list.map((p) => featureMark(p.features?.advancedAnalytics)) },
+    { feature: 'Multi-branch', values: list.map((p) => featureMark(p.features?.multiStore)) },
+    { feature: 'Priority support', values: list.map((p) => featureMark(p.features?.prioritySupport)) },
+  ];
+
+  return { plans, matrix };
+}
 
 const TYPE_LABEL: Record<BusinessType, string> = {
   supermarket: 'Supermarket',
@@ -263,6 +323,20 @@ function useFocusList(ref: React.RefObject<HTMLUListElement | null>) {
 
 export default function HomePage() {
   const user = useSession((s) => s.user);
+  // Live plans from the database — the same records the backend enforces.
+  const [planView, setPlanView] = useState<{ plans: HomePlan[]; matrix: HomeMatrixRow[] } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/v1/billing/plans')
+      .then((res) => {
+        const built = planViewFromApi(res.data?.data ?? []);
+        if (!cancelled && built) setPlanView(built);
+      })
+      .catch(() => { /* fall back to the static copy */ });
+    return () => { cancelled = true; };
+  }, []);
+  const PLANS = planView?.plans ?? FALLBACK_PLANS;
+  const PLAN_MATRIX = planView?.matrix ?? FALLBACK_MATRIX;
   const [biz, setBiz] = useState<BusinessType>('supermarket');
   const [stageBiz, setStageBiz] = useState<BusinessType>('supermarket');
   const [stagePaused, setStagePaused] = useState(false);
@@ -853,13 +927,9 @@ export default function HomePage() {
                       </li>
                     ))}
                   </ul>
-                  {plan.key === 'Enterprise' ? (
-                    <a className={plan.featured ? 'sf-home-solid' : 'sf-home-ghost'} href="#contact">{plan.cta}</a>
-                  ) : (
-                    <Link className={plan.featured ? 'sf-plan-cta' : 'sf-home-ghost'} to={user ? landingRouteForRole(user.role) : '/register'}>
-                      {user ? 'Open your dashboard' : plan.cta}
-                    </Link>
-                  )}
+                  <Link className={plan.featured ? 'sf-plan-cta' : 'sf-home-ghost'} to={user ? landingRouteForRole(user.role) : '/register'}>
+                    {user ? 'Open your dashboard' : plan.cta}
+                  </Link>
                   {storesOn > 0 && <small>{storesOn} of our live stores run {plan.key}</small>}
                 </article>
               );

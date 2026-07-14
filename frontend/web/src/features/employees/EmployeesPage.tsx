@@ -4,6 +4,7 @@ import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Modal, Button, Badge, toast, confirm } from '@/components/ui';
+import { PlanLimitBanner } from '@/components/access/PlanLimitBanner';
 
 const ROLE_COLORS: Record<StaffRole, { bg: string; text: string }> = {
   owner: { bg: 'var(--amber-soft)', text: 'var(--amber)' },
@@ -75,6 +76,12 @@ export default function EmployeesPage() {
         </div>
         {can(myRole, 'employee.manage') && <Button onClick={openNew} style={{ width: isMobile ? '100%' : undefined }}>+ Add employee</Button>}
       </div>
+
+      <PlanLimitBanner
+        limitKey="membersPerStore"
+        currentCount={activeCount}
+        label="staff members"
+      />
 
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: isMobile ? 10 : 12, marginBottom: isMobile ? 14 : 16 }}>

@@ -18,17 +18,14 @@ import {
 
 const router = express.Router();
 
-// Platform-level resource — platform_admin only. No tenantScope here:
-// plans aren't owned by a store, they're the thing stores get assigned TO.
-router.use(authenticate);
-router.use(authorize("platform_admin"));
+// Plans list + detail: available to any authenticated user (for the billing page)
+router.get("/", authenticate, getPlans);
+router.get("/:id", authenticate, getPlanById);
 
-router.get("/", getPlans);
-router.get("/:id", getPlanById);
-router.post("/", validate(createPlanSchema), createPlan);
-router.post("/:id", validate(updatePlanSchema), updatePlan);
-router.delete("/:id", deletePlan);
-
-router.post("/stores/:storeId/assign", validate(assignPlanSchema), assignPlanToStore);
+// Mutations: platform_admin only
+router.post("/", authenticate, authorize("platform_admin"), validate(createPlanSchema), createPlan);
+router.post("/:id", authenticate, authorize("platform_admin"), validate(updatePlanSchema), updatePlan);
+router.delete("/:id", authenticate, authorize("platform_admin"), deletePlan);
+router.post("/stores/:storeId/assign", authenticate, authorize("platform_admin"), validate(assignPlanSchema), assignPlanToStore);
 
 export default router;

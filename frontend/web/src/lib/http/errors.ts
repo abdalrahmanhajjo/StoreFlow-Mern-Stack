@@ -21,6 +21,28 @@ export interface ApiError {
   fields?: Record<string, string>;
 }
 
+/**
+ * Message from an unknown thrown value — usually the interceptor's normalised
+ * ApiError, so `.message` is already user-safe. Use in catch blocks instead of
+ * `err: any`.
+ */
+export function errorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const m = (err as { message?: unknown }).message;
+    if (typeof m === 'string' && m) return m;
+  }
+  return fallback;
+}
+
+/** HTTP status from an unknown thrown value, when present. */
+export function errorStatus(err: unknown): number | undefined {
+  if (err && typeof err === 'object' && 'status' in err) {
+    const s = (err as { status?: unknown }).status;
+    if (typeof s === 'number') return s;
+  }
+  return undefined;
+}
+
 /** A user-safe message for each class of failure. Never leak server internals. */
 export function messageForStatus(status: number | undefined, fallback: string): string {
   switch (status) {

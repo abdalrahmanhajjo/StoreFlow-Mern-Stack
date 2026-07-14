@@ -1,18 +1,20 @@
 import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { api } from '@/lib/axios';
 import { registerSchema, type RegisterInput } from './schemas';
 import { useRegister, useVerifyEmail } from './hooks';
 import { authService } from './authService';
-import { Button, Input, Logo, PhoneCodeSelect, toast } from '@/components/ui';
+import { Button, Input, Logo, PhoneCodeSelect, toast, Spinner } from '@/components/ui';
 
-const STEPS = ['Business', 'Owner identity', 'Account', 'Verify'] as const;
+const STEPS = ['Business', 'Owner identity', 'Account', 'Plan', 'Verify'] as const;
 
-const stepFields: [string[], string[], string[], string[]] = [
+const stepFields: [string[], string[], string[], string[], string[]] = [
   ['storeName', 'businessType', 'currency', 'businessPhoneCode', 'businessPhone', 'businessAddress', 'businessTaxId'],
   ['ownerName', 'ownerPhoneCode', 'ownerPhone', 'ownerIdType', 'ownerIdNumber'],
   ['email', 'password'],
+  [],
   [],
 ];
 
@@ -20,6 +22,7 @@ const stepIcons = [
   <svg key="biz" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
   <svg key="id" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   <svg key="lock" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  <svg key="plan" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   <svg key="otp" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
 ];
 
@@ -52,9 +55,33 @@ const selBase: CSSProperties = {
   cursor: 'pointer',
 };
 
+interface PricingPlan {
+  publicId: string;
+  code: string;
+  name: string;
+  description: string;
+  shortDescription: string;
+  isRecommended: boolean;
+  displayOrder: number;
+  supportedIntervals: Array<'monthly' | 'yearly'>;
+  billing: { currency: string; monthlyPriceMinor: number; yearlyPriceMinor: number };
+  features: Record<string, boolean>;
+  limits: Record<string, number>;
+  trial: { enabled: boolean; durationDays: number };
+}
+
+function formatMinor(amount: number): string {
+  return '$' + (amount / 100).toFixed(2);
+}
+
+
+
 export default function RegisterPage() {
   const reg = useRegister();
   const verify = useVerifyEmail();
+  const [searchParams] = useSearchParams();
+  const preselectedPlan = searchParams.get('plan');
+  const preselectedInterval = searchParams.get('interval') as 'monthly' | 'yearly' | null;
   const [step, setStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const topRef = useRef<HTMLDivElement>(null);
@@ -63,6 +90,45 @@ export default function RegisterPage() {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [resendTimer, setResendTimer] = useState(0);
   const resendInterval = useRef<ReturnType<typeof setInterval>>();
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>(preselectedInterval === 'yearly' ? 'yearly' : 'monthly');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/v1/billing/plans');
+        const body = res.data as { data?: PricingPlan[] } | PricingPlan[] | undefined;
+        const list = Array.isArray(body) ? body : body?.data ?? [];
+        setPlans(list);
+        if (preselectedPlan) {
+          const match = list.find((p: PricingPlan) => p.publicId === preselectedPlan || p.code === preselectedPlan);
+          if (match) setSelectedPlanId(match.publicId);
+        }
+      } catch { /* ignore */ }
+      setPlansLoading(false);
+    })();
+  }, [preselectedPlan]);
+
+  const startResendTimer = useCallback(() => {
+    setResendTimer(30);
+    resendInterval.current = setInterval(() => {
+      setResendTimer((t) => {
+        if (t <= 1) { clearInterval(resendInterval.current); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+  }, []);
+
+  // Free plan registration succeeds → advance to Verify step
+  useEffect(() => {
+    if (reg.isSuccess && !reg.data?.checkout?.url) {
+      setAnimKey((k) => k + 1);
+      setStep(4);
+      startResendTimer();
+    }
+  }, [reg.isSuccess, reg.data, startResendTimer]);
 
   const {
     register: regField,
@@ -81,19 +147,12 @@ export default function RegisterPage() {
     },
   });
 
+  // react-hook-form's watch() is incompatible with React Compiler memoization;
+  // the compiler skips this component, which is expected and safe here.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const vals = watch();
   const pw = watch('password') ?? '';
   const pwStrength = pw ? strength(pw) : null;
-
-  const startResendTimer = useCallback(() => {
-    setResendTimer(30);
-    resendInterval.current = setInterval(() => {
-      setResendTimer((t) => {
-        if (t <= 1) { clearInterval(resendInterval.current); return 0; }
-        return t - 1;
-      });
-    }, 1000);
-  }, []);
 
   useEffect(() => {
     return () => clearInterval(resendInterval.current);
@@ -101,13 +160,17 @@ export default function RegisterPage() {
 
   async function next() {
     const fields = stepFields[step];
-    if (fields.length === 0) return;
-    const valid = await trigger(fields as (keyof RegisterInput)[]);
-    if (!valid) return;
-    // Leaving the Account step submits the registration — the server creates
+    if (fields.length > 0) {
+      const valid = await trigger(fields as (keyof RegisterInput)[]);
+      if (!valid) return;
+    }
+    // Leaving the Plan step submits the registration — the server creates
     // the store + owner and emails the 6-digit code the Verify step asks for.
-    if (step === 2) {
-      reg.mutate(vals, { onSuccess: () => advance() });
+    // For paid plans the hook redirects to Stripe Checkout; for free plans
+    // we advance to the OTP verification step.
+    if (step === 3) {
+      const payload = { ...vals, planPublicId: selectedPlanId ?? undefined, billingInterval };
+      reg.mutate(payload);
       return;
     }
     advance();
@@ -116,7 +179,7 @@ export default function RegisterPage() {
   function advance() {
     setAnimKey((k) => k + 1);
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
-    if (step + 1 === 3) startResendTimer();
+    if (step + 1 === 4) startResendTimer();
     setTimeout(() => {
       const name = stepFields[Math.min(step + 1, STEPS.length - 1)]?.[0] as keyof RegisterInput | undefined;
       if (name) setFocus(name);
@@ -277,7 +340,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Step content */}
-          <div style={{ minHeight: step === 3 ? 280 : 260, position: 'relative' }}>
+          <div style={{ minHeight: step === 4 ? 280 : step === 3 ? 340 : 260, position: 'relative' }}>
             <div key={animKey} className="sf-step-enter">
               {/* Step 0 — Business */}
               {step === 0 && (
@@ -413,8 +476,105 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* Step 3 — OTP Verify */}
+              {/* Step 3 — Plan selection */}
               {step === 3 && (
+                <div>
+                  <h2 className="display" style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Choose your plan</h2>
+                  <p style={{ margin: '0 0 20px', fontSize: 13.5, color: 'var(--ink-soft)' }}>
+                    Select the right plan for your business. Start with a 14-day free trial on any paid plan.
+                  </p>
+
+                  {/* Interval toggle */}
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+                    <div style={{ display: 'flex', gap: 4, background: 'var(--paper)', borderRadius: 10, padding: 3 }}>
+                      <button
+                        type="button" onClick={() => setBillingInterval('monthly')}
+                        style={{
+                          padding: '7px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                          fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                          background: billingInterval === 'monthly' ? 'var(--card)' : 'transparent',
+                          color: billingInterval === 'monthly' ? 'var(--ink)' : 'var(--ink-faint)',
+                          boxShadow: billingInterval === 'monthly' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                          transition: 'all .2s',
+                        }}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        type="button" onClick={() => setBillingInterval('yearly')}
+                        style={{
+                          padding: '7px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                          fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                          background: billingInterval === 'yearly' ? 'var(--card)' : 'transparent',
+                          color: billingInterval === 'yearly' ? 'var(--ink)' : 'var(--ink-faint)',
+                          boxShadow: billingInterval === 'yearly' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                          transition: 'all .2s',
+                        }}
+                      >
+                        Yearly <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 700 }}>Save ~17%</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {plansLoading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {plans
+                        .filter((p) => p.isRecommended || true)
+                        .sort((a, b) => a.displayOrder - b.displayOrder)
+                        .map((plan) => {
+                          const price = billingInterval === 'yearly' ? plan.billing.yearlyPriceMinor : plan.billing.monthlyPriceMinor;
+                          const selected = selectedPlanId === plan.publicId;
+                          return (
+                            <button
+                              type="button" key={plan.publicId}
+                              onClick={() => setSelectedPlanId(plan.publicId)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 14,
+                                padding: '14px 16px', borderRadius: 12, border: `2px solid ${selected ? 'var(--blue)' : 'var(--line-soft)'}`,
+                                background: selected ? 'var(--blue-soft, #eef4ff)' : 'var(--card)',
+                                cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', width: '100%',
+                                transition: 'border-color .2s, background .2s',
+                                position: 'relative',
+                              }}
+                            >
+                              {plan.isRecommended && (
+                                <span style={{
+                                  position: 'absolute', top: -8, right: 12, fontSize: 10, fontWeight: 700,
+                                  background: 'var(--blue)', color: '#fff', padding: '2px 10px', borderRadius: 999,
+                                }}>
+                                  POPULAR
+                                </span>
+                              )}
+                              <div style={{
+                                width: 20, height: 20, borderRadius: '50%', border: `2px solid ${selected ? 'var(--blue)' : 'var(--line)'}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                              }}>
+                                {selected && <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--blue)' }} />}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                                  <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{plan.name}</span>
+                                  <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--ink)' }}>
+                                    {price === 0 ? 'Free' : formatMinor(price)}
+                                  </span>
+                                  {price > 0 && <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>/{billingInterval === 'yearly' ? 'yr' : 'mo'}</span>}
+                                </div>
+                                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-soft)' }}>
+                                  {plan.shortDescription || plan.description}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 4 — OTP Verify */}
+              {step === 4 && (
                 <div>
                   <h2 className="display" style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Verify your email</h2>
                   <p style={{ margin: '0 0 6px', fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.5 }}>
@@ -478,6 +638,7 @@ export default function RegisterPage() {
                       ['Type', vals.businessType],
                       ['Owner', vals.ownerName],
                       ['Email', vals.email],
+                      ['Plan', selectedPlanId ? plans.find((p) => p.publicId === selectedPlanId)?.name ?? billingInterval : 'Free'],
                     ] as [string, string | null | undefined][]).filter(([, v]) => v).map(([l, v]) => (
                       <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', color: 'var(--ink-soft)' }}>
                         <span>{l}</span>
@@ -492,6 +653,9 @@ export default function RegisterPage() {
 
           {/* Navigation */}
           <form onSubmit={(e) => { e.preventDefault(); if (step < STEPS.length - 1) next(); else handleVerifyOtp(); }} noValidate>
+            {/* Hidden fields for plan selection */}
+            <input type="hidden" {...regField('planPublicId')} value={selectedPlanId ?? ''} />
+            <input type="hidden" {...regField('billingInterval')} value={billingInterval} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
               {step > 0 ? (
                 <Button type="button" variant="ghost" onClick={goBack} style={{ flex: 1 }}>
@@ -505,7 +669,7 @@ export default function RegisterPage() {
               )}
               {step < STEPS.length - 1 ? (
                 <Button type="button" onClick={next} isLoading={reg.isPending} style={{ flex: 1, letterSpacing: '0.01em' }}>
-                  {reg.isPending ? 'Creating store…' : 'Continue'}
+                  {reg.isPending ? 'Creating store…' : step === 3 ? 'Create store' : 'Continue'}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>

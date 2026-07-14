@@ -15,6 +15,7 @@ export const NAV: NavItem[] = [
   { label: 'Store approvals', path: '/admin/approvals', roles: ['platform_admin'], group: 'Platform' },
   { label: 'All users', path: '/admin/users', roles: ['platform_admin'], group: 'People' },
   { label: 'Subscription plans', path: '/admin/plans', roles: ['platform_admin'], group: 'People' },
+  { label: 'Billing controls', path: '/admin/billing', roles: ['platform_admin'], group: 'Platform' },
   { label: 'Security & sessions', path: '/admin/security', roles: ['platform_admin'], group: 'Trust & safety' },
   { label: 'Audit logs', path: '/admin/audit', roles: ['platform_admin'], group: 'Trust & safety' },
   { label: 'Content moderation', path: '/admin/moderation', roles: ['platform_admin'], group: 'Trust & safety' },

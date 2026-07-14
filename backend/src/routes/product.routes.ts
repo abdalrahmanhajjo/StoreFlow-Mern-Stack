@@ -12,6 +12,8 @@ import {
 
 
 import { validate } from "../middleware/validate.middleware";
+import { requirePlanLimit } from "../middleware/authorization.middleware";
+import Product from "../models/product.model";
 
 import {
     createProductSchema,
@@ -27,7 +29,15 @@ router.get("/", getProducts);
 
 router.get("/:id", getProductById);
 
-router.post("/", validate(createProductSchema), createProduct);
+// Plan limit: Free allows 50 products per store; paid plans are unlimited.
+router.post(
+    "/",
+    requirePlanLimit('productsPerStore', (req) =>
+        Product.countDocuments({ storeId: req.storeId, isActive: true })
+    ),
+    validate(createProductSchema),
+    createProduct
+);
 
 router.put("/:id", validate(updateProductSchema), updateProduct);
 

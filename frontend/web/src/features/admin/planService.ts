@@ -60,14 +60,25 @@ export interface AssignableStore {
   planId: string | null;
 }
 
+/** Wire shape of a store row as returned by GET /stores. */
+interface StoreWire {
+  _id: string;
+  storeName: string;
+  status: AssignableStore['status'];
+  subscription?: { planId?: { _id?: string } | string | null } | null;
+}
+
 export const storeService = {
   async listForPlanAssignment(): Promise<AssignableStore[]> {
     const res = await api.get('/stores');
-    return res.data.data.map((s: any) => ({
-      id: s._id,
-      name: s.storeName,
-      status: s.status,
-      planId: s.subscription?.planId?._id ?? s.subscription?.planId ?? null,
-    }));
+    return res.data.data.map((s: StoreWire) => {
+      const rawPlanId = s.subscription?.planId;
+      return {
+        id: s._id,
+        name: s.storeName,
+        status: s.status,
+        planId: (typeof rawPlanId === 'string' ? rawPlanId : rawPlanId?._id) ?? null,
+      };
+    });
   },
 };

@@ -12,6 +12,7 @@ import {
 } from "../utils/auth.utils";
 import { tenantFilter } from "../utils/tenant.utils";
 import { pickAllowed, stripOperators } from "../utils/security.utils";
+import { logMutation } from "../services/audit.service";
 
 const USER_CREATE_FIELDS = ['name', 'email', 'role', 'storeId', 'phone', 'idVerification'] as const;
 
@@ -44,6 +45,18 @@ export const inviteUser = async (
             return next(new AppError("An account with this email already exists", 409));
         }
 
+        // Plan limit: staff accounts per store (owner + staff + pending
+        // invites all count). Platform admins bypass — they act operationally.
+        if (inviter.role !== "platform_admin") {
+            const { BillingAccount } = await import("../models/billingAccount.model");
+            const { entitlementService } = await import("../services/billing/entitlement.service");
+            const account = await BillingAccount.findOne({ owner: inviter.sub }).lean();
+            if (account) {
+                const memberCount = await User.countDocuments({ storeId });
+                await entitlementService.enforceLimit("membersPerStore", account._id, memberCount, 1);
+            }
+        }
+
         // Unusable random password — the account is unlocked only by accepting.
         const passwordHash = await hashPassword(randomBytes(24).toString("hex"));
         const rawToken = generateRawToken(32);
@@ -74,7 +87,8 @@ export const inviteUser = async (
         const emailSent = await sendEmployeeInviteEmail(email, {
             inviteUrl,
             name,
-            storeName: store?.storeName ?? "your store",
+            // Old-era store docs used `storeName`; the current model uses `name`.
+            storeName: store?.name ?? (store as any)?.storeName ?? "your store",
             role: targetRole,
         });
 
@@ -135,6 +149,11 @@ export const createUser = async (
         });
 
         // 3. Return response (passwordHash is automatically excluded by the model)
+        logMutation(req, 'CREATE', 'user', user._id.toString(), {
+            description: `Created user: ${user.email}`,
+            metadata: { email: user.email, role: user.role, storeId: user.storeId?.toString() },
+        });
+
         res.status(201).json({
             success: true,
             message: "User account created successfully",
@@ -255,6 +274,11 @@ export const deleteUser = async (
         if (!user) {
             return next(new AppError("User not found", 404));
         }
+
+        logMutation(req, 'UPDATE', 'user', id, {
+            description: `Deleted (soft-delete) user: ${user.email}`,
+            metadata: { email: user.email, role: user.role },
+        });
 
         res.status(200).json({
             success: true,

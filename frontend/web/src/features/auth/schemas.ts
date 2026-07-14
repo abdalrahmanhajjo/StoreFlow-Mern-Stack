@@ -66,5 +66,8 @@ export const registerSchema = z.object({
     .regex(/\d/, 'Must include a number')
     .regex(/[^a-zA-Z0-9]/, 'Must include a special character (!@#$ etc.)'),
   otp: z.string().length(6, 'Enter the full 6-digit code').regex(/^\d{6}$/, 'Code must be exactly 6 digits').optional().or(z.literal('')),
+  // Plan selection (optional — carried from pricing page)
+  planPublicId: z.string().optional(),
+  billingInterval: z.enum(['monthly', 'yearly']).optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;

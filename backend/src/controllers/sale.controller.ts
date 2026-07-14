@@ -4,7 +4,7 @@ import Sale from "../models/sale.model";
 import Product from "../models/product.model";
 import Customer from "../models/customer.model";
 import LoyaltyLedger from "../models/loyalty_ledger.model";
-import AuditLog from "../models/audit_log.model";
+import { createAuditLog } from "../services/audit.service";
 import { calculateLoyaltyTier } from "../utils/loyalty_tier.utils";
 import StoreSetting from "../models/store_setting.model";
 import { tenantFilter } from "../utils/tenant.utils";
@@ -306,10 +306,12 @@ export const createSale = async (req: Request, res: Response) => {
 
         const sale = createdSales[0];
 
-        await AuditLog.create([{ storeId: req.storeId!, 
+        await createAuditLog({
+                    actor: req.user!.sub,
+                    store: req.storeId!,
                     action: "CREATE_SALE",
-                    entity: "Sale",
-                    entityId: sale._id,
+                    resourceType: "sale",
+                    resourcePublicId: sale._id.toString(),
                     description: `Sale invoice ${invoiceNumber} created with total ${total}`,
                     performedByName,
                     metadata: {
@@ -326,9 +328,8 @@ export const createSale = async (req: Request, res: Response) => {
                         loyaltyPointsEarned,
                     },
                 },
-            ],
-            { session }
-        );
+                session
+            );
 
         for (const item of saleItems) {
             const updatedProduct = await Product.findOneAndUpdate(
@@ -357,10 +358,12 @@ export const createSale = async (req: Request, res: Response) => {
                 );
             }
 
-            await AuditLog.create([{ storeId: req.storeId!, 
+            await createAuditLog({
+                        actor: req.user!.sub,
+                        store: req.storeId!,
                         action: "STOCK_DECREMENT",
-                        entity: "Product",
-                        entityId: item.productId,
+                        resourceType: "product",
+                        resourcePublicId: item.productId.toString(),
                         description: `Stock decreased by ${item.quantity} for product ${item.productName} because of invoice ${invoiceNumber}`,
                         performedByName,
                         metadata: {
@@ -375,9 +378,8 @@ export const createSale = async (req: Request, res: Response) => {
                             newQuantity: updatedProduct.quantity,
                         },
                     },
-                ],
-                { session }
-            );
+                    session
+                );
         }
 
         if (customerId) {
@@ -420,10 +422,12 @@ export const createSale = async (req: Request, res: Response) => {
                     { session }
                 );
 
-                await AuditLog.create([{ storeId: req.storeId!, 
+                await createAuditLog({
+                            actor: req.user!.sub,
+                            store: req.storeId!,
                             action: "LOYALTY_EARNED",
-                            entity: "Customer",
-                            entityId: updatedCustomer._id,
+                            resourceType: "customer",
+                            resourcePublicId: updatedCustomer._id.toString(),
                             description: `Customer earned ${loyaltyPointsEarned} loyalty points from invoice ${invoiceNumber} and is now ${updatedCustomer.loyaltyTier}`,
                             performedByName,
                             metadata: {
@@ -437,9 +441,8 @@ export const createSale = async (req: Request, res: Response) => {
                                 loyaltyTier: updatedCustomer.loyaltyTier,
                             },
                         },
-                    ],
-                    { session }
-                );
+                        session
+                    );
             }
         }
 
@@ -518,10 +521,12 @@ export const voidSale = async (req: Request, res: Response) => {
                 );
             }
 
-            await AuditLog.create([{ storeId: req.storeId!, 
+            await createAuditLog({
+                        actor: req.user!.sub,
+                        store: req.storeId!,
                         action: "STOCK_RESTORE",
-                        entity: "Product",
-                        entityId: item.productId,
+                        resourceType: "product",
+                        resourcePublicId: item.productId.toString(),
                         description: `Stock restored by ${item.quantity} for product ${item.productName} because invoice ${sale.invoiceNumber} was voided`,
                         performedByName,
                         metadata: {
@@ -534,29 +539,30 @@ export const voidSale = async (req: Request, res: Response) => {
                             newQuantity: updatedProduct.quantity,
                         },
                     },
-                ],
-                { session }
-            );
+                    session
+                );
         }
 
         sale.status = "voided";
         await sale.save({ session });
 
-        await AuditLog.create([{ storeId: req.storeId!, 
+        await createAuditLog({
+                    actor: req.user!.sub,
+                    store: req.storeId!,
                     action: "VOID_SALE",
-                    entity: "Sale",
-                    entityId: sale._id,
+                    resourceType: "sale",
+                    resourcePublicId: sale._id.toString(),
                     description: `Sale invoice ${sale.invoiceNumber} was voided`,
                     performedByName,
                     metadata: {
                         invoiceNumber: sale.invoiceNumber,
                         total: sale.total,
                         loyaltyPointsEarned: sale.loyaltyPointsEarned || 0,
+                        voidReason: req.body.reason || undefined,
                     },
                 },
-            ],
-            { session }
-        );
+                session
+            );
 
         if (sale.customerId) {
             const customer = await Customer.findById(sale.customerId).session(
@@ -606,10 +612,12 @@ export const voidSale = async (req: Request, res: Response) => {
                         { session }
                     );
 
-                    await AuditLog.create([{ storeId: req.storeId!, 
+                    await createAuditLog({
+                                actor: req.user!.sub,
+                                store: req.storeId!,
                                 action: "LOYALTY_REVERSED",
-                                entity: "Customer",
-                                entityId: customer._id,
+                                resourceType: "customer",
+                                resourcePublicId: customer._id.toString(),
                                 description: `Reversed ${pointsToRemove} loyalty points from voided invoice ${sale.invoiceNumber}. Customer tier is now ${customer.loyaltyTier}`,
                                 performedByName,
                                 metadata: {
@@ -622,9 +630,8 @@ export const voidSale = async (req: Request, res: Response) => {
                                     loyaltyTier: customer.loyaltyTier,
                                 },
                             },
-                        ],
-                        { session }
-                    );
+                            session
+                        );
                 }
             }
         }

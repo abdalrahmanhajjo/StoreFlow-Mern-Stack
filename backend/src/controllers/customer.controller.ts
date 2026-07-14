@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Customer from "../models/customer.model";
 import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+import { logMutation } from "../services/audit.service";
 
 const CUSTOMER_UPDATE_FIELDS = ['name', 'email', 'phone', 'address', 'notes'] as const;
 
@@ -103,6 +104,10 @@ export const createCustomer = async (req: Request, res: Response) => {
         ) as Record<string, unknown>;
         const customer = await Customer.create({ ...allowed, storeId: req.storeId as any });
 
+        logMutation(req, 'CREATE', 'customer', customer._id.toString(), {
+            description: `Created customer: ${customer.name}`,
+        }).catch(() => {});
+
         res.status(201).json({
             success: true,
             message: "Customer created successfully",
@@ -154,6 +159,10 @@ export const updateCustomer = async (req: Request, res: Response) => {
             return;
         }
 
+        logMutation(req, 'UPDATE', 'customer', id, {
+            description: `Updated customer: ${customer.name}`,
+        }).catch(() => {});
+
         res.status(200).json({
             success: true,
             message: "Customer updated successfully",
@@ -201,6 +210,10 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             });
             return;
         }
+
+        logMutation(req, 'DELETE', 'customer', id, {
+            description: `Deleted customer: ${customer.name}`,
+        }).catch(() => {});
 
         res.status(200).json({
             success: true,
@@ -268,6 +281,11 @@ export const addCustomerPurchase = async (req: Request, res: Response) => {
             });
             return;
         }
+
+        logMutation(req, 'UPDATE', 'customer', id, {
+            description: `Added purchase to customer: ${customer.name}`,
+            metadata: { amount: Number(amount) },
+        }).catch(() => {});
 
         res.status(200).json({
             success: true,

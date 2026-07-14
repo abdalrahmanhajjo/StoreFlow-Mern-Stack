@@ -82,35 +82,34 @@ function ToastItem({ t }: { t: Toast }) {
   const v = VARIANT[t.variant];
   const [paused, setPaused] = useState(false);
   const [exiting, setExiting] = useState(false);
-  const startRef = useRef(Date.now());
-  const remainingRef = useRef(t.duration ?? DEFAULT_DURATION[t.variant]);
+  const totalMs = t.duration ?? DEFAULT_DURATION[t.variant];
+  const remainingRef = useRef(totalMs);
 
   const dismiss = useCallback(() => {
     setExiting(true);
     setTimeout(() => remove(t.id), 300);
   }, [t.id, remove]);
 
+  // Auto-dismiss after the unpaused time adds up to the toast's duration.
+  // The cleanup banks the elapsed time so hover-pause/resume stays accurate.
   useEffect(() => {
     if (paused) return;
-    const elapsed = Date.now() - startRef.current;
-    const ms = Math.max(0, remainingRef.current - elapsed);
+    const startedAt = Date.now();
+    const ms = Math.max(0, remainingRef.current);
     if (ms <= 0) { dismiss(); return; }
     const id = setTimeout(dismiss, ms);
-    return () => clearTimeout(id);
+    return () => {
+      clearTimeout(id);
+      remainingRef.current = Math.max(0, remainingRef.current - (Date.now() - startedAt));
+    };
   }, [paused, dismiss]);
-
-  const totalMs = t.duration ?? DEFAULT_DURATION[t.variant];
-  const elapsed = Math.min(Date.now() - startRef.current, totalMs);
-  const pct = paused
-    ? (remainingRef.current / totalMs) * 100
-    : ((totalMs - elapsed) / totalMs) * 100;
 
   return (
     <div
       role={t.variant === 'error' ? 'alert' : 'status'}
       aria-live={t.variant === 'error' ? 'assertive' : 'polite'}
-      onMouseEnter={() => { remainingRef.current = Math.max(0, remainingRef.current - (Date.now() - startRef.current)); setPaused(true); }}
-      onMouseLeave={() => { startRef.current = Date.now(); setPaused(false); }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
       onClick={dismiss}
       style={{
         display: 'flex', alignItems: 'stretch',
@@ -189,15 +188,17 @@ function ToastItem({ t }: { t: Toast }) {
         </svg>
       </button>
 
-      {/* Progress bar at bottom */}
+      {/* Progress bar at bottom — CSS-animated so it drains smoothly without
+          re-rendering; hover pauses the animation in sync with the timer. */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
         background: 'var(--paper-dim)',
       }}>
         <div style={{
-          height: '100%', width: `${pct}%`,
+          height: '100%',
           background: v.bar,
-          transition: paused ? 'none' : 'width .3s linear',
+          animation: `sf-toast-progress ${totalMs}ms linear forwards`,
+          animationPlayState: paused ? 'paused' : 'running',
         }} />
       </div>
     </div>
@@ -213,6 +214,10 @@ export function Toaster() {
         @keyframes sf-toast-in {
           from { opacity: 0; transform: translateY(-10px) scale(.96); }
           to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes sf-toast-progress {
+          from { width: 100%; }
+          to { width: 0%; }
         }
         @media (prefers-reduced-motion: reduce) {
           [style*="animation"] { animation: none !important; }

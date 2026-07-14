@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import PurchaseOrder from "../models/purchase_order.model";
 import Supplier from "../models/supplier.model";
 import Product from "../models/product.model";
-import AuditLog from "../models/audit_log.model";
+import { createAuditLog } from "../services/audit.service";
 import { tenantFilter } from "../utils/tenant.utils";
 
 const generateOrderNumber = (): string => {
@@ -528,10 +528,12 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
                 newQuantity: updatedProduct.quantity,
             });
 
-            await AuditLog.create({ storeId: req.storeId!, 
+            await createAuditLog({
+                actor: req.user!.sub,
+                store: req.storeId!,
                 action: "PO_STOCK_INCREASE",
-                entity: "Product",
-                entityId: updatedProduct._id,
+                resourceType: "product",
+                resourcePublicId: updatedProduct._id.toString(),
                 description: `Stock increased by ${quantityReceivedNow} for product ${orderItem.productName} from purchase order ${purchaseOrder.orderNumber}`,
                 performedByName: receivedByName,
                 metadata: {
@@ -568,10 +570,12 @@ export const receivePurchaseOrder = async (req: Request, res: Response) => {
 
         await purchaseOrder.save();
 
-        await AuditLog.create({ storeId: req.storeId!, 
+        await createAuditLog({
+            actor: req.user!.sub,
+            store: req.storeId!,
             action: "RECEIVE_PURCHASE_ORDER",
-            entity: "PurchaseOrder",
-            entityId: purchaseOrder._id,
+            resourceType: "purchase_order",
+            resourcePublicId: purchaseOrder._id.toString(),
             description: `Purchase order ${purchaseOrder.orderNumber} received with status ${purchaseOrder.status}`,
             performedByName: receivedByName,
             metadata: {

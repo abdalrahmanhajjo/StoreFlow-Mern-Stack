@@ -29,7 +29,9 @@ export function Modal({
   // `open` alone — otherwise it re-runs on each keystroke and steals focus
   // back to the first field.
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -92,7 +94,7 @@ export function Modal({
         aria-label={title ? undefined : 'Dialog'}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', width: 'min(460px,100%)', maxHeight: '90vh', overflowY: 'auto', padding: 22, outline: 'none' }}
+        style={{ background: 'var(--card)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', width: 'min(560px,100%)', maxHeight: '90vh', overflowY: 'auto', padding: 22, outline: 'none' }}
       >
         {title && <h2 id={titleId} className="display" style={{ margin: '0 0 14px', color: 'var(--ink)', fontSize: 18 }}>{title}</h2>}
         {children}

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Product from "../models/product.model";
 import StockAdjustment from "../models/stock_adjustment.model";
 import { tenantFilter } from "../utils/tenant.utils";
+import { logMutation } from "../services/audit.service";
 
 // GET all stock adjustments
 export const getStockAdjustments = async (req: Request, res: Response) => {
@@ -224,6 +225,11 @@ export const createStockAdjustment = async (req: Request, res: Response) => {
             "productId",
             "name sku quantity price"
         );
+
+        logMutation(req, 'CREATE', 'stock_adjustment', adjustment._id.toString(), {
+            description: `Created stock adjustment: ${adjustmentType} by ${adjustmentQuantity} for ${product.name}`,
+            metadata: { productId, adjustmentType, quantity: adjustmentQuantity, reason: reason || undefined },
+        });
 
         res.status(201).json({
             success: true,

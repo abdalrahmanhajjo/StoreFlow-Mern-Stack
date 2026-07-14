@@ -11,6 +11,8 @@ import {
   type StoreSettings,
 } from '@/lib/api/resources';
 import { useStoreIdentity } from '@/lib/api/storeIdentity';
+import { errorMessage } from '@/lib/http/errors';
+import DangerZoneCard from './DangerZoneCard';
 
 const EMPTY: StoreSettings = {
   storeName: '', phone: '', email: '', address: '', currency: 'USD',
@@ -48,7 +50,7 @@ export default function StoreSettingsPage() {
     }
     apiGetStoreSettings()
       .then((s) => setForm(s))
-      .catch(() => toast.error('Could not load store settings from the server'));
+      .catch((e) => toast.error(errorMessage(e, 'Could not load store settings from the server')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -227,10 +229,31 @@ export default function StoreSettingsPage() {
             <input value={user?.role ?? ''} readOnly style={{ ...stlInp, color: 'var(--ink-soft)', cursor: 'default' }} />
           </Field>
           <p style={{ fontSize: 12, color: 'var(--ink-faint)', lineHeight: 1.5, margin: '4px 0 0' }}>
-            To change your password, sign out and use “Forgot password” — a reset code
+            To change your password, sign out and use "Forgot password" — a reset code
             is emailed to you. Staff accounts are managed on the Employees page.
           </p>
         </div>
+
+        {/* Plan & billing */}
+        <div className="sf-set-card" style={{ background: 'var(--card)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', padding: isMobile ? 16 : 20 }}>
+          <div style={{ fontSize: isMobile ? 10 : 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--ink-faint)', fontWeight: 600, marginBottom: isMobile ? 14 : 16, paddingBottom: isMobile ? 10 : 12, borderBottom: '1px solid var(--line)' }}>
+            Plan &amp; billing
+          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-soft)', lineHeight: 1.5, margin: '0 0 14px' }}>
+            View your current plan, compare features and limits, and upgrade or
+            downgrade your subscription.
+          </p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <a href="/settings/billing"
+              style={{ padding: '10px 20px', borderRadius: 10, background: 'var(--ink)', color: 'var(--card)', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', fontFamily: 'inherit' }}
+            >
+              Manage billing
+            </a>
+          </div>
+        </div>
+
+        {/* Danger zone — permanent account/store deletion */}
+        <DangerZoneCard isMobile={isMobile} />
       </div>
     </>
   );

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import StoreSetting from "../models/store_setting.model";
 import { escapeRegex, pickAllowed, stripOperators } from "../utils/security.utils";
 import { requireStoreId } from "../utils/tenant.utils";
+import { logMutation } from "../services/audit.service";
 
 const STORE_SETTING_UPDATE_FIELDS = ['storeName', 'phone', 'email', 'address', 'businessType', 'currency', 'taxRate', 'lowStockThreshold', 'criticalLevel', 'alertRecipients', 'orderEmail', 'lowStockEmail', 'receiptFooter', 'accentColor', 'logoUrl'] as const;
 
@@ -68,6 +69,11 @@ export const createStoreSetting = async (req: Request, res: Response) => {
         // storeId last so the body can never write another store's settings.
         const setting = await StoreSetting.create({ ...allowed, storeId });
 
+        logMutation(req, 'CREATE', 'store_setting', setting._id.toString(), {
+            description: `Created store settings`,
+            metadata: { storeId },
+        });
+
         res.status(201).json({
             success: true,
             message: "Store settings created successfully",
@@ -102,6 +108,11 @@ export const updateStoreSetting = async (req: Request, res: Response) => {
                 runValidators: true,
             }
         );
+
+        logMutation(req, 'UPDATE', 'store_setting', updatedSetting!._id.toString(), {
+            description: `Updated store settings`,
+            metadata: { storeId, updatedFields: Object.keys(patch) },
+        });
 
         res.status(200).json({
             success: true,

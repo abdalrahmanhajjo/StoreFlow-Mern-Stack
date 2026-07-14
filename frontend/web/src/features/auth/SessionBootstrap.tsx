@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { refreshSession } from './refresh';
 import { startTokenRefreshScheduler } from './tokenRefresh';
 import { api } from '@/lib/axios';
+import { errorStatus } from '@/lib/http/errors';
 import { useSession } from '@/store/session';
 import { USE_MOCK } from './authService';
 
@@ -25,8 +26,8 @@ export function SessionBootstrap() {
 
       try {
         await api.get('/auth/session-status');
-      } catch (err: any) {
-        if (err?.status === 401) {
+      } catch (err) {
+        if (errorStatus(err) === 401) {
           useSession.getState().clear();
 
           window.location.href = '/login?reason=session-ended';

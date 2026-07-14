@@ -27,12 +27,17 @@ export function useLogin(returnTo?: string) {
 }
 
 /** Creates the store + owner and triggers the verification email. Navigation
- * happens after the email code is confirmed (see useVerifyEmail). */
+ * happens after the email code is confirmed (see useVerifyEmail).
+ * For paid plans, redirects to Stripe Checkout after registration. */
 export function useRegister() {
-  return useMutation<void, ApiErr, RegisterInput>({
+  return useMutation<Awaited<ReturnType<typeof authService.register>>, ApiErr, RegisterInput>({
     mutationFn: (input) => authService.register(input),
-    onSuccess: () => {
-      toast.success('Verification code sent', 'Check your email');
+    onSuccess: (result) => {
+      if (result?.checkout?.url) {
+        window.location.href = result.checkout.url;
+      } else {
+        toast.success('Verification code sent', 'Check your email');
+      }
     },
     onError: (err) => {
       toast.error(err.message || 'Registration failed. Please try again.');

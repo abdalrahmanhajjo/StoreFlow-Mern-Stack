@@ -7,6 +7,7 @@ import { can } from '@/lib/rbac';
 import { ProductGrid } from './ProductGrid';
 import { ProductForm } from './ProductForm';
 import { SearchField, CategoryPills, Button } from '@/components/ui';
+import { PlanLimitBanner } from '@/components/access/PlanLimitBanner';
 import type { Product } from './productsStore';
 
 export default function ProductsPage() {
@@ -63,6 +64,12 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+
+      <PlanLimitBanner
+        limitKey="productsPerStore"
+        currentCount={products.length}
+        label="products"
+      />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ flex: '1 1 280px', minWidth: 200, maxWidth: 400 }}>

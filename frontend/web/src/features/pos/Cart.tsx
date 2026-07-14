@@ -50,6 +50,7 @@ export function Cart() {
   const [payStep, setPayStep] = useState(0);
   const [confirmPay, setConfirmPay] = useState<'Cash' | 'Card' | null>(null);
   const [discountOpen, setDiscountOpen] = useState(false);
+  const [payRef, setPayRef] = useState('');
 
   const payTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -112,6 +113,7 @@ export function Cart() {
   };
 
   const startProcessing = () => {
+    setPayRef(String(Date.now()).slice(-8));
     setPayStep(1);
 
     payTimer.current = setTimeout(() => {
@@ -1311,7 +1313,7 @@ export function Cart() {
                 }}
               >
                 <span>AUTH: 4E8B2F</span>
-                <span>REF: {String(Date.now()).slice(-8)}</span>
+                <span>REF: {payRef}</span>
               </div>
             </div>
           )}

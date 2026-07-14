@@ -4,6 +4,7 @@ import Product from "../models/product.model";
 import StockAdjustment from "../models/stock_adjustment.model";
 import { escapeRegex, pickAllowed, safeRegex, stripOperators } from "../utils/security.utils";
 import { tenantFilter } from "../utils/tenant.utils";
+import { logMutation } from "../services/audit.service";
 
 const ADJUST_ALLOWED_FIELDS = ['productId', 'delta', 'reason', 'note'] as const;
 
@@ -98,6 +99,11 @@ export const adjustInventory = async (req: Request, res: Response) => {
 
         const fullAdjustment = await StockAdjustment.findById(adjustment._id)
             .populate("productId", "name sku price quantity reorderThreshold");
+
+        logMutation(req, 'UPDATE', 'inventory', updatedProduct._id.toString(), {
+            description: `Inventory adjusted by ${numericDelta} for ${updatedProduct.name}`,
+            metadata: { delta: numericDelta, productId: updatedProduct._id.toString() },
+        }).catch(() => {});
 
         res.status(201).json({
             success: true,

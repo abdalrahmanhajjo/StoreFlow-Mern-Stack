@@ -321,15 +321,9 @@ export default function LoginPage() {
                       <Link to="/register" style={{ color: 'var(--ink)', fontWeight: 700, textDecoration: 'none' }}>Sign up</Link>
                     </span>
                     <Link to="/reset" style={{ color: 'var(--ink-faint)', fontWeight: 500, textDecoration: 'none' }}>Forgot password?</Link>
+                    <Link to="/resend-verification" style={{ color: 'var(--ink-faint)', fontWeight: 500, textDecoration: 'none' }}>Resend verification</Link>
                   </div>
-                  <div style={{
-                    marginTop: 22, padding: '12px 14px', background: 'var(--paper)',
-                    borderRadius: 10, border: '1px solid var(--line-soft)', fontSize: 11.5, color: 'var(--ink-faint)', lineHeight: 1.6,
-                  }}>
-                    <strong style={{ color: 'var(--ink-soft)' }}>Demo credentials</strong><br />
-                    Use any email with role prefix (<strong>admin@</strong>, <strong>owner@</strong>, <strong>manager@</strong>, <strong>cashier@</strong>).<br />
-                    Enter <strong>fail</strong> as password to see the error state.
-                  </div>
+
                 </>
               )}
             </div>

@@ -1,11 +1,27 @@
 import { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { randomInt } from 'crypto';
+import mongoose from 'mongoose';
 
 import { User } from '../models/user.model';
 import { Store } from '../models/store.model';
 import { RefreshToken } from '../models/refresh_token.model';
 import { LoginAttempt } from '../models/login_attempt.model';
+import { Plan } from '../models/plan.model';
+import { BillingAccount } from '../models/billingAccount.model';
+import { Subscription } from '../models/subscription.model';
+import { StoreMembership } from '../models/storeMembership.model';
+import Product from '../models/product.model';
+import Category from '../models/category.model';
+import Customer from '../models/customer.model';
+import Sale from '../models/sale.model';
+import Supplier from '../models/supplier.model';
+import PurchaseOrder from '../models/purchase_order.model';
+import StockAdjustment from '../models/stock_adjustment.model';
+import LoyaltyLedger from '../models/loyalty_ledger.model';
+import StoreSetting from '../models/store_setting.model';
+import { BillingService } from '../services/billing/billing.service';
+import { getBillingProvider } from '../services/billing/provider';
 
 import {
   hashPassword,
@@ -15,7 +31,12 @@ import {
   hashToken,
   sendPasswordResetCode,
   sendEmailVerificationCode,
+  sendMailSafe,
 } from '../utils/auth.utils';
+
+import { logMutation } from "../services/audit.service";
+
+const billingService = new BillingService();
 
 import {
   registerSchema,
@@ -26,6 +47,7 @@ import {
   acceptInviteSchema,
   verifyEmailCodeSchema,
   resendVerificationCodeSchema,
+  deleteAccountSchema,
 } from '../validators/auth.validator';
 
 const REFRESH_COOKIE = 'refreshToken';
@@ -101,6 +123,19 @@ export const register = async (req: Request, res: Response) => {
       }
     }
 
+    // Resolve the plan — default to free if not provided
+    const planPublicId = input.planPublicId || 'plan_free';
+    const billingInterval = input.billingInterval || 'monthly';
+    const plan = await Plan.findOne({ publicId: planPublicId, isActive: true, isPublic: true });
+    if (!plan) {
+      return res.status(400).json({ message: 'Selected plan is not available' });
+    }
+    if (!plan.supportedIntervals.includes(billingInterval)) {
+      return res.status(400).json({ message: 'Billing interval not supported for this plan' });
+    }
+
+    const isFree = plan.billing.monthlyPriceMinor === 0 && plan.billing.yearlyPriceMinor === 0;
+
     const passwordHash = await hashPassword(input.password);
 
     // Create owner with phone and ID verification
@@ -122,34 +157,68 @@ export const register = async (req: Request, res: Response) => {
     });
 
     try {
-      // Create store with all required fields
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14-day trial
+      // Create BillingAccount
+      const account = await billingService.getOrCreateAccount(owner._id);
 
-      // Ensure currency is one of the allowed values
-      const validCurrencies = ['USD', 'EUR', 'EGP'];
-      const currency = (validCurrencies.includes(input.currency) ? input.currency : 'USD') as 'USD' | 'EUR' | 'EGP';
+      let checkoutData: any = null;
 
-      const storeData = {
-        storeName: input.storeName,
-        address: input.address,
-        businessType: input.businessType,
-        currency,
-        taxRegistrationId: input.taxRegistrationId || undefined,
-        status: 'pending' as const,
-        ownerId: owner._id,
-        subscription: {
-          trialEndsAt,
-          status: 'trial' as const,
-        },
-        isVerified: false,
-      };
+      let pendingStoreData: any = null;
 
-      const store = await Store.create(storeData) as any;
+      if (isFree) {
+        // Free plan: activate subscription + create store immediately
+        await billingService.activateFreePlan(account._id, owner._id, plan, billingInterval);
+
+        const validCurrencies = ['USD', 'EUR', 'EGP'];
+        const currency = (validCurrencies.includes(input.currency) ? input.currency : 'USD') as 'USD' | 'EUR' | 'EGP';
+
+        const storeData = {
+          publicId: new mongoose.Types.ObjectId().toString(),
+          name: input.storeName,
+          slug: input.storeName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+          address: input.address,
+          businessType: input.businessType,
+          currency,
+          taxRegistrationId: input.taxRegistrationId || undefined,
+          status: 'pending' as const,
+          owner: owner._id,
+          isVerified: false,
+        };
+
+        const store = await Store.create(storeData) as any;
+        owner.storeId = store._id;
+
+        // The owner is a member of their own store — membership drives all
+        // store-level authorization checks.
+        const { StoreMembership } = await import('../models/storeMembership.model');
+        await StoreMembership.create({
+          publicId: new mongoose.Types.ObjectId().toString(),
+          store: store._id,
+          user: owner._id,
+          role: 'owner',
+          status: 'active',
+        });
+      } else {
+        // Paid plan: store pending data, create checkout session (no store yet)
+        pendingStoreData = {
+          name: input.storeName,
+          address: input.address,
+          businessType: input.businessType,
+          currency: input.currency,
+          taxRegistrationId: input.taxRegistrationId || '',
+        };
+
+        const baseUrl = process.env.FRONTEND_URL ?? process.env.CLIENT_APP_URL ?? 'http://localhost:5175';
+        const successUrl = `${baseUrl}/billing/checkout/complete?session_id={CHECKOUT_SESSION_ID}`;
+        const cancelUrl = `${baseUrl}/register`;
+        const result = await billingService.createCheckoutSession(
+          owner._id, plan.code, billingInterval, successUrl, cancelUrl,
+          pendingStoreData,
+        );
+        checkoutData = result.checkout;
+      }
 
       const verificationCode = generateEmailVerificationCode();
 
-      owner.storeId = store._id;
       owner.isEmailVerified = false;
       owner.emailVerificationCodeHash = hashToken(verificationCode);
       owner.emailVerificationCodeExpires = new Date(
@@ -163,20 +232,40 @@ export const register = async (req: Request, res: Response) => {
       // can request a fresh code from the verify screen if it didn't arrive.
       const emailSent = await sendEmailVerificationCode(owner.email, verificationCode);
 
+      logMutation(req, 'CREATE', 'user', owner._id.toString(), {
+        description: `Created user account for store registration: ${owner.email}`,
+        metadata: { email: owner.email, role: owner.role, plan: plan.code },
+      });
+
+      if (isFree) {
+        logMutation(req, 'CREATE', 'store', (owner.storeId as any)?.toString(), {
+          description: `Created store during registration: ${input.storeName}`,
+          metadata: { storeName: input.storeName, businessType: input.businessType },
+        });
+      }
+
       res.status(201).json({
-        message: emailSent
-          ? 'Store registered. Verification code sent to your email. Please verify your email before logging in.'
-          : "Store registered, but we couldn't send the verification email. Use \"Resend code\" on the next screen.",
+        message: checkoutData
+          ? 'Account created. Please complete payment to activate your store.'
+          : emailSent
+            ? 'Store registered. Verification code sent to your email. Please verify your email before logging in.'
+            : "Store registered, but we couldn't send the verification email. Use \"Resend code\" on the next screen.",
         data: {
           userId: owner._id,
-          storeId: store._id,
+          storeId: owner.storeId,
           email: owner.email,
           isEmailVerified: owner.isEmailVerified,
           emailSent,
+          plan: {
+            code: plan.code,
+            name: plan.name,
+            billingInterval,
+            isFree,
+          },
+          checkout: checkoutData,
         },
       });
     } catch (storeErr) {
-      await Store.deleteOne({ ownerId: owner._id });
       await User.deleteOne({ _id: owner._id });
       throw storeErr;
     }
@@ -434,6 +523,11 @@ export const login = async (req: Request, res: Response) => {
       await issueTokens(user);
 
     res.cookie(REFRESH_COOKIE, rawRefreshToken, cookieOptions(req, refreshTokenExpiresAt));
+
+    logMutation(req, 'LOGIN', 'user', user._id.toString(), {
+      description: `User logged in: ${user.email}`,
+      metadata: { email: user.email },
+    });
 
     res.json({
       accessToken,
@@ -816,12 +910,12 @@ export const inviteInfo = async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'This invite is invalid or has expired' });
   }
 
-  const store = user.storeId ? await Store.findById(user.storeId).select('storeName') : null;
+  const store = user.storeId ? await Store.findById(user.storeId).select('name') : null;
   res.json({
     name: user.name,
     email: user.email,
     role: user.role,
-    storeName: store?.storeName ?? null,
+    storeName: store?.name ?? null,
   });
 };
 
@@ -860,5 +954,170 @@ export const acceptInvite = async (req: Request, res: Response) => {
     }
     console.error(err);
     res.status(500).json({ message: 'Could not complete the invite' });
+  }
+};
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * Permanently deletes the authenticated user's account.
+ *
+ * Owners: cancels any paid subscription at the provider FIRST (aborting if
+ * that fails, so a deleted customer can never keep being charged), then
+ * removes all store data, staff logins, memberships and sessions, and finally
+ * the owner login itself. Billing records (BillingAccount, invoices) and
+ * audit logs are retained for accounting/compliance. Deletions are ordered so
+ * a mid-way failure is safely retryable — the owner login goes last.
+ *
+ * Staff: removes only their own login, memberships and sessions.
+ * Platform admins are refused — those accounts are managed operationally.
+ */
+export const deleteAccount = async (req: Request, res: Response) => {
+  try {
+    const input = deleteAccountSchema.parse(req.body);
+
+    const user = await User.findById(req.user!.sub).select('+passwordHash');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (user.role === 'platform_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Platform administrator accounts cannot be deleted from here.',
+      });
+    }
+
+    const passwordOk = await comparePassword(input.password, user.passwordHash);
+    if (!passwordOk) {
+      return res.status(401).json({ success: false, message: 'Incorrect password.' });
+    }
+
+    const isOwner = user.role === 'owner';
+
+    if (isOwner) {
+      if (input.confirmText !== 'DELETE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Type DELETE to confirm deleting your account and store.',
+        });
+      }
+
+      // Owned stores — also covers a legacy storeId link without owner set.
+      const storeQuery: any[] = [{ owner: user._id }];
+      if (user.storeId) storeQuery.push({ _id: user.storeId });
+      const stores = await Store.find({ $or: storeQuery }).select('_id name').lean();
+      const storeIds = stores.map((s) => s._id);
+
+      // 1. Stop billing before touching any data. If the provider refuses,
+      // abort with everything intact rather than delete a still-billed account.
+      const account = await BillingAccount.findOne({ owner: user._id }).lean();
+      if (account) {
+        const sub = await Subscription.findOne({
+          account: account._id,
+          status: { $in: ['active', 'trialing', 'past_due', 'grace_period', 'incomplete', 'pending'] },
+        }).select('+providerSubscriptionId').sort({ currentPeriodStart: -1 });
+
+        if (sub && sub.provider === 'stripe' && sub.providerSubscriptionId) {
+          try {
+            await getBillingProvider().cancelSubscription({
+              providerSubscriptionId: sub.providerSubscriptionId,
+              cancelAtPeriodEnd: false,
+              reason: 'account_deleted',
+            });
+          } catch (err) {
+            console.error('[delete-account] provider cancellation failed:', (err as Error).message);
+            return res.status(502).json({
+              success: false,
+              message:
+                'We could not cancel your subscription with the payment provider. ' +
+                'Nothing was deleted — please try again in a moment or contact support.',
+            });
+          }
+        }
+
+        await Subscription.updateMany(
+          { account: account._id, status: { $nin: ['expired'] } },
+          {
+            $set: {
+              status: 'cancelled',
+              cancelAtPeriodEnd: false,
+              cancelledAt: new Date(),
+              cancellationReason: 'account_deleted',
+            },
+          },
+        );
+      }
+
+      // 2. The audit trail survives the deletion (compliance record).
+      for (const store of stores) {
+        logMutation(
+          { user: { sub: user._id.toString(), role: user.role }, storeId: store._id.toString(), ip: req.ip },
+          'DELETE',
+          'store',
+          store._id.toString(),
+          {
+            description: `Account deletion: store "${store.name}" and all its data removed by owner ${user.email}`,
+          },
+        );
+      }
+
+      // 3. Tenant data, then staff, then stores. Owner login goes last so a
+      // partial failure leaves a working login that can simply retry.
+      if (storeIds.length > 0) {
+        const tenantFilter = { storeId: { $in: storeIds } };
+        await Promise.all([
+          Product.deleteMany(tenantFilter),
+          Category.deleteMany(tenantFilter),
+          Customer.deleteMany(tenantFilter),
+          LoyaltyLedger.deleteMany(tenantFilter),
+          Sale.deleteMany(tenantFilter),
+          StockAdjustment.deleteMany(tenantFilter),
+          Supplier.deleteMany(tenantFilter),
+          PurchaseOrder.deleteMany(tenantFilter),
+          StoreSetting.deleteMany(tenantFilter),
+        ]);
+        await StoreMembership.deleteMany({ store: { $in: storeIds } });
+
+        const staff = await User.find({ storeId: { $in: storeIds }, _id: { $ne: user._id } })
+          .select('_id')
+          .lean();
+        const staffIds = staff.map((s) => s._id);
+        await RefreshToken.deleteMany({ userId: { $in: [...staffIds, user._id] } });
+        await User.deleteMany({ _id: { $in: staffIds } });
+        await Store.deleteMany({ _id: { $in: storeIds } });
+      } else {
+        await RefreshToken.deleteMany({ userId: user._id });
+      }
+      await StoreMembership.deleteMany({ user: user._id });
+    } else {
+      // Staff: their login only — store data belongs to the owner.
+      await StoreMembership.deleteMany({ user: user._id });
+      await RefreshToken.deleteMany({ userId: user._id });
+    }
+
+    const email = user.email;
+    const safeName = escapeHtml(user.name);
+    await User.deleteOne({ _id: user._id });
+
+    res.clearCookie(REFRESH_COOKIE, cookieBase(req));
+
+    // Confirmation email is best-effort and never blocks the response.
+    void sendMailSafe(
+      email,
+      'Your StoreFlow account has been deleted',
+      `<p>Hi ${safeName},</p>` +
+        `<p>Your StoreFlow account${isOwner ? ', store, and all store data have' : ' has'} been permanently deleted, ` +
+        'and any paid subscription was cancelled immediately. Past invoices remain available on request for accounting purposes.</p>' +
+        "<p>We're sorry to see you go. If you did not request this, contact support immediately.</p>",
+      'account deletion confirmation',
+    );
+
+    return res.status(200).json({ success: true, message: 'Your account has been permanently deleted.' });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({ success: false, message: 'Validation failed' });
+    }
+    console.error('[delete-account] failed:', err);
+    return res.status(500).json({ success: false, message: 'Account deletion failed. Please try again.' });
   }
 };

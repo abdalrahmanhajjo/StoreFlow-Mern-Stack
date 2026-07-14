@@ -4,6 +4,7 @@ import app from "./app";
 import connectDB from "./config/db";
 import { validateEnv } from "./config/validateEnv";
 import { verifyMailer } from "./utils/auth.utils";
+import { startBillingScheduler } from "./services/billing/scheduler";
 
 // Fail fast on a misconfigured environment (missing MONGO_URI, JWT secret, …).
 validateEnv();
@@ -13,6 +14,7 @@ const PORT = process.env.PORT || 5000;
 // Connect to database, then verify the mail transport, then listen.
 connectDB();
 verifyMailer();
+startBillingScheduler();
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

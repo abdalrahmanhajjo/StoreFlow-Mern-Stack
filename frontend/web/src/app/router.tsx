@@ -7,6 +7,7 @@ import { Forbidden, NotFound } from '@/pages/ErrorPages';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 
 const HomePage = lazy(() => import('@/features/home/HomePage'));
+const PricingPage = lazy(() => import('@/features/pricing/PricingPage'));
 const TermsPage = lazy(() => import('@/features/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('@/features/legal/PrivacyPage'));
 const SecurityLegalPage = lazy(() => import('@/features/legal/SecurityPage'));
@@ -14,6 +15,7 @@ const LegalNoticePage = lazy(() => import('@/features/legal/LegalNoticePage'));
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'));
 const ResetPage = lazy(() => import('@/features/auth/ResetPage'));
+const ResendVerificationPage = lazy(() => import('@/features/auth/ResendVerificationPage'));
 const AcceptInvitePage = lazy(() => import('@/features/auth/AcceptInvitePage'));
 const PendingApprovalPage = lazy(() => import('@/features/auth/PendingApprovalPage'));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
@@ -21,6 +23,11 @@ const SuppliersPage = lazy(() => import('@/features/suppliers/SuppliersPage'));
 const PurchaseOrdersPage = lazy(() => import('@/features/suppliers/PurchaseOrdersPage'));
 const ReportsPage = lazy(() => import('@/features/reports/ReportsPage'));
 const StoreSettingsPage = lazy(() => import('@/features/settings/StoreSettingsPage'));
+const BillingPage = lazy(() => import('@/features/settings/BillingPage'));
+const CheckoutCompletePage = lazy(() => import('@/features/billing/CheckoutCompletePage'));
+const DemoCheckoutPage = lazy(() => import('@/features/billing/DemoCheckoutPage'));
+const InvoicesPage = lazy(() => import('@/features/billing/InvoicesPage'));
+const CancelSubscriptionPage = lazy(() => import('@/features/billing/CancelSubscriptionPage'));
 const PosPage = lazy(() => import('@/features/pos/PosPage'));
 const ReceiptPage = lazy(() => import('@/features/sales/ReceiptPage'));
 const CustomersPage = lazy(() => import('@/features/customers/CustomersPage'));
@@ -40,6 +47,7 @@ const SecurityPage = lazy(() => import('@/features/admin/SecurityPage'));
 const AuditPage = lazy(() => import('@/features/admin/AuditPage'));
 const SystemSettingsPage = lazy(() => import('@/features/admin/SystemSettingsPage'));
 const ModerationPage = lazy(() => import('@/features/admin/ModerationPage'));
+const AdminBillingPage = lazy(() => import('@/features/admin/AdminBillingPage'));
 
 const STORE = ['owner', 'manager', 'cashier'] as const;
 
@@ -65,6 +73,7 @@ export function AppRouter() {
         <Routes>
           {/* public */}
           <Route path="/" element={<HomePage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/security" element={<SecurityLegalPage />} />
@@ -72,11 +81,16 @@ export function AppRouter() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset" element={<ResetPage />} />
+          <Route path="/resend-verification" element={<ResendVerificationPage />} />
           {/* Target of the emailed reset link (?token=…) */}
           <Route path="/reset-password" element={<ResetPage />} />
           {/* Target of the employee invite email */}
           <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
+          <Route path="/billing/checkout/complete" element={<CheckoutCompletePage />} />
+          {/* Simulated hosted checkout — served by the backend mock billing
+              provider only (development without Stripe keys). */}
+          <Route path="/billing/checkout/demo" element={<DemoCheckoutPage />} />
           <Route path="/403" element={<Forbidden />} />
           <Route path="/500" element={<Error500 />} />
 
@@ -98,6 +112,9 @@ export function AppRouter() {
             <Route path="/reports" element={<RequireRole roles={['owner', 'manager']}><ReportsPage /></RequireRole>} />
             <Route path="/employees" element={<RequireRole roles={['owner']}><EmployeesPage /></RequireRole>} />
             <Route path="/settings" element={<RequireRole roles={['owner']}><StoreSettingsPage /></RequireRole>} />
+            <Route path="/settings/billing" element={<RequireRole roles={['owner']}><BillingPage /></RequireRole>} />
+            <Route path="/settings/billing/invoices" element={<RequireRole roles={['owner']}><InvoicesPage /></RequireRole>} />
+            <Route path="/settings/billing/cancel" element={<RequireRole roles={['owner']}><CancelSubscriptionPage /></RequireRole>} />
             {/* platform admin */}
             <Route path="/admin/overview" element={<RequireRole roles={['platform_admin']}><OverviewPage /></RequireRole>} />
             <Route path="/admin/stores" element={<RequireRole roles={['platform_admin']}><TenantsPage /></RequireRole>} />
@@ -108,6 +125,7 @@ export function AppRouter() {
             <Route path="/admin/audit" element={<RequireRole roles={['platform_admin']}><AuditPage /></RequireRole>} />
             <Route path="/admin/settings" element={<RequireRole roles={['platform_admin']}><SystemSettingsPage /></RequireRole>} />
             <Route path="/admin/moderation" element={<RequireRole roles={['platform_admin']}><ModerationPage /></RequireRole>} />
+            <Route path="/admin/billing" element={<RequireRole roles={['platform_admin']}><AdminBillingPage /></RequireRole>} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

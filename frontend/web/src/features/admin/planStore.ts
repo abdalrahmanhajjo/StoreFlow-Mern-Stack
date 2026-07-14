@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { errorMessage } from '@/lib/http/errors';
 import { planService, storeService, type Plan, type PlanInput, type AssignableStore } from './planService';
 
 interface Result { ok: boolean; error?: string }
@@ -39,8 +40,8 @@ export const usePlans = create<PlansState>((set, get) => ({
       const plan = await planService.create(input);
       set((s) => ({ plans: [...s.plans, plan] }));
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not create plan' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not create plan') };
     }
   },
 
@@ -49,8 +50,8 @@ export const usePlans = create<PlansState>((set, get) => ({
       const plan = await planService.update(id, input);
       set((s) => ({ plans: s.plans.map((p) => (p._id === id ? plan : p)) }));
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not update plan' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not update plan') };
     }
   },
 
@@ -59,8 +60,8 @@ export const usePlans = create<PlansState>((set, get) => ({
       await planService.remove(id);
       set((s) => ({ plans: s.plans.filter((p) => p._id !== id) }));
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not delete plan' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not delete plan') };
     }
   },
 
@@ -79,8 +80,8 @@ export const usePlans = create<PlansState>((set, get) => ({
         }),
       }));
       return { ok: true };
-    } catch (err: any) {
-      return { ok: false, error: err?.message || 'Could not assign plan' };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err, 'Could not assign plan') };
     }
   },
 }));

@@ -132,6 +132,17 @@ export const getStores = async (req: Request, res: Response, next: NextFunction)
             if (!planByAccount.has(key)) planByAccount.set(key, s.plan);
         }
 
+        // Month-to-date revenue per store, in one aggregation.
+        const { default: Sale } = await import("../models/sale.model");
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        const mtdRows = await Sale.aggregate([
+            { $match: { createdAt: { $gte: monthStart } } },
+            { $group: { _id: "$storeId", total: { $sum: "$total" } } },
+        ]);
+        const mtdByStore = new Map(mtdRows.map((r: any) => [String(r._id), r.total]));
+
         const data = stores.map((s: any) => {
             const owner = s.owner ?? legacyOwnerById.get(String(s.ownerId)) ?? null;
             const accountId = owner ? accountByOwner.get(String(owner._id)) : undefined;
@@ -140,6 +151,7 @@ export const getStores = async (req: Request, res: Response, next: NextFunction)
                 name: s.name ?? s.storeName ?? "—",
                 owner,
                 plan: (accountId ? planByAccount.get(accountId) : null) ?? null,
+                salesMtd: mtdByStore.get(String(s._id)) ?? 0,
             };
         });
 

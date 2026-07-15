@@ -1,19 +1,44 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useTenants, type Tenant, type Plan } from './adminStore';
+import { useTenants, type Tenant } from './adminStore';
 import { usePlatformUsers } from './adminStore';
+import { usePlans } from './planStore';
+import type { Plan as CatalogPlan } from './planService';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { money } from '@/lib/format';
 import { Badge, Button, confirmDialog, toast } from '@/components/ui';
 import auditLog from '@/data/auditLog.json';
 import sessionsData from '@/data/sessions.json';
 
-const PLANS: Plan[] = ['Free', 'Pro', 'Enterprise'];
-
-const PLAN_FEATURES: Record<Plan, string[]> = {
-  Free: ['Up to 2 users', 'Basic POS', 'Email support'],
-  Pro: ['Up to 10 users', 'Advanced POS', 'Inventory management', 'Reports & analytics', 'Priority support'],
-  Enterprise: ['Unlimited users', 'Everything in Pro', 'Dedicated infra', 'SSO / SAML', '24/7 phone support', 'Custom integrations'],
+// Labels for the canonical plan features shown in the drawer's Plan tab.
+const FEATURE_LABELS: Record<string, string> = {
+  analytics: 'Basic analytics',
+  advancedAnalytics: 'Advanced analytics & reports',
+  exportReports: 'Export reports (CSV)',
+  inventoryManagement: 'Inventory management',
+  employeeManagement: 'Employee management',
+  discountManagement: 'Discount & promotions',
+  supplierManagement: 'Suppliers & purchase orders',
+  integrations: 'Integrations',
+  multiStore: 'Multi-store',
+  customBranding: 'Custom branding',
+  apiAccess: 'API access',
+  auditLogs: 'Audit logs',
+  prioritySupport: 'Priority support',
 };
+
+/** Human list of what a catalog plan includes (limits headline + features). */
+function planFeatureList(plan: CatalogPlan | undefined): string[] {
+  if (!plan) return [];
+  const staff = plan.limits.membersPerStore;
+  const products = plan.limits.productsPerStore;
+  return [
+    staff === -1 ? 'Unlimited staff accounts' : `Up to ${staff} staff account${staff === 1 ? '' : 's'}`,
+    products === -1 ? 'Unlimited products' : `Up to ${products.toLocaleString()} products`,
+    ...Object.entries(FEATURE_LABELS)
+      .filter(([key]) => plan.features[key as keyof typeof plan.features])
+      .map(([, label]) => label),
+  ];
+}
 
 const statusColor = (s: string) => s === 'active' ? 'var(--green)' : 'var(--red)';
 
@@ -21,6 +46,9 @@ export default function TenantsPage() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { tenants, toggleSuspend, remove, setPlan } = useTenants();
   const users = usePlatformUsers((s) => s.users);
+  // The real plan catalog — drives the drawer's plan selector and the filter.
+  const { plans: catalogPlans, loaded: plansLoaded, load: loadPlans } = usePlans();
+  useEffect(() => { if (!plansLoaded) loadPlans(); }, [plansLoaded, loadPlans]);
 
   const [q, setQ] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
@@ -63,10 +91,11 @@ export default function TenantsPage() {
     }
   };
 
-  const onPlanChange = (id: string, plan: Plan) => {
-    setPlan(id, plan);
-    if (selected?.id === id) setSelected({ ...selected, plan });
-    toast(`Plan updated to ${plan}`);
+  const onPlanChange = (id: string, planCode: string) => {
+    const plan = catalogPlans.find((p) => p.code === planCode);
+    if (!plan) return toast('Plan not found');
+    setPlan(id, plan.code, plan.name); // toasts on server confirm / rolls back on error
+    if (selected?.id === id) setSelected({ ...selected, plan: plan.name });
   };
 
   const stlInput: React.CSSProperties = { 
@@ -112,7 +141,7 @@ export default function TenantsPage() {
         <input aria-label="Search stores or owners" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search stores or owners…" style={{ ...stlInput, flex: '1 1 160px', minWidth: 140 }} />
         <select aria-label="Filter by plan" value={planFilter} onChange={(e) => setPlanFilter(e.target.value)} style={{ ...stlInput, flex: '0 1 auto' }}>
           <option value="all">All plans</option>
-          {PLANS.map((p) => <option key={p}>{p}</option>)}
+          {catalogPlans.map((p) => <option key={p.code} value={p.name}>{p.name}</option>)}
         </select>
         <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ ...stlInput, flex: '0 1 auto' }}>
           <option value="all">All statuses</option>
@@ -251,7 +280,7 @@ export default function TenantsPage() {
                 <ActivityTab tenantName={selected.name} isMobile={isMobile} />
               )}
               {tab === 'plan' && (
-                <PlanTab tenant={selected} isMobile={isMobile} onPlanChange={onPlanChange} />
+                <PlanTab tenant={selected} isMobile={isMobile} plans={catalogPlans} onPlanChange={onPlanChange} />
               )}
             </div>
           </>
@@ -378,18 +407,34 @@ function ActivityTab({ tenantName, isMobile }: { tenantName: string; isMobile: b
   );
 }
 
-function PlanTab({ tenant, isMobile, onPlanChange }: { tenant: Tenant; isMobile: boolean; onPlanChange: (id: string, plan: Plan) => void }) {
+function PlanTab({ tenant, isMobile, plans, onPlanChange }: {
+  tenant: Tenant;
+  isMobile: boolean;
+  plans: CatalogPlan[];
+  onPlanChange: (id: string, planCode: string) => void;
+}) {
+  const current = plans.find((p) => p.name === tenant.plan);
+  const features = planFeatureList(current);
+  const priceLabel = current
+    ? current.billing.monthlyPriceMinor === 0
+      ? 'Free'
+      : `$${(current.billing.monthlyPriceMinor / 100).toFixed(2)}/mo`
+    : null;
   return (
     <div>
       <div style={{ background: 'var(--paper)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: isMobile ? 14 : 16, marginBottom: 14 }}>
         <h4 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Current plan</h4>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <Badge tone={tenant.plan === 'Free' ? 'grey' : tenant.plan === 'Pro' ? 'amber' : 'blue'}>{tenant.plan}</Badge>
+          <Badge tone={current && current.billing.monthlyPriceMinor > 0 ? 'amber' : 'grey'}>{tenant.plan}</Badge>
+          {priceLabel && <span style={{ fontSize: isMobile ? 12.5 : 13, fontWeight: 700, color: 'var(--ink)' }}>{priceLabel}</span>}
           <span style={{ fontSize: isMobile ? 12.5 : 13, color: 'var(--ink-soft)' }}>{money(tenant.salesMtd)} MTD · {tenant.users} users</span>
         </div>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>Features included:</div>
         <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-          {PLAN_FEATURES[tenant.plan].map((f) => (
+          {features.length === 0 && (
+            <li style={{ padding: '5px 0', fontSize: 12.5, color: 'var(--ink-faint)' }}>Plan details unavailable.</li>
+          )}
+          {features.map((f) => (
             <li key={f} style={{ padding: '5px 0', fontSize: isMobile ? 12.5 : 12.5, color: 'var(--ink-soft)', display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               {f}
@@ -400,10 +445,18 @@ function PlanTab({ tenant, isMobile, onPlanChange }: { tenant: Tenant; isMobile:
 
       <div style={{ background: 'var(--paper)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius)', padding: isMobile ? 14 : 16 }}>
         <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Change plan</h4>
-        <p style={{ margin: '0 0 12px', fontSize: isMobile ? 12 : 12, color: 'var(--ink-soft)' }}>Upgrade or downgrade this store's subscription.</p>
-        <select aria-label="Select plan" value={tenant.plan} onChange={(e) => onPlanChange(tenant.id, e.target.value as Plan)}
+        <p style={{ margin: '0 0 12px', fontSize: isMobile ? 12 : 12, color: 'var(--ink-soft)' }}>
+          Applies to the owner's billing subscription immediately. Downgrades are
+          blocked while the store's usage exceeds the target plan's limits.
+        </p>
+        <select aria-label="Select plan" value={current?.code ?? ''} onChange={(e) => onPlanChange(tenant.id, e.target.value)}
           style={{ width: '100%', padding: isMobile ? '12px 14px' : '11px 13px', border: '1px solid var(--line)', borderRadius: 11, fontFamily: 'inherit', fontSize: isMobile ? 16 : 14, background: 'var(--card)', color: 'var(--ink)' }}>
-          {PLANS.map((p) => <option key={p}>{p}</option>)}
+          {!current && <option value="" disabled>Select plan…</option>}
+          {plans.map((p) => (
+            <option key={p.code} value={p.code}>
+              {p.name}{p.billing.monthlyPriceMinor > 0 ? ` — $${(p.billing.monthlyPriceMinor / 100).toFixed(0)}/mo` : ' — Free'}
+            </option>
+          ))}
         </select>
       </div>
     </div>

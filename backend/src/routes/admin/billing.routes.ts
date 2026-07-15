@@ -8,6 +8,7 @@ import {
   reactivateSubscription,
   createManualSubscription,
   listBillingAccounts,
+  changeStorePlan,
 } from '../../controllers/admin/billingAdmin.controller';
 
 const router = express.Router();
@@ -21,6 +22,7 @@ router.get('/subscriptions/:id', getSubscriptionDetail);
 router.post('/subscriptions/:id/suspend', suspendSubscription);
 router.post('/subscriptions/:id/reactivate', reactivateSubscription);
 router.post('/manual-subscription', createManualSubscription);
+router.post('/stores/:storeId/plan', changeStorePlan);
 router.get('/accounts', listBillingAccounts);
 
 export default router;

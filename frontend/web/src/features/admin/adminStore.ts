@@ -6,9 +6,11 @@ import { toast } from '@/components/ui';
 import {
   isConnected,
   apiChangeStoreStatus,
+  apiAdminChangeStorePlan,
   apiSetUserActive,
   apiDeletePlatformUser,
 } from '@/lib/api/resources';
+import { errorMessage } from '@/lib/http/errors';
 
 // Plan names are admin-defined (see /admin/plans), so any string is valid.
 export type Plan = string;
@@ -33,7 +35,8 @@ interface TenantsState {
   hydrate: (tenants: Tenant[]) => void;
   toggleSuspend: (id: string) => void;
   remove: (id: string) => void;
-  setPlan: (id: string, plan: Plan) => void;
+  /** planCode drives the API; planName is what the card displays. */
+  setPlan: (id: string, planCode: string, planName: string) => void;
 }
 export const useTenants = create<TenantsState>((set, get) => ({
   tenants: TENANTS,
@@ -55,12 +58,19 @@ export const useTenants = create<TenantsState>((set, get) => ({
     }
     set((s) => ({ tenants: s.tenants.filter((t) => t.id !== id) }));
   },
-  setPlan: (id, plan) => {
-    if (isConnected) {
-      toast.error('Changing plans is not supported by the API yet.');
-      return;
+  setPlan: (id, planCode, planName) => {
+    const current = get().tenants.find((t) => t.id === id);
+    // Optimistic: show the new plan immediately, roll back on failure
+    // (e.g. a 409 when the store's usage exceeds the target plan's limits).
+    set((s) => ({ tenants: s.tenants.map((t) => (t.id === id ? { ...t, plan: planName } : t)) }));
+    if (isConnected && current) {
+      apiAdminChangeStorePlan(id, planCode)
+        .then(() => toast(`${current.name} moved to ${planName}`))
+        .catch((err) => {
+          set((s) => ({ tenants: s.tenants.map((t) => (t.id === id ? { ...t, plan: current.plan } : t)) }));
+          toast.error(errorMessage(err, 'Could not change the plan on the server'));
+        });
     }
-    set((s) => ({ tenants: s.tenants.map((t) => (t.id === id ? { ...t, plan } : t)) }));
   },
 }));
 

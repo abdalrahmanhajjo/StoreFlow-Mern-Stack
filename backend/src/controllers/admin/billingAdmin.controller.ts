@@ -187,6 +187,63 @@ export const createManualSubscription = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Admin plan change for a store: applies to the store OWNER's billing
+ * subscription (billing is account-level). Same rules as self-serve
+ * changes — downgrade conflicts return 409 with the structured list.
+ */
+export const changeStorePlan = async (req: Request, res: Response) => {
+  try {
+    const { planCode } = req.body ?? {};
+    if (!planCode) {
+      res.status(400).json({ success: false, message: 'planCode is required' });
+      return;
+    }
+
+    const store = await Store.findById(req.params.storeId).lean();
+    if (!store) {
+      res.status(404).json({ success: false, message: 'Store not found' });
+      return;
+    }
+    const ownerId = (store as any).owner ?? (store as any).ownerId;
+    if (!ownerId) {
+      res.status(409).json({ success: false, message: 'This store has no owner account to bill' });
+      return;
+    }
+
+    // Keep the owner's current billing interval when they have one.
+    const account = await BillingAccount.findOne({ owner: ownerId }).lean();
+    const currentSub = account
+      ? await Subscription.findOne({ account: account._id, status: { $in: ['active', 'trialing'] } })
+          .sort({ currentPeriodStart: -1 }).lean()
+      : null;
+    const interval = (currentSub?.billingInterval as 'monthly' | 'yearly') ?? 'monthly';
+
+    const result = await billingService.changePlan(ownerId, planCode, interval);
+
+    logMutation(req, 'UPDATE', 'subscription', String(currentSub?._id ?? ''), {
+      description: `Admin changed plan for store "${(store as any).name ?? (store as any).storeName}" to ${planCode}`,
+      metadata: { storeId: String(store._id), planCode },
+    }).catch(() => {});
+
+    res.status(200).json({
+      success: true,
+      message: 'Plan changed successfully',
+      data: { plan: (result as any)?.plan ?? null },
+    });
+  } catch (error: any) {
+    if (error instanceof Error && 'statusCode' in error) {
+      res.status((error as any).statusCode).json({
+        success: false,
+        message: error.message,
+        conflicts: (error as any).details?.conflicts,
+      });
+      return;
+    }
+    res.status(500).json({ success: false, message: 'Failed to change plan', error: error.message });
+  }
+};
+
 export const listBillingAccounts = async (req: Request, res: Response) => {
   try {
     // Single round trip: accounts + owner + latest subscription (with its

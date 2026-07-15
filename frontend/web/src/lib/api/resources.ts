@@ -482,6 +482,8 @@ export interface RawStore {
   status: 'pending' | 'active' | 'suspended';
   createdAt?: string;
   plan: Plan;
+  /** Month-to-date revenue, aggregated server-side from real sales. */
+  salesMtd: number;
 }
 
 function mapStoreDoc(doc: Doc): RawStore {
@@ -500,6 +502,7 @@ function mapStoreDoc(doc: Doc): RawStore {
     status: doc.status,
     createdAt: doc.createdAt,
     plan: planOf(doc),
+    salesMtd: doc.salesMtd ?? 0,
   };
 }
 
@@ -518,7 +521,7 @@ export function tenantFromStore(store: RawStore, userCount: number): Tenant {
     type: store.businessType,
     plan: store.plan,
     users: userCount,
-    salesMtd: 0, // platform-wide sales rollup isn't exposed by the API yet
+    salesMtd: store.salesMtd,
     status: store.status === 'suspended' ? 'suspended' : 'active',
   };
 }
@@ -541,6 +544,11 @@ export async function apiChangeStoreStatus(
   status: 'pending' | 'active' | 'suspended'
 ): Promise<void> {
   await api.post(`/stores/${storeId}/status`, { status });
+}
+
+/** Admin plan change — applies to the store owner's billing subscription. */
+export async function apiAdminChangeStorePlan(storeId: string, planCode: string): Promise<void> {
+  await api.post(`/admin/billing/stores/${storeId}/plan`, { planCode });
 }
 
 /** Real store document for the signed-in workspace (name, currency, …). */

@@ -28,7 +28,6 @@ import emailTemplateRoutes from "./routes/email_templates.routes"
 
 import cookieParser from "cookie-parser";
 import storeRoutes from "./routes/store.routes";
-import employeeRoutes from "./routes/employee.routes";
 
 // V1 billing + webhook routes
 import billingV1Routes from "./routes/v1/billing.routes";

@@ -44,10 +44,24 @@ export const getSubscription = async (req: Request, res: Response) => {
       return;
     }
     const account = await billingService.getOrCreateAccount(req.user.sub);
-    const subscription = await Subscription.findOne({ account: account._id })
+    // Prefer the live subscription; a superseded/abandoned one must not win
+    // the sort. (Selecting `billing` plus its subpaths is a Mongoose path
+    // collision — `billing` alone already includes them.)
+    const planSelect = 'publicId code name features limits billing';
+    const subscription = await Subscription.findOne({
+      account: account._id,
+      status: { $in: ['active', 'trialing'] },
+    })
       .sort({ currentPeriodStart: -1 })
-      .populate('plan', 'publicId code name features limits billing currency billing.monthlyPriceMinor billing.yearlyPriceMinor')
-      .lean();
+      .populate('plan', planSelect)
+      .lean()
+      ?? await Subscription.findOne({
+        account: account._id,
+        status: { $nin: ['expired'] },
+      })
+        .sort({ currentPeriodStart: -1 })
+        .populate('plan', planSelect)
+        .lean();
 
     if (!subscription) {
       res.status(200).json({ success: true, data: null, message: 'No subscription found' });

@@ -1,33 +1,60 @@
 import { api } from '@/lib/axios';
 
-export interface PlanFeatures {
-  suppliersAndPurchaseOrders: boolean;
-  fullReporting: boolean;
-  advancedAnalytics: boolean;
-  multiBranch: boolean;
-  prioritySupport: boolean;
-}
+// Canonical billing plan — the SAME documents the pricing page, registration
+// and the subscription engine read. -1 in a limit means unlimited.
 
 export interface PlanLimits {
-  productLimit: number | null;  // null = unlimited
-  staffAccounts: number | null; // null = unlimited
+  stores: number;
+  membersPerStore: number;
+  productsPerStore: number;
+  customersPerStore: number;
+  ordersPerMonth: number;
+  exportsPerMonth: number;
+  inventoryLocations: number;
+  apiRequestsPerMonth: number;
+  storageBytes: number;
+}
+
+export interface PlanFeatures {
+  analytics: boolean;
+  advancedAnalytics: boolean;
+  exportReports: boolean;
+  customBranding: boolean;
+  multiStore: boolean;
+  inventoryManagement: boolean;
+  supplierManagement: boolean;
+  employeeManagement: boolean;
+  discountManagement: boolean;
+  integrations: boolean;
+  apiAccess: boolean;
+  prioritySupport: boolean;
+  auditLogs: boolean;
+}
+
+export interface PlanBilling {
+  currency: string;
+  monthlyPriceMinor: number;
+  yearlyPriceMinor: number;
 }
 
 export interface Plan {
   _id: string;
+  publicId: string;
+  code: string;
   name: string;
-  slug: string;
-  priceMonthly: number;
   description: string;
-  isPopular: boolean;
   isActive: boolean;
+  isPublic: boolean;
+  isRecommended: boolean;
+  displayOrder: number;
+  billing: PlanBilling;
   limits: PlanLimits;
   features: PlanFeatures;
-  displayOrder: number;
-  storeCount: number; // computed by the backend, not stored
+  /** Live active+trialing subscriptions on this plan (computed). */
+  subscriberCount: number;
 }
 
-export type PlanInput = Omit<Plan, '_id' | 'storeCount'>;
+export type PlanInput = Omit<Plan, '_id' | 'publicId' | 'subscriberCount'>;
 
 export const planService = {
   async list(): Promise<Plan[]> {
@@ -38,47 +65,11 @@ export const planService = {
     const res = await api.post('/plans', input);
     return res.data.data;
   },
-  async update(id: string, input: Partial<PlanInput>): Promise<Plan> {
+  async update(id: string, input: Partial<Omit<PlanInput, 'code'>>): Promise<Plan> {
     const res = await api.post(`/plans/${id}`, input);
     return res.data.data;
   },
   async remove(id: string): Promise<void> {
     await api.delete(`/plans/${id}`);
-  },
-  async assignToStore(storeId: string, planId: string): Promise<void> {
-    await api.post(`/plans/stores/${storeId}/assign`, { planId });
-  },
-};
-
-// --- Minimal store list, scoped to the "Assign plan to store" panel only ---
-// (adminStore.ts's Tenant type carries fields your Store model doesn't have —
-// that's a separate, bigger rewrite. This stays deliberately narrow.)
-export interface AssignableStore {
-  id: string;
-  name: string;
-  status: 'pending' | 'active' | 'suspended';
-  planId: string | null;
-}
-
-/** Wire shape of a store row as returned by GET /stores. */
-interface StoreWire {
-  _id: string;
-  storeName: string;
-  status: AssignableStore['status'];
-  subscription?: { planId?: { _id?: string } | string | null } | null;
-}
-
-export const storeService = {
-  async listForPlanAssignment(): Promise<AssignableStore[]> {
-    const res = await api.get('/stores');
-    return res.data.data.map((s: StoreWire) => {
-      const rawPlanId = s.subscription?.planId;
-      return {
-        id: s._id,
-        name: s.storeName,
-        status: s.status,
-        planId: (typeof rawPlanId === 'string' ? rawPlanId : rawPlanId?._id) ?? null,
-      };
-    });
   },
 };

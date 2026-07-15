@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { useNavigate } from 'react-router-dom';
 import { useCustomers } from './customersStore';
 import { useSales } from '@/features/sales/salesStore';
@@ -34,6 +35,7 @@ function tierProgress(points: number): { pct: number; label: string } {
 }
 
 export default function CustomersPage() {
+  useLiveResource('customers');
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const role = useSession((s) => s.user!.role);

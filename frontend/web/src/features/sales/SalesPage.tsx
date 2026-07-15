@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSales } from './salesStore';
 import { useSession } from '@/store/session';
@@ -7,6 +8,7 @@ import { money } from '@/lib/format';
 import { Badge, Button, toast } from '@/components/ui';
 
 export default function SalesPage() {
+  useLiveResource('sales');
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [filtersOpen, setFiltersOpen] = useState(false);

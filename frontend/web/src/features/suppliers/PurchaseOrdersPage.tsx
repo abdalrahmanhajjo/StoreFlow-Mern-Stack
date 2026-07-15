@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { useSupply, type PurchaseOrder, type POLine } from './supplyStore';
 import { useProducts } from '@/features/products/productsStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Modal, Button, Badge, toast, confirm } from '@/components/ui';
 
 export default function PurchaseOrdersPage() {
+  useLiveResource('suppliers', 'products');
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { suppliers, purchaseOrders, createPO, removePO, receivePO } = useSupply();
   const products = useProducts((s) => s.products);

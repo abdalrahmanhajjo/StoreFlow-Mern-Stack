@@ -27,6 +27,7 @@ const BillingPage = lazy(() => import('@/features/settings/BillingPage'));
 const CheckoutCompletePage = lazy(() => import('@/features/billing/CheckoutCompletePage'));
 const DemoCheckoutPage = lazy(() => import('@/features/billing/DemoCheckoutPage'));
 const InvoicesPage = lazy(() => import('@/features/billing/InvoicesPage'));
+const PaymentMethodPage = lazy(() => import('@/features/billing/PaymentMethodPage'));
 const CancelSubscriptionPage = lazy(() => import('@/features/billing/CancelSubscriptionPage'));
 const PosPage = lazy(() => import('@/features/pos/PosPage'));
 const ReceiptPage = lazy(() => import('@/features/sales/ReceiptPage'));
@@ -114,6 +115,7 @@ export function AppRouter() {
             <Route path="/settings" element={<RequireRole roles={['owner']}><StoreSettingsPage /></RequireRole>} />
             <Route path="/settings/billing" element={<RequireRole roles={['owner']}><BillingPage /></RequireRole>} />
             <Route path="/settings/billing/invoices" element={<RequireRole roles={['owner']}><InvoicesPage /></RequireRole>} />
+            <Route path="/settings/billing/payment-method" element={<RequireRole roles={['owner']}><PaymentMethodPage /></RequireRole>} />
             <Route path="/settings/billing/cancel" element={<RequireRole roles={['owner']}><CancelSubscriptionPage /></RequireRole>} />
             {/* platform admin */}
             <Route path="/admin/overview" element={<RequireRole roles={['platform_admin']}><OverviewPage /></RequireRole>} />

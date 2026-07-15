@@ -451,11 +451,10 @@ function colorOf(name: string): string {
   return TENANT_COLORS[Math.abs(h) % TENANT_COLORS.length];
 }
 
+/** The store's real plan name, resolved server-side from the owner's live
+ *  billing subscription. No subscription = free tier. */
 function planOf(doc: Doc): Plan {
-  const raw = String(doc.subscription?.plan ?? 'free').toLowerCase();
-  if (raw === 'pro') return 'Pro';
-  if (raw === 'enterprise') return 'Enterprise';
-  return 'Free'; // trial & free both render as the free tier
+  return doc.plan?.name ?? 'Free';
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -486,10 +485,13 @@ export interface RawStore {
 }
 
 function mapStoreDoc(doc: Doc): RawStore {
-  const owner = typeof doc.ownerId === 'object' && doc.ownerId ? doc.ownerId : {};
+  // The API normalises both store-doc eras: `name` and a populated `owner`.
+  const owner = (typeof doc.owner === 'object' && doc.owner)
+    || (typeof doc.ownerId === 'object' && doc.ownerId)
+    || {};
   return {
     id: id(doc),
-    name: doc.storeName,
+    name: doc.name ?? doc.storeName ?? '—',
     ownerName: owner.name ?? '—',
     ownerEmail: owner.email ?? '—',
     businessType: TYPE_LABELS[doc.businessType] ?? doc.businessType,
@@ -554,9 +556,15 @@ const ROLE_LABELS: Record<string, PlatformRole> = {
   cashier: 'Cashier',
 };
 
-export async function apiListPlatformUsers(storeNames: Map<string, string>): Promise<PlatformUser[]> {
+/** Raw user docs — kept separate so the fetch can run in parallel with the
+ *  stores fetch; mapPlatformUser applies store names once both are in. */
+export async function apiListPlatformUsersRaw(): Promise<Doc[]> {
   const { data } = await api.get<Envelope<Doc[]>>('/users');
-  return (data.data ?? []).map((doc) => ({
+  return data.data ?? [];
+}
+
+export function mapPlatformUser(doc: Doc, storeNames: Map<string, string>): PlatformUser {
+  return {
     id: id(doc),
     name: doc.name,
     email: doc.email,
@@ -565,7 +573,11 @@ export async function apiListPlatformUsers(storeNames: Map<string, string>): Pro
     status: doc.isActive === false ? 'disabled' : 'active',
     lastActive: shortDay(doc.updatedAt ?? doc.createdAt),
     root: doc.role === 'platform_admin',
-  }));
+  };
+}
+
+export async function apiListPlatformUsers(storeNames: Map<string, string>): Promise<PlatformUser[]> {
+  return (await apiListPlatformUsersRaw()).map((doc) => mapPlatformUser(doc, storeNames));
 }
 
 export async function apiSetUserActive(userId: string, isActive: boolean): Promise<void> {

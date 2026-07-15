@@ -103,6 +103,8 @@ const auditLogSchema = new Schema<IAuditLog>(
 auditLogSchema.index({ createdAt: -1 });
 auditLogSchema.index({ actor: 1, createdAt: -1 });
 auditLogSchema.index({ store: 1, createdAt: -1 });
+// The platform admin list view: { isActive: true } sorted by recency.
+auditLogSchema.index({ isActive: 1, createdAt: -1 });
 
 const AuditLog = mongoose.model<IAuditLog>("AuditLog", auditLogSchema);
 

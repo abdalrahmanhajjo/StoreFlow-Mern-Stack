@@ -29,7 +29,8 @@ import {
   apiListStoresRaw,
   tenantFromStore,
   applicationFromStore,
-  apiListPlatformUsers,
+  apiListPlatformUsersRaw,
+  mapPlatformUser,
   apiListLoginAttempts,
   apiListSessions,
   apiListAuditLogs,
@@ -79,9 +80,10 @@ export async function refreshEmployees() {
 /** Stores + users together: tenants list needs per-store user counts, users
  * list needs store names, approvals are the pending stores. */
 export async function refreshAdminStores() {
-  const stores = await apiListStoresRaw();
+  // Stores and users are independent — fetch both at once, map after.
+  const [stores, userDocs] = await Promise.all([apiListStoresRaw(), apiListPlatformUsersRaw()]);
   const storeNames = new Map(stores.map((s) => [s.id, s.name]));
-  const users = await apiListPlatformUsers(storeNames);
+  const users = userDocs.map((doc) => mapPlatformUser(doc, storeNames));
 
   const countByStore = new Map<string, number>();
   for (const u of users) {

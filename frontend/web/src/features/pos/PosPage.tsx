@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { ProductGrid } from './ProductGrid';
 import { Cart } from './Cart';
 import { useCart, useCartTotals } from './cartStore';
@@ -9,6 +10,7 @@ import { useStoreConfig } from '@/config/StoreProfileContext';
 import { isConnected, apiGetStoreSettings } from '@/lib/api/resources';
 
 export default function PosPage() {
+  useLiveResource('products', 'customers');
   const cashier = useSession((s) => s.user?.name ?? 'Cashier');
   const items = useCart((s) => s.items);
   const t = useCartTotals();

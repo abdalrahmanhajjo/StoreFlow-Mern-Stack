@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '@/lib/axios';
+import { useSession } from '@/store/session';
 import { Logo, Button } from '@/components/ui';
 
 type Status = 'loading' | 'processing' | 'active' | 'trialing' | 'failed' | 'expired' | 'error';
@@ -12,6 +13,9 @@ export default function CheckoutCompletePage() {
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval>>();
+  // A signed-in user got here from a plan change — send them back to billing.
+  // A fresh registration continues to store setup / email verification.
+  const isSignedIn = useSession((s) => s.status === 'authenticated');
 
   useEffect(() => {
     if (!sessionId) {
@@ -124,9 +128,9 @@ export default function CheckoutCompletePage() {
                 ? 'Your free trial is now active. Explore all the features of your plan.'
                 : 'Your payment was successful and your subscription is now active.'}
             </p>
-            <Link to="/register" style={{ textDecoration: 'none' }}>
+            <Link to={isSignedIn ? '/settings/billing' : '/register'} style={{ textDecoration: 'none' }}>
               <Button variant="primary" fullWidth>
-                Set up your store
+                {isSignedIn ? 'Back to billing' : 'Set up your store'}
               </Button>
             </Link>
           </div>

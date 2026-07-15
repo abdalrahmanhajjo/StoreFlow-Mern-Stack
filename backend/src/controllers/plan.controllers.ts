@@ -1,40 +1,67 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { Plan } from "../models/plan.model";
-import { Store } from "../models/store.model";
+import { Subscription } from "../models/subscription.model";
 import { AppError } from "../utils/error.utils";
 import { pickAllowed, stripOperators } from "../utils/security.utils";
 
-const PLAN_UPDATE_FIELDS = ['name', 'billing', 'description', 'features', 'limits', 'isActive', 'isPublic', 'displayOrder'] as const;
+// Admin CRUD for the canonical billing plans — the same documents the pricing
+// page, registration, and the subscription engine all read. One catalog.
+
+const PLAN_UPDATE_FIELDS = [
+    'name', 'description', 'billing', 'features', 'limits',
+    'isActive', 'isPublic', 'isRecommended', 'displayOrder',
+] as const;
+
+/** Live subscription count per plan (active + trialing). */
+async function subscriberCounts(): Promise<Map<string, number>> {
+    const rows = await Subscription.aggregate([
+        { $match: { status: { $in: ['active', 'trialing'] } } },
+        { $group: { _id: '$plan', n: { $sum: 1 } } },
+    ]);
+    return new Map(rows.map((r: { _id: mongoose.Types.ObjectId; n: number }) => [String(r._id), r.n]));
+}
 
 // 1. CREATE PLAN
 export const createPlan = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const existing = await Plan.findOne({ slug: req.body.slug });
+        const body = pickAllowed(stripOperators(req.body), [...PLAN_UPDATE_FIELDS, 'code'] as any) as Record<string, unknown>;
+        const code = String(body.code ?? '').toLowerCase();
+
+        const existing = await Plan.findOne({ code });
         if (existing) {
-            return next(new AppError("A plan with this slug already exists.", 409));
+            return next(new AppError("A plan with this code already exists.", 409));
         }
 
-        const plan = await Plan.create(pickAllowed(stripOperators(req.body), PLAN_UPDATE_FIELDS));
+        const plan = await Plan.create({
+            ...body,
+            code,
+            publicId: `plan_${code}`,
+            supportedIntervals: ['monthly', 'yearly'],
+            version: 1,
+        });
 
         res.status(201).json({
             success: true,
             message: "Plan created",
-            data: plan,
+            data: { ...plan.toObject(), subscriberCount: 0 },
         });
     } catch (error) {
         next(error);
     }
 };
 
-// 2. LIST PLANS (includes live store counts, for the plan cards)
-export const getPlans = async (req: Request, res: Response, next: NextFunction) => {
+// 2. LIST PLANS (all, including unpublished — with live subscriber counts)
+export const getPlans = async (_req: Request, res: Response, next: NextFunction) => {
     try {
-        const plans = await Plan.find().sort({ displayOrder: 1 });
+        const [plans, counts] = await Promise.all([
+            Plan.find().sort({ displayOrder: 1, 'billing.monthlyPriceMinor': 1 }),
+            subscriberCounts(),
+        ]);
 
         const data = plans.map((p) => ({
             ...p.toObject(),
-            storeCount: 0, // TODO: aggregate from Subscription model
+            subscriberCount: counts.get(String(p._id)) ?? 0,
         }));
 
         res.status(200).json({
@@ -70,20 +97,13 @@ export const getPlanById = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
-// 4. UPDATE PLAN (price, features, limits, popular flag, etc. — "Edit" button)
+// 4. UPDATE PLAN (price, features, limits, visibility — "Edit" button / matrix)
 export const updatePlan = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const id = req.params.id as string;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return next(new AppError("Invalid Plan ID format", 400));
-        }
-
-        if (req.body.slug) {
-            const clash = await Plan.findOne({ slug: req.body.slug, _id: { $ne: id } });
-            if (clash) {
-                return next(new AppError("A plan with this slug already exists.", 409));
-            }
         }
 
         const plan = await Plan.findByIdAndUpdate(id, pickAllowed(stripOperators(req.body), PLAN_UPDATE_FIELDS), {
@@ -95,18 +115,19 @@ export const updatePlan = async (req: Request, res: Response, next: NextFunction
             return next(new AppError("Plan not found", 404));
         }
 
+        const counts = await subscriberCounts();
         res.status(200).json({
             success: true,
             message: "Plan updated",
-            data: plan,
+            data: { ...plan.toObject(), subscriberCount: counts.get(String(plan._id)) ?? 0 },
         });
     } catch (error) {
         next(error);
     }
 };
 
-// 5. DELETE PLAN (blocked while any store is still on it — matches the greyed-out
-//    "Delete plan" button on Free in the screenshot, since 7 stores use it)
+// 5. DELETE PLAN — refused while ANY subscription (any status) references it,
+//    so billing history never points at a missing plan document.
 export const deletePlan = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const id = req.params.id as string;
@@ -115,14 +136,12 @@ export const deletePlan = async (req: Request, res: Response, next: NextFunction
             return next(new AppError("Invalid Plan ID format", 400));
         }
 
-        const storeCount = 0; // TODO: check Subscription model once migrated
-        if (storeCount > 0) {
-            return next(
-                new AppError(
-                    `Cannot delete: ${storeCount} store(s) are currently on this plan.`,
-                    400
-                )
-            );
+        const inUse = await Subscription.countDocuments({ plan: id });
+        if (inUse > 0) {
+            return next(new AppError(
+                `Cannot delete: ${inUse} subscription(s) reference this plan. Unpublish it instead (set it inactive).`,
+                409,
+            ));
         }
 
         const plan = await Plan.findByIdAndDelete(id);
@@ -133,47 +152,6 @@ export const deletePlan = async (req: Request, res: Response, next: NextFunction
         res.status(200).json({
             success: true,
             message: "Plan deleted",
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-// 6. ASSIGN A PLAN TO A STORE ("Assign plan to store" panel)
-export const assignPlanToStore = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const { storeId } = req.params as { storeId: string };
-        const { planId } = req.body;
-
-        if (!mongoose.Types.ObjectId.isValid(storeId)) {
-            return next(new AppError("Invalid Store ID format", 400));
-        }
-        if (!mongoose.Types.ObjectId.isValid(planId)) {
-            return next(new AppError("Invalid Plan ID format", 400));
-        }
-
-        const plan = await Plan.findById(planId);
-        if (!plan) {
-            return next(new AppError("Plan not found", 404));
-        }
-
-        // Dot-notation update — touches only this nested field, leaves
-        // trialEndsAt/status untouched (a { subscription: { planId } } object
-        // literal would overwrite the whole subscription document instead).
-        const store = await Store.findByIdAndUpdate(
-            storeId,
-            { planId },
-            { new: true, runValidators: true }
-        ).populate("planId", "name billing");
-
-        if (!store) {
-            return next(new AppError("Store not found", 404));
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Plan assigned",
-            data: store,
         });
     } catch (error) {
         next(error);

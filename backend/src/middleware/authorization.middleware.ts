@@ -25,7 +25,8 @@ declare global {
  * Sets req.resolvedStore.
  */
 export function loadStore(req: Request, _res: Response, next: NextFunction): void {
-  const storeId = req.storeId || req.params.storeId || req.body.storeId;
+  // req.body is undefined on bodyless requests (GET/DELETE) in Express 5.
+  const storeId = req.storeId || req.params.storeId || req.body?.storeId;
 
   if (!storeId) {
     next(new Error('No store context available'));

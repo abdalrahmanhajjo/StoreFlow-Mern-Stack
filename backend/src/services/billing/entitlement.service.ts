@@ -27,34 +27,42 @@ export class EntitlementService {
       return this.blockedContext('Account not found');
     }
 
+    // Prefer the live subscription — a newer abandoned checkout (status
+    // 'incomplete') must never shadow an active one. Fall back to the most
+    // recent non-expired record so grace/read-only states still resolve.
     const subscription = await Subscription.findOne({
       account: accountId,
-      status: { $nin: ['expired'] },
-    }).sort({ currentPeriodStart: -1 }).populate('plan').lean();
+      status: { $in: ['active', 'trialing'] },
+    }).sort({ currentPeriodStart: -1 }).populate('plan').lean()
+      ?? await Subscription.findOne({
+        account: accountId,
+        status: { $nin: ['expired'] },
+      }).sort({ currentPeriodStart: -1 }).populate('plan').lean();
 
-    if (!subscription) {
+    if (!subscription || !subscription.plan) {
       // No subscription record means the account is on the free tier —
       // resolve the free plan's entitlements instead of locking them out.
       return this.freePlanContext(account._id.toString());
     }
 
-    const plan = subscription.plan as any;
-    if (!plan) {
-      return this.freePlanContext(account._id.toString());
-    }
+    return this.contextFromSubscription(account._id.toString(), subscription, subscription.plan);
+  }
 
-    const now = new Date();
-    const status = subscription.status;
-    const accessMode = this.determineAccessMode(status, subscription, now);
-
+  /**
+   * Builds the entitlement context from an already-loaded subscription and
+   * plan — lets hot endpoints (e.g. GET /billing/limits) avoid re-fetching
+   * documents they already hold.
+   */
+  contextFromSubscription(accountId: string, subscription: any, plan: any): EntitlementContext {
+    const accessMode = this.determineAccessMode(subscription.status, subscription, new Date());
     return {
-      accountId: account._id.toString(),
+      accountId,
       subscriptionId: subscription._id.toString(),
-      subscriptionStatus: status,
+      subscriptionStatus: subscription.status,
       planCode: plan.code,
       planVersion: subscription.planVersion,
       features: plan.features ?? {},
-      limits: this.mapLimits(plan.limits),
+      limits: this.mapLimits(plan.limits ?? {}),
       accessMode,
       currentPeriodEnd: subscription.currentPeriodEnd,
       trialEnd: subscription.trialEnd,
@@ -169,11 +177,8 @@ export class EntitlementService {
     };
   }
 
-  private async freePlanContext(accountId: string): Promise<EntitlementContext> {
-    const freePlan = await Plan.findOne({ code: 'free', isActive: true }).lean();
-    if (!freePlan) {
-      return this.readOnlyContext('No subscription and no free plan configured');
-    }
+  /** Context for a free-tier account from an already-loaded free plan doc. */
+  contextFromFreePlan(accountId: string, freePlan: any): EntitlementContext {
     return {
       accountId,
       subscriptionId: '',
@@ -184,6 +189,14 @@ export class EntitlementService {
       limits: this.mapLimits((freePlan.limits as any) ?? {}),
       accessMode: 'full',
     };
+  }
+
+  private async freePlanContext(accountId: string): Promise<EntitlementContext> {
+    const freePlan = await Plan.findOne({ code: 'free', isActive: true }).lean();
+    if (!freePlan) {
+      return this.readOnlyContext('No subscription and no free plan configured');
+    }
+    return this.contextFromFreePlan(accountId, freePlan);
   }
 
   private readOnlyContext(reason: string): EntitlementContext {

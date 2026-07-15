@@ -189,21 +189,40 @@ export const createManualSubscription = async (req: Request, res: Response) => {
 
 export const listBillingAccounts = async (req: Request, res: Response) => {
   try {
-    const accounts = await BillingAccount.find()
-      .populate({ path: 'owner', select: 'name email' })
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .lean();
-
-    const withSubs = await Promise.all(
-      accounts.map(async (acct) => {
-        const sub = await Subscription.findOne({ account: acct._id })
-          .populate('plan', 'name code')
-          .sort({ currentPeriodStart: -1 })
-          .lean();
-        return { ...acct, latestSubscription: sub ?? null };
-      }),
-    );
+    // Single round trip: accounts + owner + latest subscription (with its
+    // plan) resolved server-side — the per-account findOne version was an
+    // N+1 that dominated this endpoint's latency.
+    const withSubs = await BillingAccount.aggregate([
+      { $sort: { createdAt: -1 } },
+      { $limit: 50 },
+      {
+        $lookup: {
+          from: 'users', localField: 'owner', foreignField: '_id', as: 'owner',
+          pipeline: [{ $project: { name: 1, email: 1 } }],
+        },
+      },
+      { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'subscriptions',
+          let: { acct: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$account', '$$acct'] } } },
+            { $sort: { currentPeriodStart: -1 } },
+            { $limit: 1 },
+            {
+              $lookup: {
+                from: 'plans', localField: 'plan', foreignField: '_id', as: 'plan',
+                pipeline: [{ $project: { name: 1, code: 1 } }],
+              },
+            },
+            { $unwind: { path: '$plan', preserveNullAndEmptyArrays: true } },
+          ],
+          as: 'latestSubscription',
+        },
+      },
+      { $set: { latestSubscription: { $ifNull: [{ $first: '$latestSubscription' }, null] } } },
+    ]);
 
     res.json({ success: true, data: withSubs });
   } catch (error: any) {

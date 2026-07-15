@@ -6,6 +6,14 @@ export interface ApiMessageResponse {
   message?: string;
 }
 
+/** Display data for the stored card — never the full number. */
+export interface PaymentMethodInfo {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
 export interface InvoiceInfo {
   publicId: string;
   number: string;
@@ -46,6 +54,24 @@ export const billingService = {
   async reactivateSubscription(): Promise<ApiMessageResponse> {
     const res = await api.post('/v1/billing/reactivate');
     return res.data;
+  },
+  async getPaymentMethod(): Promise<PaymentMethodInfo | null> {
+    const res = await api.get('/v1/billing/payment-method');
+    return res.data?.data ?? null;
+  },
+  /** Demo/mock provider only — with real Stripe the hosted portal manages cards. */
+  async updatePaymentMethod(cardNumber: string, expiry: string): Promise<PaymentMethodInfo> {
+    const res = await api.put('/v1/billing/payment-method', { cardNumber, expiry });
+    return res.data?.data;
+  },
+  /** Starts a paid checkout (upgrade / free→paid). Returns the hosted
+   *  checkout URL to redirect the browser to. */
+  async createCheckoutSession(
+    planCode: string,
+    billingInterval: 'monthly' | 'yearly',
+  ): Promise<{ url: string | null }> {
+    const res = await api.post('/v1/billing/checkout-sessions', { planCode, billingInterval });
+    return { url: res.data?.data?.checkout?.url ?? null };
   },
   async createPortalSession(returnUrl?: string): Promise<BillingPortalSession> {
     const res = await api.post('/v1/billing/portal-sessions', { returnUrl });

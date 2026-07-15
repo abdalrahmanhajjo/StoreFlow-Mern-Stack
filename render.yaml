@@ -1,0 +1,59 @@
+# Full-stack deploy on Render (https://render.com) — New + → Blueprint → this repo.
+#
+# Two services:
+#   1. storeflow-api — the Node backend (Express + MongoDB Atlas).
+#   2. storeflow-web — the React frontend as a static site. The `rewrite`
+#      route is what makes browser refreshes on client-side paths (e.g.
+#      /login, /settings/billing) serve index.html instead of a 404 —
+#      without it, React Router never gets a chance to handle the URL.
+#
+# If your services were created manually in the dashboard (not via this
+# blueprint), replicate the rewrite by hand: static site → Settings →
+# Redirects/Rewrites → add  Source: /*  Destination: /index.html  Action: Rewrite.
+services:
+  - type: web
+    name: storeflow-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false        # your Atlas connection string
+      - key: JWT_ACCESS_SECRET
+        sync: false        # any long random string
+      - key: CLIENT_APP_URL
+        sync: false        # deployed frontend URL, e.g. https://storeflow-mern-stack.onrender.com
+      # Billing: without STRIPE_SECRET_KEY the mock provider is active and the
+      # demo card checkout simulates the full payment → webhook → activation loop.
+      # Email is sent via the Gmail API over HTTPS (SMTP ports are blocked on
+      # Render's free plan). See DEPLOY.md for the OAuth setup.
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GMAIL_SENDER
+        sync: false
+      - key: GMAIL_SENDER_NAME
+        value: StoreFlow
+
+  - type: web
+    name: storeflow-web
+    runtime: static
+    rootDir: frontend/web
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      # SPA fallback: every path renders index.html; React Router takes over.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false        # backend URL + /api, e.g. https://storeflow-api.onrender.com/api

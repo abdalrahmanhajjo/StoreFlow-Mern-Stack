@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from './productsStore';
 import { useCategories } from '@/features/categories/categoriesStore';
@@ -11,6 +12,7 @@ import { PlanLimitBanner } from '@/components/access/PlanLimitBanner';
 import type { Product } from './productsStore';
 
 export default function ProductsPage() {
+  useLiveResource('products');
   const navigate = useNavigate();
   const role = useSession((s) => s.user!.role);
   const writable = can(role, 'product.write');

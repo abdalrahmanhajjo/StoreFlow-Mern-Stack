@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '@/lib/axios';
+import { errorMessage } from '@/lib/http/errors';
 import { Logo, Button } from '@/components/ui';
 
 interface DemoSession {
@@ -61,10 +62,15 @@ export default function DemoCheckoutPage() {
     setPaying(true);
     setPayError('');
     try {
-      await api.post(`/v1/billing/demo/checkout-sessions/${sessionId}/pay`);
+      // The card is simulated but validated and stored as the account's
+      // payment method — exactly what a real checkout completion does.
+      await api.post(`/v1/billing/demo/checkout-sessions/${sessionId}/pay`, {
+        cardNumber: card,
+        expiry,
+      });
       navigate(`/billing/checkout/complete?session_id=${sessionId}`);
-    } catch {
-      setPayError('The simulated payment failed. Please try again.');
+    } catch (e) {
+      setPayError(errorMessage(e, 'The simulated payment failed. Please try again.'));
       setPaying(false);
     }
   }

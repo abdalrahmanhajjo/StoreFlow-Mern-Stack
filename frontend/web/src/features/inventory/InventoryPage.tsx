@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { useProducts } from '@/features/products/productsStore';
 import { useInventory, type AdjustReason } from './inventoryStore';
 import { useSession } from '@/store/session';
@@ -28,6 +29,7 @@ function timeAgo(ts: number): string {
 }
 
 export default function InventoryPage() {
+  useLiveResource('inventory');
   const isMobile = useMediaQuery('(max-width: 768px)');
   const by = useSession((s) => s.user?.name ?? 'Staff');
   const products = useProducts((s) => s.products);

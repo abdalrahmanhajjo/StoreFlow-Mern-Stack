@@ -230,27 +230,31 @@ export const previewChange = async (req: Request, res: Response) => {
     }
 
     const { planCode, billingInterval } = req.body;
-    const targetPlan = await Plan.findOne({ code: planCode, isActive: true });
+    // Independent lookups run in parallel — Atlas round trips dominate.
+    const [targetPlan, account] = await Promise.all([
+      Plan.findOne({ code: planCode, isActive: true }),
+      billingService.getOrCreateAccount(req.user.sub),
+    ]);
     if (!targetPlan) {
       res.status(404).json({ success: false, message: 'Plan not found' });
       return;
     }
 
-    const currentSub = await Subscription.findOne({
-      user: req.user.sub,
-      status: { $in: ['active', 'trialing'] },
-    }).populate('plan');
+    // Live usage vs the target plan's limits — the UI blocks the switch and
+    // shows a resolve checklist while any conflicts remain.
+    const [currentSub, limitConflicts] = await Promise.all([
+      Subscription.findOne({
+        account: account._id,
+        status: { $in: ['active', 'trialing'] },
+      }).sort({ currentPeriodStart: -1 }).populate('plan'),
+      billingService.getDowngradeConflicts(account._id, targetPlan),
+    ]);
 
     const currentPlan = (currentSub as any)?.plan;
     const currentAmount = currentSub?.amountMinor ?? 0;
     const newAmount = billingInterval === 'yearly'
       ? targetPlan.billing.yearlyPriceMinor
       : targetPlan.billing.monthlyPriceMinor;
-
-    // Live usage vs the target plan's limits — the UI blocks the switch and
-    // shows a resolve checklist while any conflicts remain.
-    const account = await billingService.getOrCreateAccount(req.user.sub);
-    const limitConflicts = await billingService.getDowngradeConflicts(account._id, targetPlan);
 
     res.status(200).json({
       success: true,
@@ -344,6 +348,15 @@ export const createPortalSession = async (req: Request, res: Response) => {
     }
 
     const account = await billingService.getOrCreateAccount(req.user.sub);
+
+    // The mock provider has no hosted portal — the card is managed on the
+    // in-app payment-method page instead.
+    if (getBillingProvider().name === 'mock') {
+      const baseUrl = process.env.FRONTEND_URL ?? process.env.CLIENT_APP_URL ?? 'http://localhost:5175';
+      res.status(200).json({ success: true, data: { url: `${baseUrl}/settings/billing/payment-method` } });
+      return;
+    }
+
     const billingCustomer = await (await import('../models/billingCustomer.model')).BillingCustomer.findOne({ account: account._id });
     if (!billingCustomer) {
       res.status(400).json({ success: false, message: 'No billing customer found. Set up a paid subscription first.' });
@@ -376,28 +389,51 @@ export const getPlanLimits = async (req: Request, res: Response) => {
       return;
     }
 
-    const account = await billingService.getOrCreateAccount(req.user.sub);
-    const entitlements = await entitlementService.getEntitlementsForAccount(account._id);
-
     const { default: Product } = await import('../models/product.model');
     const { default: Customer } = await import('../models/customer.model');
     const { StoreMembership } = await import('../models/storeMembership.model');
     const { Store } = await import('../models/store.model');
 
-    const currentCounts: Record<string, number> = {};
-    if (req.storeId) {
-      currentCounts.productsPerStore = await Product.countDocuments({ storeId: req.storeId, isActive: true });
-      currentCounts.customersPerStore = await Customer.countDocuments({ storeId: req.storeId, isActive: true });
-      currentCounts.membersPerStore = await StoreMembership.countDocuments({ store: req.storeId, status: 'active' });
-    }
-    currentCounts.stores = await Store.countDocuments({ owner: req.user.sub });
+    // Atlas round trips dominate this endpoint — run every independent
+    // query in parallel and fetch the subscription's plan via populate
+    // instead of separate lookups.
+    const [account, productsCount, customersCount, membersCount, storesCount] = await Promise.all([
+      billingService.getOrCreateAccount(req.user.sub),
+      req.storeId ? Product.countDocuments({ storeId: req.storeId, isActive: true }) : Promise.resolve(null),
+      req.storeId ? Customer.countDocuments({ storeId: req.storeId, isActive: true }) : Promise.resolve(null),
+      req.storeId ? StoreMembership.countDocuments({ store: req.storeId, status: 'active' }) : Promise.resolve(null),
+      Store.countDocuments({ owner: req.user.sub }),
+    ]);
 
-    const subscription = await Subscription.findOne({ account: account._id })
-      .sort({ currentPeriodStart: -1 })
-      .lean();
+    const currentCounts: Record<string, number> = { stores: storesCount };
+    if (req.storeId) {
+      currentCounts.productsPerStore = productsCount as number;
+      currentCounts.customersPerStore = customersCount as number;
+      currentCounts.membersPerStore = membersCount as number;
+    }
+
+    // Prefer the live subscription; fall back to the latest non-expired one
+    // (grace/read-only states) so a superseded plan never shadows the real one.
+    const subscription = await Subscription.findOne({
+      account: account._id,
+      status: { $in: ['active', 'trialing'] },
+    }).sort({ currentPeriodStart: -1 }).populate('plan').lean()
+      ?? await Subscription.findOne({
+        account: account._id,
+        status: { $nin: ['expired', 'incomplete'] },
+      }).sort({ currentPeriodStart: -1 }).populate('plan').lean();
     // Accounts without a subscription record are on the free tier.
-    const plan = (subscription ? await Plan.findById(subscription.plan) : null)
-      ?? await Plan.findOne({ code: 'free', isActive: true });
+    const plan = (subscription?.plan as any)
+      ?? await Plan.findOne({ code: 'free', isActive: true }).lean();
+
+    // Entitlements derive from the subscription+plan we already loaded —
+    // no second round of account/subscription fetches.
+    const entitlements = subscription && subscription.plan
+      ? entitlementService.contextFromSubscription(account._id.toString(), subscription, subscription.plan)
+      : plan
+        ? entitlementService.contextFromFreePlan(account._id.toString(), plan)
+        : await entitlementService.getEntitlementsForAccount(account._id);
+
     const planPublicId = (plan as any)?.publicId ?? null;
     const planCode = (plan as any)?.code ?? null;
     const planName = (plan as any)?.name ?? null;
@@ -466,7 +502,10 @@ export const getCheckoutSessionStatusBySession = async (req: Request, res: Respo
 // ---------------------------------------------------------------------------
 
 function demoBillingEnabled(): boolean {
-  if (process.env.NODE_ENV === 'production') return false;
+  // Demo checkout is available whenever the mock provider is active — i.e. no
+  // real Stripe keys are configured. This deliberately includes production
+  // deployments (the hosted app is a demo product): the moment real Stripe
+  // credentials are set, the provider switches and these endpoints 404.
   try {
     return getBillingProvider().name === 'mock';
   } catch {
@@ -503,13 +542,87 @@ export const getDemoCheckoutSession = async (req: Request, res: Response) => {
   }
 };
 
+/** The account's stored payment method (brand/last4/expiry — never the PAN). */
+export const getPaymentMethod = async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.sub) {
+      res.status(401).json({ success: false, message: 'Authentication required' });
+      return;
+    }
+    const account = await billingService.getOrCreateAccount(req.user.sub);
+    const { BillingCustomer } = await import('../models/billingCustomer.model');
+    const customer = await BillingCustomer.findOne({ account: account._id }).lean();
+    res.status(200).json({
+      success: true,
+      data: (customer?.providerCustomerData as any)?.paymentMethod ?? null,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to fetch payment method', error: error.message });
+  }
+};
+
+/**
+ * Updates the stored (simulated) payment method. Demo/mock provider only —
+ * with real Stripe, cards are managed through the hosted billing portal.
+ */
+export const updateDemoPaymentMethod = async (req: Request, res: Response) => {
+  if (!demoBillingEnabled()) {
+    res.status(404).json({ success: false, message: 'Route not found' });
+    return;
+  }
+  try {
+    if (!req.user?.sub) {
+      res.status(401).json({ success: false, message: 'Authentication required' });
+      return;
+    }
+    const card = parseDemoCard(req.body ?? {});
+    if ('error' in card) {
+      res.status(400).json({ success: false, message: card.error });
+      return;
+    }
+    const account = await billingService.getOrCreateAccount(req.user.sub);
+    await billingService.getOrCreateCustomer(account._id); // first card on file
+    const { BillingCustomer } = await import('../models/billingCustomer.model');
+    await BillingCustomer.updateOne(
+      { account: account._id },
+      { $set: { 'providerCustomerData.paymentMethod': card } },
+    );
+    res.status(200).json({ success: true, message: 'Payment method updated', data: card });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: 'Failed to update payment method', error: error.message });
+  }
+};
+
+/** Derives a display-ready payment method from raw (fake) card input. */
+function parseDemoCard(body: Record<string, unknown>):
+  | { brand: string; last4: string; expMonth: number; expYear: number }
+  | { error: string } {
+  const digits = String(body.cardNumber ?? '').replace(/[\s-]/g, '');
+  if (!/^\d{13,19}$/.test(digits)) return { error: 'Enter a valid card number' };
+
+  const expiry = String(body.expiry ?? '').replace(/\s/g, '');
+  const m = expiry.match(/^(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (!m) return { error: 'Enter a valid expiry (MM/YY)' };
+  const expMonth = Number(m[1]);
+  const expYear = m[2].length === 2 ? 2000 + Number(m[2]) : Number(m[2]);
+  if (expMonth < 1 || expMonth > 12) return { error: 'Enter a valid expiry month' };
+  const endOfMonth = new Date(expYear, expMonth, 0, 23, 59, 59);
+  if (endOfMonth < new Date()) return { error: 'This card has expired' };
+
+  const brand = digits.startsWith('4') ? 'Visa'
+    : digits.startsWith('5') ? 'Mastercard'
+    : digits.startsWith('3') ? 'Amex'
+    : 'Card';
+  return { brand, last4: digits.slice(-4), expMonth, expYear };
+}
+
 export const payDemoCheckoutSession = async (req: Request, res: Response) => {
   if (!demoBillingEnabled()) {
     res.status(404).json({ success: false, message: 'Route not found' });
     return;
   }
   try {
-    const sessionId = req.params.sessionId;
+    const sessionId = String(req.params.sessionId);
     const attempt = await CheckoutAttempt.findOne({ providerSessionId: sessionId }).lean();
     if (!attempt) {
       res.status(404).json({ success: false, message: 'Checkout session not found' });
@@ -520,10 +633,23 @@ export const payDemoCheckoutSession = async (req: Request, res: Response) => {
       return;
     }
 
+    // The simulated card becomes the account's stored payment method —
+    // exactly what Stripe does on checkout completion.
+    const card = parseDemoCard(req.body ?? {});
+    if ('error' in card) {
+      res.status(400).json({ success: false, message: card.error });
+      return;
+    }
+    const { BillingCustomer } = await import('../models/billingCustomer.model');
+    await BillingCustomer.updateOne(
+      { account: attempt.account },
+      { $set: { 'providerCustomerData.paymentMethod': card } },
+    );
+
     const now = Math.floor(Date.now() / 1000);
     const periodDays = attempt.billingInterval === 'yearly' ? 365 : 30;
 
-    // Deterministic event ID → double-clicking Pay stays idempotent.
+    // Deterministic event IDs → double-clicking Pay stays idempotent.
     await billingService.handleWebhookEvent({
       id: `evt_demo_pay_${sessionId}`,
       type: 'checkout.session.completed',
@@ -534,6 +660,26 @@ export const payDemoCheckoutSession = async (req: Request, res: Response) => {
         customer: `cus_demo_${sessionId}`,
         current_period_start: now,
         current_period_end: now + periodDays * 86400,
+      },
+    });
+
+    // A paid checkout produces an invoice, same as Stripe's invoice.paid.
+    await billingService.handleWebhookEvent({
+      id: `evt_demo_invoice_${sessionId}`,
+      type: 'invoice.paid',
+      created: now,
+      data: {
+        id: `in_demo_${sessionId}`,
+        subscription: `sub_demo_${sessionId}`,
+        number: `DEMO-${sessionId.slice(-8).toUpperCase()}`,
+        status: 'paid',
+        currency: attempt.currency,
+        subtotal: attempt.amountMinor,
+        total: attempt.amountMinor,
+        amount_paid: attempt.amountMinor,
+        amount_due: 0,
+        period_start: now,
+        period_end: now + periodDays * 86400,
       },
     });
 

@@ -38,9 +38,13 @@ export const getAuditLogs = async (req: Request, res: Response) => {
             ];
         }
 
-        const logs = await AuditLog.find(filter).sort({
-            createdAt: -1,
-        });
+        // Newest first, capped — the audit trail grows forever and the UI
+        // only renders the recent window.
+        const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 300));
+        const logs = await AuditLog.find(filter)
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean();
 
         res.status(200).json({
             success: true,

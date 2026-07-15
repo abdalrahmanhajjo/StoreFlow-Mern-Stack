@@ -29,19 +29,20 @@ export interface LimitConflict {
 
 export class BillingService {
   async getOrCreateAccount(userId: string | Types.ObjectId): Promise<IBillingAccount> {
+    // Fast path first: the account exists for every request after the first,
+    // so don't pay a user lookup round trip on the hot path.
+    const existing = await BillingAccount.findOne({ owner: userId });
+    if (existing) return existing;
+
     const user = await User.findById(userId).lean();
     if (!user) throw new AppError('User not found', 404);
 
-    let account = await BillingAccount.findOne({ owner: userId });
-    if (!account) {
-      account = await BillingAccount.create({
-        publicId: pubId('acct'),
-        owner: userId,
-        name: user.name,
-        email: user.email,
-      });
-    }
-    return account;
+    return BillingAccount.create({
+      publicId: pubId('acct'),
+      owner: userId,
+      name: user.name,
+      email: user.email,
+    });
   }
 
   async getOrCreateCustomer(accountId: string | Types.ObjectId): Promise<string> {
@@ -106,22 +107,41 @@ export class BillingService {
     }
 
     const account = await this.getOrCreateAccount(userId);
-    const priceId = billingInterval === 'yearly'
+    let priceId = billingInterval === 'yearly'
       ? plan.providerPriceIds?.stripe?.yearly
       : plan.providerPriceIds?.stripe?.monthly;
+
+    // The mock provider needs no real Stripe price — synthesize one so plans
+    // created without Stripe configuration still get a full checkout flow.
+    if (!priceId && getBillingProvider().name === 'mock') {
+      priceId = `price_mock_${plan.code}_${billingInterval}`;
+    }
 
     const existingSub = await Subscription.findOne({
       account: account._id,
       status: { $in: ['active', 'trialing', 'past_due'] },
     });
 
+    // An existing subscription makes this a plan-change checkout: the old
+    // subscription is superseded when the payment webhook completes. Only a
+    // checkout for the exact same plan+interval is meaningless.
     if (existingSub) {
-      throw new AppError('An active or past-due subscription already exists for this account', 409);
+      if (existingSub.plan.toString() === plan._id.toString()
+        && existingSub.billingInterval === billingInterval) {
+        throw new AppError('You are already subscribed to this plan', 409);
+      }
+      // Same rule as direct plan changes: usage must fit the target plan.
+      await this.validateDowngradeConflicts(account._id, null, plan);
     }
 
     const isFree = (billingInterval === 'yearly' ? plan.billing.yearlyPriceMinor : plan.billing.monthlyPriceMinor) === 0;
 
     if (isFree && !plan.trial.enabled) {
+      // Checkout is for payments; moving an existing subscription to the free
+      // tier is a plan change (which supersedes in place), not a checkout.
+      if (existingSub) {
+        throw new AppError('Use change-plan to switch to the free plan', 409);
+      }
       return this.activateFreePlan(account._id, userId, plan, billingInterval);
     }
 
@@ -491,6 +511,17 @@ export class BillingService {
     subscription.currentPeriodEnd = new Date((data.current_period_end ?? Date.now()) * 1000);
     await subscription.save();
 
+    // A completed plan-change checkout supersedes any previous subscription —
+    // exactly one subscription may be live per account.
+    await Subscription.updateMany(
+      {
+        account: checkoutAttempt.account,
+        _id: { $ne: subscription._id },
+        status: { $in: ['active', 'trialing', 'past_due', 'grace_period'] },
+      },
+      { $set: { status: 'expired', cancelledAt: new Date() } },
+    );
+
     checkoutAttempt.status = 'completed';
     checkoutAttempt.completedAt = new Date();
     await checkoutAttempt.save();
@@ -707,14 +738,15 @@ export class BillingService {
     }
 
     // Per-store limits: report the worst (highest) usage across the stores.
-    let maxMembers = 0;
-    let maxProducts = 0;
-    let maxCustomers = 0;
-    for (const store of stores) {
-      maxMembers = Math.max(maxMembers, await StoreMembership.countDocuments({ store: store._id, status: 'active' }));
-      maxProducts = Math.max(maxProducts, await Product.countDocuments({ storeId: store._id, isActive: true }));
-      maxCustomers = Math.max(maxCustomers, await Customer.countDocuments({ storeId: store._id, isActive: true }));
-    }
+    // All counts run in parallel — round trips dominate against Atlas.
+    const perStore = await Promise.all(stores.map((store) => Promise.all([
+      StoreMembership.countDocuments({ store: store._id, status: 'active' }),
+      Product.countDocuments({ storeId: store._id, isActive: true }),
+      Customer.countDocuments({ storeId: store._id, isActive: true }),
+    ])));
+    const maxMembers = Math.max(0, ...perStore.map(([m]) => m));
+    const maxProducts = Math.max(0, ...perStore.map(([, p]) => p));
+    const maxCustomers = Math.max(0, ...perStore.map(([, , c]) => c));
 
     if (!allows(limits.membersPerStore) && maxMembers > (limits.membersPerStore as number)) {
       conflicts.push({ metric: 'membersPerStore', label: 'Staff members', current: maxMembers, allowed: limits.membersPerStore as number });

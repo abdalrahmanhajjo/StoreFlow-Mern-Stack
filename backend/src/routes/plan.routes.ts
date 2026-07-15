@@ -8,12 +8,10 @@ import {
     getPlanById,
     updatePlan,
     deletePlan,
-    assignPlanToStore,
 } from "../controllers/plan.controllers";
 import {
     createPlanSchema,
     updatePlanSchema,
-    assignPlanSchema,
 } from "../validators/plan.validator";
 
 const router = express.Router();
@@ -26,6 +24,7 @@ router.get("/:id", authenticate, getPlanById);
 router.post("/", authenticate, authorize("platform_admin"), validate(createPlanSchema), createPlan);
 router.post("/:id", authenticate, authorize("platform_admin"), validate(updatePlanSchema), updatePlan);
 router.delete("/:id", authenticate, authorize("platform_admin"), deletePlan);
-router.post("/stores/:storeId/assign", authenticate, authorize("platform_admin"), validate(assignPlanSchema), assignPlanToStore);
+// (The legacy "assign plan to store" endpoint is gone — subscriptions are
+// account-level; use POST /api/admin/billing/manual-subscription instead.)
 
 export default router;

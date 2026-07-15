@@ -25,6 +25,8 @@ import {
   getCheckoutSessionStatusBySession,
   getDemoCheckoutSession,
   payDemoCheckoutSession,
+  getPaymentMethod,
+  updateDemoPaymentMethod,
 } from '../../controllers/billing.controller';
 
 const router = express.Router();
@@ -78,6 +80,10 @@ router.get('/usage', authenticate, getUsage);
 // Billing is account-level: it must work even before the owner's store
 // exists, so the tenant scope is optional (usage counts degrade gracefully).
 router.get('/limits', authenticate, tenantScopeOptional, getPlanLimits);
+
+// Stored payment method (display data only; updates are demo/mock-gated).
+router.get('/payment-method', authenticate, getPaymentMethod);
+router.put('/payment-method', authenticate, updateDemoPaymentMethod);
 
 router.get('/invoices', authenticate, getInvoices);
 router.get('/invoices/:publicId', authenticate, getInvoiceByPublicId);

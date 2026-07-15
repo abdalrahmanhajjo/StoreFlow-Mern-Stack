@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import { Store } from "../models/store.model";
 import { AppError } from "../utils/error.utils";
 import { User } from "../models/user.model";
+import { BillingAccount } from "../models/billingAccount.model";
+import { Subscription } from "../models/subscription.model";
 import { pickAllowed, stripOperators } from "../utils/security.utils";
 import { logMutation } from "../services/audit.service";
 
@@ -95,12 +97,56 @@ export const getStores = async (req: Request, res: Response, next: NextFunction)
         const filter = buildStoreFilter(req);
         const stores = await Store.find(filter)
             .populate("owner", "name email role")
-            .populate("planId", "name code billing");
+            .lean();
+
+        // Two eras of store docs coexist: legacy ones used `ownerId` and
+        // `storeName`. Resolve legacy owners in one query so every row
+        // reaches the client with the same shape.
+        const legacyOwnerIds = stores
+            .filter((s: any) => !s.owner && s.ownerId)
+            .map((s: any) => s.ownerId);
+        const legacyOwners = legacyOwnerIds.length
+            ? await User.find({ _id: { $in: legacyOwnerIds } }).select("name email role").lean()
+            : [];
+        const legacyOwnerById = new Map(legacyOwners.map((u) => [String(u._id), u]));
+
+        // The store's real plan lives on its owner's billing subscription —
+        // resolve them all in two queries (accounts, then live subscriptions).
+        const ownerIds = stores
+            .map((s: any) => s.owner?._id ?? s.ownerId)
+            .filter(Boolean);
+        const accounts = await BillingAccount.find({ owner: { $in: ownerIds } }).select("owner").lean();
+        const accountByOwner = new Map(accounts.map((a) => [String(a.owner), String(a._id)]));
+        const subs = accounts.length
+            ? await Subscription.find({
+                account: { $in: accounts.map((a) => a._id) },
+                status: { $in: ["active", "trialing"] },
+              })
+                .sort({ currentPeriodStart: -1 })
+                .populate("plan", "name code")
+                .lean()
+            : [];
+        const planByAccount = new Map<string, unknown>();
+        for (const s of subs) {
+            const key = String(s.account);
+            if (!planByAccount.has(key)) planByAccount.set(key, s.plan);
+        }
+
+        const data = stores.map((s: any) => {
+            const owner = s.owner ?? legacyOwnerById.get(String(s.ownerId)) ?? null;
+            const accountId = owner ? accountByOwner.get(String(owner._id)) : undefined;
+            return {
+                ...s,
+                name: s.name ?? s.storeName ?? "—",
+                owner,
+                plan: (accountId ? planByAccount.get(accountId) : null) ?? null,
+            };
+        });
 
         res.status(200).json({
             success: true,
-            count: stores.length,
-            data: stores,
+            count: data.length,
+            data,
         });
     } catch (error) {
         next(error);
@@ -123,7 +169,7 @@ export const getStoreById = async (req: Request, res: Response, next: NextFuncti
 
         const store = await Store.findById(id)
             .populate("owner", "name email role")
-            .populate("planId", "name code billing");
+            .lean();
 
         if (!store) {
             return next(new AppError("Store profile not found", 404));
@@ -131,7 +177,8 @@ export const getStoreById = async (req: Request, res: Response, next: NextFuncti
 
         res.status(200).json({
             success: true,
-            data: store,
+            // Legacy docs used `storeName` — normalise so clients read `name`.
+            data: { ...store, name: (store as any).name ?? (store as any).storeName ?? "—" },
         });
     } catch (error) {
         next(error);

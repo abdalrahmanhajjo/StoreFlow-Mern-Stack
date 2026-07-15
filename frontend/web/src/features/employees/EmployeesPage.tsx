@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { useEmployees, type Employee, type StaffRole } from './employeesStore';
 import { useSession } from '@/store/session';
 import { can } from '@/lib/rbac';
@@ -16,6 +17,7 @@ const ROLE_LABEL: Record<StaffRole, string> = {
 };
 
 export default function EmployeesPage() {
+  useLiveResource('employees');
   const isMobile = useMediaQuery('(max-width: 768px)');
   const myRole = useSession((s) => s.user!.role);
   const { employees, invite, setRole, toggleStatus, remove } = useEmployees();

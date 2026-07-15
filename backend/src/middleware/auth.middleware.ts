@@ -28,18 +28,20 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ message: 'Invalid or expired access token' });
   }
 
-  // Liveness check: verify the user still exists and is active.
-  const user = await User.findById(payload.sub).select('isActive').lean();
+  // Liveness checks in parallel (they're independent): the user still exists
+  // and is active; for store-scoped accounts, the store isn't suspended.
+  const [user, store] = await Promise.all([
+    User.findById(payload.sub).select('isActive').lean(),
+    payload.storeId
+      ? Store.findById(payload.storeId).select('status').lean()
+      : Promise.resolve(null),
+  ]);
+
   if (!user || !user.isActive) {
     return res.status(401).json({ message: 'Account is disabled or deleted' });
   }
-
-  // Store liveness: for store-scoped accounts, verify the store is active.
-  if (payload.storeId) {
-    const store = await Store.findById(payload.storeId).select('status').lean();
-    if (!store || store.status === 'suspended') {
-      return res.status(403).json({ message: 'Store access is suspended' });
-    }
+  if (payload.storeId && (!store || store.status === 'suspended')) {
+    return res.status(403).json({ message: 'Store access is suspended' });
   }
 
   req.user = payload;

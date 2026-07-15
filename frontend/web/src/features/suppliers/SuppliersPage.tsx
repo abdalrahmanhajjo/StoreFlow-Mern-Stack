@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useLiveResource } from '@/lib/api/useLiveResource';
 import { useSupply, supplierProductCount, supplierLinkedProducts } from './supplyStore';
 import { useProducts } from '@/features/products/productsStore';
 import { Modal, Button, Input, toast, confirm } from '@/components/ui';
@@ -226,6 +227,7 @@ function SuppliersContent() {
 }
 
 export default function SuppliersPage() {
+  useLiveResource('suppliers');
   return (
     <PlanFeatureGate
       feature="supplierManagement"

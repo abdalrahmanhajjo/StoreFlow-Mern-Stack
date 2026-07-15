@@ -10,7 +10,8 @@ import {
   apiDeletePlatformUser,
 } from '@/lib/api/resources';
 
-export type Plan = 'Free' | 'Pro' | 'Enterprise';
+// Plan names are admin-defined (see /admin/plans), so any string is valid.
+export type Plan = string;
 
 export interface Tenant {
   id: string;

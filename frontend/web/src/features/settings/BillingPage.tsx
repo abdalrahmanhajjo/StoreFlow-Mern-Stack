@@ -4,7 +4,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Button, Modal, toast } from '@/components/ui';
 import { subscriptionService, type PlanInfo, type ChangePreview } from '@/features/subscriptions/subscriptionService';
 import { usePlanLimits } from '@/features/subscriptions/usePlanLimits';
-import { billingService } from '@/features/billing/billingService';
+import { billingService, type PaymentMethodInfo } from '@/features/billing/billingService';
 import { errorMessage } from '@/lib/http/errors';
 import { money } from '@/lib/format';
 
@@ -235,11 +235,15 @@ export default function BillingPage() {
   const subscriptionStatus = limits?.subscriptionStatus ?? null;
   const cancelAtPeriodEnd = limits?.cancelAtPeriodEnd ?? false;
 
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodInfo | null>(null);
+
   useEffect(() => {
     subscriptionService.listPlans()
       .then(setPlans)
       .catch(() => toast.error('Could not load plans'))
       .finally(() => setLoading(false));
+    // Advisory: shows the card on file next to the manage button.
+    billingService.getPaymentMethod().then(setPaymentMethod).catch(() => {});
   }, []);
 
   const handleSelect = (code: string, interval: 'monthly' | 'yearly') => {
@@ -255,10 +259,34 @@ export default function BillingPage() {
       .finally(() => setPreviewLoading(false));
   };
 
+  /** Price of the plan pending confirmation, for the chosen interval. */
+  const pendingAmount = (m: { plan: PlanInfo; interval: 'monthly' | 'yearly' }) =>
+    preview?.newAmountMinor
+      ?? (m.interval === 'yearly'
+        ? m.plan.billing?.yearlyPriceMinor ?? 0
+        : m.plan.billing?.monthlyPriceMinor ?? 0);
+
+  /** Upgrades cost money now → collect the card on the hosted checkout page. */
+  const needsPayment = (m: { plan: PlanInfo; interval: 'monthly' | 'yearly' }) => {
+    const target = pendingAmount(m);
+    const current = preview?.currentAmountMinor ?? limits?.amountMinor ?? 0;
+    return target > 0 && target > current;
+  };
+
   const handleConfirm = async () => {
     if (!confirmModal) return;
     setChanging(true);
     try {
+      if (needsPayment(confirmModal)) {
+        // Paid upgrade: redirect to checkout — the payment webhook activates
+        // the new plan and supersedes the old subscription.
+        const { url } = await billingService.createCheckoutSession(confirmModal.plan.code, confirmModal.interval);
+        if (url) {
+          window.location.href = url;
+          return;
+        }
+        // No hosted checkout available — fall through to a direct switch.
+      }
       const res = await subscriptionService.changePlan(confirmModal.plan.code, confirmModal.interval);
       toast.success(res?.message ?? 'Plan changed successfully');
       setConfirmModal(null);
@@ -409,6 +437,11 @@ export default function BillingPage() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
             Payment method
+            {paymentMethod && (
+              <span className="mono" style={{ marginLeft: 6, fontSize: 11.5, color: 'var(--ink-faint)' }}>
+                {paymentMethod.brand} •••• {paymentMethod.last4}
+              </span>
+            )}
           </Button>
 
           <Link to="/settings/billing/invoices" style={{ textDecoration: 'none' }}>
@@ -569,8 +602,11 @@ export default function BillingPage() {
                   padding: 14, borderRadius: 10, background: 'var(--paper)',
                   border: '1px solid var(--line)', marginBottom: 14, fontSize: 12.5, lineHeight: 1.5, color: 'var(--ink)',
                 }}>
-                  Changing plans immediately updates your limits and features.
-                  Your data always stays intact.
+                  {needsPayment(confirmModal)
+                    ? <>You'll be taken to a secure checkout to complete payment — the new
+                      plan activates as soon as the payment is confirmed.</>
+                    : <>Changing plans immediately updates your limits and features.
+                      Your data always stays intact.</>}
                 </div>
               )}
 
@@ -584,7 +620,9 @@ export default function BillingPage() {
                   disabled={previewLoading || blocked}
                   style={{ flex: 2, justifyContent: 'center', opacity: previewLoading || blocked ? 0.5 : 1 }}
                 >
-                  Switch to {confirmModal.plan.name}
+                  {needsPayment(confirmModal)
+                    ? `Continue to payment — ${formatMinor(pendingAmount(confirmModal))}/${confirmModal.interval === 'yearly' ? 'yr' : 'mo'}`
+                    : `Switch to ${confirmModal.plan.name}`}
                 </Button>
               </div>
             </div>

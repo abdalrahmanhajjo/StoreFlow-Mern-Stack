@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response, NextFunction, RequestHandler } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -154,6 +154,15 @@ function authorizeResource(resource: string) {
 }
 
 /**
+ * Platform admins operate across tenants: tenantScope leaves req.storeId null
+ * for them, so the store-membership part of the chain doesn't apply — without
+ * this bypass every authChain route 500s for admins (no store to load, no
+ * membership to check, no billing subscription of their own).
+ */
+const unlessPlatformAdmin = (mw: RequestHandler): RequestHandler =>
+    (req, res, next) => (req.user?.role === 'platform_admin' ? next() : mw(req, res, next));
+
+/**
  * Full authorization chain for a route group: authenticate → tenant-scope →
  * load store → verify membership → check active subscription → check
  * resource permission.
@@ -162,10 +171,10 @@ function authChain(resource: string) {
     return [
         authenticate,
         tenantScope,
-        loadStore,
-        requireMembership,
-        requireActiveSubscription,
-        authorizeResource(resource),
+        unlessPlatformAdmin(loadStore),
+        unlessPlatformAdmin(requireMembership),
+        unlessPlatformAdmin(requireActiveSubscription),
+        unlessPlatformAdmin(authorizeResource(resource)),
     ];
 }
 
@@ -208,8 +217,8 @@ if (isProduction()) {
 
     // SPA catch-all: any non-API request serves index.html so React Router
     // handles the path client-side (prevents 404 on refresh/direct nav).
-    app.use((req: Request, res: Response) => {
-        if (req.path.startsWith("/api")) return;
+    app.use((req: Request, res: Response, next: NextFunction) => {
+        if (req.path.startsWith("/api")) return next(); // fall through to API 404
         res.sendFile(path.join(frontendDist, "index.html"));
     });
 }

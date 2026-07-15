@@ -258,6 +258,13 @@ export const changeStoreStatus = async (req: Request, res: Response, next: NextF
             return next(new AppError("Invalid status value provided", 400));
         }
 
+        // Capture the previous status so approval (pending → active) can be
+        // told apart from an un-suspension (suspended → active).
+        const before = await Store.findById(id).select("status").lean();
+        if (!before) {
+            return next(new AppError("Store profile not found", 404));
+        }
+
         const store = await Store.findByIdAndUpdate(
             id,
             { status },
@@ -272,6 +279,27 @@ export const changeStoreStatus = async (req: Request, res: Response, next: NextF
             description: `Changed store status to ${status}`,
             metadata: { status },
         });
+
+        // Approval → welcome the owner. Best-effort: an email failure must
+        // never fail the approval itself.
+        if (before.status === "pending" && status === "active") {
+            void (async () => {
+                try {
+                    const ownerId = (store as any).owner ?? (store as any).ownerId;
+                    const owner = ownerId ? await User.findById(ownerId).select("name email").lean() : null;
+                    if (!owner?.email) return;
+                    const baseUrl = process.env.FRONTEND_URL ?? process.env.CLIENT_APP_URL ?? "http://localhost:5175";
+                    const { sendStoreApprovedEmail } = await import("../utils/auth.utils");
+                    await sendStoreApprovedEmail(owner.email, {
+                        name: owner.name ?? "there",
+                        storeName: (store as any).name ?? (store as any).storeName ?? "your store",
+                        loginUrl: `${baseUrl}/login`,
+                    });
+                } catch (err: any) {
+                    console.error(`[mail] store-approved welcome failed for store ${id}:`, err?.message ?? err);
+                }
+            })();
+        }
 
         res.status(200).json({
             success: true,

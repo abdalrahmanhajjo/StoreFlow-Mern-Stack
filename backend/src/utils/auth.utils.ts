@@ -65,6 +65,19 @@ export const sendEmailVerificationCode = async (
   return sendDynamicTemplateEmail(to, 'email-verification', { code });
 };
 
+/** Welcome email when a platform admin approves the store.
+ *  @returns true if the email was accepted. */
+export const sendStoreApprovedEmail = async (
+  to: string,
+  opts: { name: string; storeName: string; loginUrl: string }
+): Promise<boolean> => {
+  return sendDynamicTemplateEmail(to, 'store-approved', {
+    name: opts.name,
+    storeName: opts.storeName,
+    loginUrl: opts.loginUrl,
+  });
+};
+
 /** @returns true if the email was accepted.
  *  NOTE: `name` here is the INVITEE's name (matches "Hello {{name}}," in the
  *  seeded employee-invite template) — not the inviter's. If you were passing

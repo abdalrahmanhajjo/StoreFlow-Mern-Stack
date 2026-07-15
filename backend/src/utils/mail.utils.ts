@@ -188,13 +188,19 @@ export async function sendMailSafe(
 
 /** Replaces {{key}} with vars[key]; leaves a console warning and blanks out
  *  any placeholder the caller forgot to supply, rather than sending it raw. */
-function interpolate(str: string, vars: Record<string, string>): string {
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+function interpolate(str: string, vars: Record<string, string>, escape = false): string {
   return str.replace(/{{\s*(\w+)\s*}}/g, (_match, key: string) => {
     if (!(key in vars)) {
       console.warn(`[mail] template variable "{{${key}}}" was not provided`);
       return '';
     }
-    return vars[key];
+    // HTML bodies escape user-controlled values (names, store names) so a
+    // crafted value can't inject markup; subjects are plain text and don't.
+    return escape ? escapeHtml(vars[key]) : vars[key];
   });
 }
 
@@ -219,7 +225,7 @@ export async function sendDynamicTemplateEmail(
   }
 
   const subject = interpolate(template.subject, variables);
-  const html = interpolate(template.html, variables);
+  const html = interpolate(template.html, variables, true);
 
   logFallback(to, JSON.stringify(variables), slug);
 

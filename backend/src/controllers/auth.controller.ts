@@ -31,8 +31,8 @@ import {
   hashToken,
   sendPasswordResetCode,
   sendEmailVerificationCode,
-  sendMailSafe,
 } from '../utils/auth.utils';
+import { sendDynamicTemplateEmail } from '../utils/mail.utils';
 
 import { logMutation } from "../services/audit.service";
 
@@ -956,9 +956,6 @@ export const acceptInvite = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Could not complete the invite' });
   }
 };
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 /**
  * Permanently deletes the authenticated user's account.
  *
@@ -1096,21 +1093,20 @@ export const deleteAccount = async (req: Request, res: Response) => {
     }
 
     const email = user.email;
-    const safeName = escapeHtml(user.name);
+    // Raw name — the template renderer HTML-escapes variables itself.
+    const safeName = user.name;
     await User.deleteOne({ _id: user._id });
 
     res.clearCookie(REFRESH_COOKIE, cookieBase(req));
 
     // Confirmation email is best-effort and never blocks the response.
-    void sendMailSafe(
-      email,
-      'Your StoreFlow account has been deleted',
-      `<p>Hi ${safeName},</p>` +
-        `<p>Your StoreFlow account${isOwner ? ', store, and all store data have' : ' has'} been permanently deleted, ` +
-        'and any paid subscription was cancelled immediately. Past invoices remain available on request for accounting purposes.</p>' +
-        "<p>We're sorry to see you go. If you did not request this, contact support immediately.</p>",
-      'account deletion confirmation',
-    );
+    // Template-driven ('account-deleted') so admins can edit the copy.
+    void sendDynamicTemplateEmail(email, 'account-deleted', {
+      name: safeName,
+      details: isOwner
+        ? 'Your StoreFlow account, store, and all store data have been permanently deleted.'
+        : 'Your StoreFlow account has been permanently deleted.',
+    });
 
     return res.status(200).json({ success: true, message: 'Your account has been permanently deleted.' });
   } catch (err) {

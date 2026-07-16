@@ -499,7 +499,18 @@ export default function HomePage() {
     <main className="sf-home">
       <header className={`sf-home-nav${scrolled ? ' scrolled' : ''}`}>
         <div className="sf-home-nav-pill">
-          <Link to="/" className="sf-home-brand" aria-label="StoreFlow home">
+          <Link
+            to="/"
+            className="sf-home-brand"
+            aria-label="StoreFlow home"
+            // Already on "/", so navigation is a no-op — clicking the brand
+            // should visibly do something: return to the top of the page.
+            onClick={(e) => {
+              e.preventDefault();
+              const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+            }}
+          >
             <Logo size={28} />
             <span>StoreFlow</span>
           </Link>

@@ -2329,6 +2329,19 @@
   .sf-home-nav-cta .sf-home-solid { padding: 0 13px; font-size: 12.5px; }
   .sf-form-row { grid-template-columns: 1fr; }
 
+  /* Centered phone layout for the pricing, reviews and contact sections —
+     single-column stacks read better balanced than left-ragged. */
+  .sf-plan-card h3,
+  .sf-plan-card > p { text-align: center; }
+  .sf-plan-price { justify-content: center; }
+  .sf-voice-main { text-align: center; }
+  .sf-voice-meta { text-align: center; }
+  .sf-voice-rail { justify-content: center; }
+  .sf-contact-main h2,
+  .sf-contact-lead { text-align: center; }
+  .sf-contact-lead { margin-inline: auto; }
+  .sf-contact-form button { justify-self: center; }
+
   /* hero: keep both CTAs comfortably tappable, full-width side by side */
   .sf-hero-cta { width: 100%; }
   .sf-hero-cta > * { flex: 1 1 150px; min-height: 48px; }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { authService } from './authService';
 import { Button, Input, Logo } from '@/components/ui';
 
@@ -19,8 +19,10 @@ const s: Record<string, CSSProperties> = {
 };
 
 export default function ResendVerificationPage() {
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(0);
-  const [email, setEmail] = useState('');
+  // Prefilled when login redirects an unverified account here.
+  const [email, setEmail] = useState(searchParams.get('email') ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [otpCode, setOtpCode] = useState('');

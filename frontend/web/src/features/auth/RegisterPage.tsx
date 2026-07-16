@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/axios';
 import { registerSchema, type RegisterInput } from './schemas';
-import { useRegister, useVerifyEmail } from './hooks';
+import { useRegister, useVerifyEmail, VERIFY_EMAIL_STORAGE_KEY } from './hooks';
 import { authService } from './authService';
 import { Button, Input, Logo, PhoneCodeSelect, toast, Spinner } from '@/components/ui';
 
@@ -135,6 +135,7 @@ export default function RegisterPage() {
     trigger,
     watch,
     setFocus,
+    setValue,
     control,
     formState: { errors },
   } = useForm<RegisterInput>({
@@ -146,6 +147,19 @@ export default function RegisterPage() {
       ownerName: '', ownerPhone: '', ownerIdNumber: '', email: '', password: '', otp: '',
     },
   });
+
+  // Returning from a paid-plan checkout: the account already exists and the
+  // code was emailed during registration — jump straight to the OTP step.
+  useEffect(() => {
+    if (!searchParams.get('verify')) return;
+    const email = searchParams.get('email') ?? sessionStorage.getItem(VERIFY_EMAIL_STORAGE_KEY) ?? '';
+    if (!email) return;
+    setValue('email', email);
+    setAnimKey((k) => k + 1);
+    setStep(4);
+    startResendTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // react-hook-form's watch() is incompatible with React Compiler memoization;
   // the compiler skips this component, which is expected and safe here.

@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import path from "path";
+import fs from "fs";
 
 import categoryRoutes from "./routes/category.routes";
 import productRoutes from "./routes/product.routes";
@@ -54,7 +55,25 @@ const app = express();
 // limiting). Harmless locally, where there is no proxy.
 app.set("trust proxy", 1);
 
-app.use(helmet());
+// CSP is tuned for the case where this server also serves the frontend build
+// (single-service deploy): Google Fonts for the app's typefaces, https images
+// for product photos, data: for uploaded logos. Same policy as
+// frontend/web/public/_headers — keep them in step (docs/security-headers.md).
+// On pure-API deployments these headers ride along on JSON harmlessly.
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            useDefaults: true,
+            directives: {
+                "img-src": ["'self'", "data:", "https:"],
+                "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+                "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+                "connect-src": ["'self'"],
+                "frame-ancestors": ["'none'"],
+            },
+        },
+    })
+);
 app.use(cookieParser());
 // Middlewares — credentials:true lets the browser send the HttpOnly refresh
 // cookie cross-origin, which requires an explicit origin (no wildcard).
@@ -114,9 +133,9 @@ app.use("/api/auth/reset-password", otpLimiter);
 app.use("/api/auth/forgot-password", otpLimiter);
 app.use("/api/auth/resend-verification-code", otpLimiter);
 
-// Test route
-app.get("/", (req: Request, res: Response) => {
-    res.send("StoreFlow API is running");
+// Health/status — safe for load-balancer checks in both deploy modes.
+app.get("/api/health", (_req: Request, res: Response) => {
+    res.json({ ok: true, service: "storeflow-api" });
 });
 
 // ---------------------------------------------------------------------------
@@ -209,9 +228,14 @@ app.use("/api/admin/billing", adminBillingRoutes); // admin billing controls
 // V1 billing API
 app.use("/api/v1/billing", billingV1Routes);
 
-// ---- serve built frontend in production ----
-if (isProduction()) {
-    const frontendDist = path.join(__dirname, "../../frontend/web/dist");
+// ---- serve built frontend in production (single-service deploy) ----
+// Serving the app and API from ONE origin makes the refresh cookie
+// first-party. Split deployments on *.onrender.com / *.vercel.app are
+// cross-SITE (public-suffix domains), and browsers that block third-party
+// cookies drop the refresh cookie — login then dies with "session ended".
+const frontendDist = path.join(__dirname, "../../frontend/web/dist");
+const serveFrontend = isProduction() && fs.existsSync(path.join(frontendDist, "index.html"));
+if (serveFrontend) {
     app.use(express.static(frontendDist));
 
     // SPA catch-all: any non-API request serves index.html so React Router
@@ -219,6 +243,11 @@ if (isProduction()) {
     app.use((req: Request, res: Response, next: NextFunction) => {
         if (req.path.startsWith("/api")) return next(); // fall through to API 404
         res.sendFile(path.join(frontendDist, "index.html"));
+    });
+} else {
+    // Pure-API deployment — keep the old root status message.
+    app.get("/", (_req: Request, res: Response) => {
+        res.send("StoreFlow API is running");
     });
 }
 

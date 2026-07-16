@@ -5,15 +5,27 @@ URL so anyone — you, your staff, real customers — opens the same site from a
 device, and admin approvals work across all of them because there is **one
 backend and one database**.
 
-**Architecture after deploy**
+**Architecture after deploy — ONE Render service serves everything**
 
 ```
-Everyone's browser ──▶ Frontend (Vercel)  ──▶  Backend API (Render)  ──▶  MongoDB Atlas
-   one public URL         static site            one server                one database
+Everyone's browser ──▶ Render web service (frontend + /api)  ──▶  MongoDB Atlas
+   one public URL        one server, one origin                   one database
 ```
 
-You need three free accounts: **GitHub**, **Render** (backend), **Vercel**
-(frontend). The code is already prepared for this — no code changes needed.
+You need two free accounts: **GitHub** and **Render**. The `backend/render.yaml`
+blueprint builds the frontend and the API into a single service — the server
+serves the app's files and answers `/api` on the same URL.
+
+> **Why one service, not a separate frontend host?** The login session lives in
+> an HttpOnly refresh cookie. If the frontend and API sit on different
+> `*.onrender.com` / `*.vercel.app` subdomains, those are **different sites**
+> (public-suffix domains), so the cookie counts as third-party — and Safari,
+> incognito windows, and increasingly Chrome silently refuse it. Login appears
+> to work, then a few seconds later the app kicks you back to
+> `/login?reason=session-ended`. One origin makes the cookie first-party and
+> immune to all of that. If you must split hosts anyway (e.g. Vercel), put a
+> proxy rewrite from the frontend's `/api/*` to the backend so requests stay
+> same-origin from the browser's point of view.
 
 ---
 
@@ -34,10 +46,11 @@ You need three free accounts: **GitHub**, **Render** (backend), **Vercel**
 
 ---
 
-## 1. Deploy the backend to Render (10 min)
+## 1. Deploy the whole site to Render (10 min)
 
 1. Go to **render.com** → sign in with GitHub → **New + → Blueprint**.
-2. Pick this repository. Render reads `backend/render.yaml` automatically.
+2. Pick this repository. Render reads `backend/render.yaml` automatically —
+   it builds the API **and** the frontend into one service.
 3. It will ask for the secret env vars — fill in:
    - `MONGO_URI` → your Atlas **standard** connection string (the long
      `mongodb://...` one, same as your local `backend/.env`).
@@ -47,10 +60,11 @@ You need three free accounts: **GitHub**, **Render** (backend), **Vercel**
      these; you can leave them blank for now (the app still runs — codes just
      print to the Render logs — and you can fill them in later).
    - `CLIENT_APP_URL` → leave a placeholder for now (e.g. `https://example.com`);
-     you'll set the real value in step 3.
+     right after the first deploy, set it to the service's **own URL**
+     (e.g. `https://storeflow.onrender.com`, no trailing slash) and save.
 4. Click **Apply**. Wait for the build to go green.
-5. Copy the service URL, e.g. `https://storeflow-api.onrender.com`. Open it —
-   you should see **"StoreFlow API is running"**.
+5. Open the service URL — you should see **the StoreFlow app itself** (the
+   API answers on the same URL under `/api`, e.g. `/api/health`).
 
 > Free Render services sleep after 15 min idle and take ~30s to wake on the
 > first request. Fine for a demo; upgrade the plan to keep it always-on.
@@ -115,32 +129,31 @@ Gmail's free send limit is ~500/day — plenty for verification codes.
 
 ---
 
-## 2. Deploy the frontend to Vercel (5 min)
+## 2. (Optional) Separate frontend host — read the warning first
 
-1. Go to **vercel.com** → sign in with GitHub → **Add New → Project** → import
-   this repo.
-2. Set **Root Directory** to `frontend/web` (click Edit next to it).
-3. Vercel auto-detects Vite. Under **Environment Variables**, add:
-   - `VITE_API_BASE_URL` = your Render URL **+ `/api`**, e.g.
-     `https://storeflow-api.onrender.com/api`
-4. **Deploy.** When it's done, copy the site URL, e.g.
-   `https://storeflow.vercel.app`.
+You do **not** need this; step 1 already serves the whole site. If you still
+want the frontend on its own host (Vercel, a Render *static site*, …), the
+browser will treat the login cookie as third-party and many browsers will
+drop it — you get bounced to `/login?reason=session-ended` right after
+signing in. To make a split setup work you MUST proxy the API through the
+frontend's own origin:
+
+- **Render static site:** Redirects/Rewrites → add TWO rules, in this order:
+  1. **Rewrite** `/api/*` → `https://<your-api-service>.onrender.com/api/*`
+  2. **Rewrite** `/*` → `/index.html`  (SPA fallback — fixes 404 on refresh)
+- **Vercel:** the repo's `frontend/web/vercel.json` already has the SPA
+  fallback; add a rewrite of `/api/(.*)` to your API URL before it.
+- Build the frontend with `VITE_API_BASE_URL=/api` (relative!) so requests go
+  to the frontend's own origin and get proxied — never to the API's domain
+  directly.
+- Set the backend's `CLIENT_APP_URL` to the **frontend's** URL
+  (no trailing slash).
+
+That's it. Open your service URL from any device.
 
 ---
 
-## 3. Connect the two (2 min)
-
-The backend must trust the frontend's domain (for CORS + login cookies):
-
-1. Back in **Render** → your service → **Environment** → set
-   `CLIENT_APP_URL` = your Vercel URL (e.g. `https://storeflow.vercel.app`,
-   **no trailing slash**) → save. Render redeploys automatically.
-
-That's it. Open your Vercel URL from any device.
-
----
-
-## 4. First login
+## 3. First login
 
 The platform admin already lives in your Atlas database:
 
@@ -151,9 +164,9 @@ The platform admin already lives in your Atlas database:
 
 ---
 
-## 5. Verify it's really shared
+## 4. Verify it's really shared
 
-- On your phone, open the Vercel URL → **Register** a store.
+- On your phone, open your site URL → **Register** a store.
 - On your laptop, open the same URL → sign in as admin → **Store approvals** →
   the phone's registration is there → **Approve**.
 - Different devices, one database. Done.

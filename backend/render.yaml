@@ -1,15 +1,23 @@
-# One-click backend deploy on Render (https://render.com).
+# One-click FULL-SITE deploy on Render (https://render.com): this single
+# service builds and serves both the API and the frontend from one origin.
+# One origin means the refresh cookie is first-party — split deployments on
+# *.onrender.com / *.vercel.app subdomains are cross-SITE (public-suffix
+# domains), and browsers that block third-party cookies drop the session
+# right after login ("session ended").
 # In the Render dashboard: New + → Blueprint → pick this repo. It reads this
 # file. Then fill in the env vars marked sync:false (they're secrets).
 services:
   - type: web
-    name: storeflow-api
+    name: storeflow
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install && npm run build
+    # Also builds the frontend with VITE_API_BASE_URL=/api (relative — the
+    # same-origin API this server exposes). Leaving it unset would silently
+    # build the app in demo/mock mode with no backend connection.
+    buildCommand: npm install && npm run build && cd ../frontend/web && npm install && VITE_API_BASE_URL=/api npm run build
     startCommand: npm start
-    healthCheckPath: /
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -18,7 +26,7 @@ services:
       - key: JWT_ACCESS_SECRET
         sync: false        # any long random string
       - key: CLIENT_APP_URL
-        sync: false        # your deployed frontend URL, e.g. https://storeflow.vercel.app
+        sync: false        # this service's own public URL, e.g. https://storeflow.onrender.com
       # Email is sent via the Gmail API over HTTPS (port 443). SMTP ports are
       # blocked on Render's free plan, which is why smtp.gmail.com never worked.
       # See DEPLOY.md for how to create the OAuth credentials + refresh token.

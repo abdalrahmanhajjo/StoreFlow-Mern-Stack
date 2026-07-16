@@ -50,10 +50,32 @@ interface ProductsState {
 
 let seq = 100;
 
-/** Resolves the category name the form uses into the server's category id. */
+const OBJECT_ID = /^[0-9a-fA-F]{24}$/;
+
+/** Resolves the category name the form uses into the server's category id.
+ * A category created moments ago still holds a local placeholder id until
+ * the server answers — wait briefly for the swap. If the name is unknown
+ * (fresh store, or the category create failed), materialize it server-side
+ * so saving a product never dead-ends on its category. */
 async function categoryIdFor(name: string): Promise<string | undefined> {
   const { useCategories } = await import('@/features/categories/categoriesStore');
-  return useCategories.getState().categories.find((c) => c.name === name)?.id;
+  const find = () => useCategories.getState().categories.find((c) => c.name === name);
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const cat = find();
+    if (cat && OBJECT_ID.test(cat.id)) return cat.id;
+    if (!cat) break; // unknown name — create it below
+    await new Promise((r) => setTimeout(r, 300)); // placeholder — swap in flight
+  }
+
+  const { apiCreateCategory } = await import('@/lib/api/resources');
+  const server = await apiCreateCategory({ name });
+  useCategories.setState((s) => ({
+    categories: s.categories.some((c) => c.name === name)
+      ? s.categories.map((c) => (c.name === name ? server : c))
+      : [...s.categories, server],
+  }));
+  return server.id;
 }
 
 /** Swap a locally-created row for the server's copy (real ObjectId). */

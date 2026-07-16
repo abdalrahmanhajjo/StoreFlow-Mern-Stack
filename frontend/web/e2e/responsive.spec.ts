@@ -48,6 +48,15 @@ test.describe('Signup on a small phone', () => {
     await expectNoHorizontalOverflow(page, 'step 4 (OTP verify)');
   });
 
+  test('home nav keeps the Sign in button on a phone', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    // Both nav CTAs must stay visible — a blanket ghost-button hide once
+    // removed "Sign in" (and the plan-card CTAs) from phone layouts.
+    await expect(page.locator('.sf-home-nav-cta .sf-home-ghost')).toBeVisible();
+    await expect(page.locator('.sf-home-nav-cta .sf-home-solid')).toBeVisible();
+  });
+
   test('resend-verification OTP screen fits the viewport', async ({ page }) => {
     await page.goto('/resend-verification');
     await page.getByLabel('Email address').fill('owner@example.com');

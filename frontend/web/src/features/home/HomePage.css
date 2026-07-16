@@ -2321,7 +2321,12 @@
 }
 
 @media (max-width: 640px) {
-  .sf-home-ghost:not(.lg) { display: none; }
+  /* Keep BOTH nav buttons on phones — hiding the ghost also removed "Sign in"
+     from the nav and the CTA from non-featured plan cards. Compact instead. */
+  .sf-home-nav-pill { padding: 0 8px 0 14px; gap: 10px; }
+  .sf-home-nav-cta { gap: 6px; }
+  .sf-home-nav-cta .sf-home-ghost,
+  .sf-home-nav-cta .sf-home-solid { padding: 0 13px; font-size: 12.5px; }
   .sf-form-row { grid-template-columns: 1fr; }
 
   /* hero: keep both CTAs comfortably tappable, full-width side by side */

@@ -17,7 +17,9 @@ test.describe('Login flow', () => {
   test('shows an accessible inline error for an invalid submission', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email address').fill('owner@x.com');
-    await page.getByLabel('Password', { exact: true }).fill('fail');
+    // Role-based: label-text matching would also hit the "Show password"
+    // toggle, and the label's aria-hidden required marker breaks exact match.
+    await page.getByRole('textbox', { name: 'Password' }).fill('fail');
     await page.getByRole('button', { name: 'Sign in' }).click();
     // The error banner is an ARIA alert.
     await expect(page.getByRole('alert')).toContainText(/invalid/i);
@@ -26,7 +28,7 @@ test.describe('Login flow', () => {
   test('an owner can sign in and lands on the dashboard', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email address').fill('owner@x.com');
-    await page.getByLabel('Password', { exact: true }).fill('correct-horse');
+    await page.getByRole('textbox', { name: 'Password' }).fill('correct-horse');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/dashboard/);
   });

@@ -292,13 +292,13 @@ export default function LoginPage() {
               {!isPending && (
                 <form onSubmit={handleSubmit((v) => login.mutate(v))} noValidate>
                   <Input
-                    label="Email address*" type="email" placeholder="Enter your email"
+                    label="Email address" required type="email" placeholder="Enter your email"
                     autoComplete="email" error={errors.email?.message}
                     style={filledInput}
                     {...register('email')}
                   />
                   <Input
-                    label="Password*" type="password" placeholder="••••••••"
+                    label="Password" required type="password" placeholder="••••••••"
                     autoComplete="current-password" error={errors.password?.message}
                     style={filledInput}
                     {...register('password')}

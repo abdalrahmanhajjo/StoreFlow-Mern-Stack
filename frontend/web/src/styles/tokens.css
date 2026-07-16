@@ -17,7 +17,9 @@
   --ink-strong: #3a3a37;
   --ink-soft: #4c4c48;
   --ink-mid: #5c5c57;
-  --ink-faint: #85857e;
+  /* Darkest light background in use is --paper (#efefec): this is the
+     lightest warm gray that still meets WCAG AA 4.5:1 on it (axe-verified). */
+  --ink-faint: #6d6d67;
   --ink-faint-alt: #a3a39c;
   --line: #e3e3df;
   --line-soft: #eeeeea;

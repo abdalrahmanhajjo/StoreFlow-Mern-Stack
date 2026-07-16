@@ -2001,7 +2001,7 @@
   display: block;
   text-align: center;
   font-size: 10px;
-  color: rgba(17, 17, 16, .55);
+  color: rgba(17, 17, 16, .66); /* ≥4.5:1 on the paper backgrounds (WCAG AA) */
   margin-top: 3px;
   text-transform: uppercase;
   letter-spacing: .08em;
@@ -2027,7 +2027,7 @@
   text-transform: uppercase;
   letter-spacing: .06em;
   font-size: 10px;
-  color: rgba(17, 17, 16, .55);
+  color: rgba(17, 17, 16, .66); /* ≥4.5:1 on the paper backgrounds (WCAG AA) */
   flex-shrink: 0;
 }
 
@@ -2059,7 +2059,7 @@
 .sf-contact-receipt > p {
   margin: 8px 0 0;
   font-size: 10.5px;
-  color: rgba(17, 17, 16, .55);
+  color: rgba(17, 17, 16, .66); /* ≥4.5:1 on the paper backgrounds (WCAG AA) */
   text-align: center;
 }
 

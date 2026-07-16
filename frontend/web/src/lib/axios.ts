@@ -24,7 +24,13 @@ type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 
 api.interceptors.response.use(
   (res) => res,
-  async (error: AxiosError<{ code?: string; message?: string; fields?: Record<string, string> }>) => {
+  async (error: AxiosError<{
+    code?: string;
+    message?: string;
+    fields?: Record<string, string>;
+    /** Zod issues from validate.middleware — [{ field: 'body.x', message }] */
+    errors?: Array<{ field?: string; message?: string }>;
+  }>) => {
     const original = error.config as RetriableConfig | undefined;
     const status = error.response?.status;
     const isAuthCall = original?.url?.includes('/auth/');
@@ -60,6 +66,12 @@ api.interceptors.response.use(
     const domain403 = status === 403 && Boolean(data?.code) && Boolean(data?.message);
     const authInvalid401 = status === 401 && isAuthCall && Boolean(data?.message);
 
+    // A bare "Validation failed" hides the actual problem — surface the first
+    // field issue the server reported so the user knows what to fix.
+    const firstIssue = Array.isArray(data?.errors)
+      ? data.errors.find((e) => e?.message)?.message
+      : undefined;
+
     const normalised: ApiError = {
       code,
       status,
@@ -72,7 +84,7 @@ api.interceptors.response.use(
           : domain403 || authInvalid401
             ? data!.message!
             : status && status < 500 && status !== 401 && status !== 403 && status !== 429
-              ? (data?.message ?? messageForStatus(status, 'Request failed'))
+              ? (firstIssue ?? data?.message ?? messageForStatus(status, 'Request failed'))
               : messageForStatus(status, data?.message ?? 'Network error'),
       fields: data?.fields,
     };

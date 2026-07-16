@@ -4,6 +4,9 @@ import { useCustomers } from '@/features/customers/customersStore';
 import { useSales, nextInvoiceNo, type Sale } from '@/features/sales/salesStore';
 import { isConnected, apiCreateSale, apiRedeemPoints, apiAdjustPoints } from '@/lib/api/resources';
 import { refreshProducts, refreshCustomers } from '@/lib/api/hydrate';
+import { roundMoney } from '@/lib/money';
+
+const OBJECT_ID = /^[0-9a-fA-F]{24}$/;
 
 export type CheckoutResult =
   | { ok: true; sale: Sale }
@@ -29,6 +32,18 @@ export async function completeSale(cashierName: string): Promise<CheckoutResult>
   const t = computeTotals(cart);
 
   if (isConnected) {
+    // A customer created moments ago may still hold its local placeholder id
+    // until the server answers — the API would reject it as an invalid ID.
+    if (cart.customer && !OBJECT_ID.test(cart.customer.id)) {
+      return {
+        ok: false,
+        error: 'This customer is still being saved — reselect them from the search and try again',
+      };
+    }
+
+    // The server requires 2–100 characters when a cashier name is sent at all.
+    const trimmedCashier = cashierName.trim().slice(0, 100);
+
     try {
       // Redeem first: the server checks the real balance, so an insufficient
       // one stops the checkout before any money moves.
@@ -44,12 +59,13 @@ export async function completeSale(cashierName: string): Promise<CheckoutResult>
         sale = await apiCreateSale({
           items: cart.items.map((i) => ({ productId: i.id, quantity: i.qty })),
           // The redeemed value is charged as discount; the points themselves
-          // were deducted by the redemption above.
-          discount: t.discount + t.redeem,
+          // were deducted by the redemption above. Settled to cents so float
+          // noise can't push it past the server's subtotal ceiling.
+          discount: roundMoney(t.discount + t.redeem),
           taxRate: cart.taxRate * 100,
           paymentMethod: cart.payMethod === 'Card' ? 'card' : 'cash',
           customerId: cart.customer?.id,
-          cashierName,
+          cashierName: trimmedCashier.length >= 2 ? trimmedCashier : undefined,
         });
       } catch (saleErr) {
         // The sale failed after points were taken — give them back.

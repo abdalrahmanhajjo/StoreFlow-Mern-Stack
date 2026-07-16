@@ -239,11 +239,15 @@ export const createSale = async (req: Request, res: Response) => {
 
         subtotal = roundMoney(subtotal);
 
-        const numericDiscount = Number(discount);
+        const rawDiscount = Number(discount);
 
-        if (Number.isNaN(numericDiscount) || numericDiscount < 0) {
+        if (Number.isNaN(rawDiscount) || rawDiscount < 0) {
             throw new AppError("Discount cannot be negative", 400);
         }
+
+        // Settle to cents before comparing — client sums carry float noise
+        // (0.1 + 0.2 > 0.3) that must not reject a legitimate full discount.
+        const numericDiscount = roundMoney(rawDiscount);
 
         if (numericDiscount > subtotal) {
             throw new AppError("Discount cannot be greater than subtotal", 400);

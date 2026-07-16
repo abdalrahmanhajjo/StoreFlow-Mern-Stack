@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-const cashierNameRegex = /^[A-Za-z\u0600-\u06FF\s.'-]+$/;
 
 export const createSaleSchema = z.object({
     body: z.object({
@@ -10,15 +9,13 @@ export const createSaleSchema = z.object({
             .regex(objectIdRegex, "Invalid customer ID")
             .optional(),
 
+        // Mirrors the account-name rules (registration allows any characters),
+        // since the POS sends the signed-in user's name verbatim.
         cashierName: z
             .string()
             .trim()
             .min(2, "Cashier name must be at least 2 characters")
             .max(100, "Cashier name cannot exceed 100 characters")
-            .regex(
-                cashierNameRegex,
-                "Cashier name can only contain letters, spaces, dots, apostrophes, and hyphens"
-            )
             .optional(),
 
         items: z

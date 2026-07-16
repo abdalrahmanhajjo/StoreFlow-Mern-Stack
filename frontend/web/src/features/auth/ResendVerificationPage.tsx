@@ -15,6 +15,8 @@ const s: Record<string, CSSProperties> = {
     boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15), 0 2px 8px -4px rgba(0,0,0,0.05)',
     padding: '40px 44px',
     animation: 'sf-scale-in .35s ease-out',
+    // Centers when it fits; collapses to 0 when taller so nothing clips.
+    margin: 'auto 0',
   } as CSSProperties,
 };
 
@@ -110,6 +112,15 @@ export default function ResendVerificationPage() {
           #sf-card { animation: none; }
           .sf-enter { animation: none; }
         }
+        /* Phone layout: six fixed 48px OTP boxes overflow a ~375px viewport. */
+        @media (max-width: 520px) {
+          #sf-card { padding: 26px 16px !important; }
+          .sf-otp-row { gap: 6px !important; }
+          .sf-otp-row .sf-otp-box {
+            flex: 1 1 0; min-width: 0; width: auto !important;
+            height: 50px !important; font-size: 19px !important;
+          }
+        }
       `}</style>
 
       <div style={s.page}>
@@ -151,11 +162,12 @@ export default function ResendVerificationPage() {
                 <strong style={{ color: 'var(--ink)' }}>{email}</strong>
               </p>
 
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', margin: '28px 0 12px' }}>
+              <div className="sf-otp-row" style={{ display: 'flex', gap: 10, justifyContent: 'center', margin: '28px 0 12px' }}>
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <input
                     key={i}
                     ref={(el) => { otpInputsRef.current[i] = el; }}
+                    className="sf-otp-box"
                     type="text" inputMode="numeric" autoComplete="one-time-code"
                     maxLength={1}
                     value={otpCode[i] || ''}

@@ -279,9 +279,31 @@ export default function RegisterPage() {
           .sf-step-enter { animation: none; }
           #sf-card { animation: none; }
         }
+        .sf-steps-caption { display: none; }
+        /* Phone layout: the card's desktop padding + fixed-width step dots and
+           OTP boxes overflow a ~375px viewport, so everything tightens up and
+           the two-column field grids stack. 16px inputs stop iOS focus-zoom. */
+        @media (max-width: 520px) {
+          .sf-reg-page { padding: 12px !important; }
+          #sf-card { padding: 26px 16px !important; }
+          .sf-reg-page input, .sf-reg-page select { font-size: 16px !important; }
+          .sf-step-label { display: none; }
+          .sf-step-dot { width: 30px !important; height: 30px !important; }
+          .sf-step-line { width: 14px !important; margin: 0 4px !important; }
+          .sf-steps-caption {
+            display: block; text-align: center; font-size: 12.5px; font-weight: 600;
+            color: var(--ink-soft); margin: 10px 0 0;
+          }
+          .sf-grid-2 { grid-template-columns: 1fr !important; }
+          .sf-otp-row { gap: 6px !important; }
+          .sf-reg-page .sf-otp-box {
+            flex: 1 1 0; min-width: 0; width: auto !important;
+            height: 50px !important; font-size: 19px !important;
+          }
+        }
       `}</style>
 
-      <div style={{
+      <div className="sf-reg-page" style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'var(--paper)',
         padding: 24,
@@ -290,6 +312,10 @@ export default function RegisterPage() {
           width: '100%', maxWidth: 520, background: 'var(--card)', borderRadius: 20,
           boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15), 0 2px 8px -4px rgba(0,0,0,0.05)',
           padding: '40px 44px', animation: 'sf-scale-in .35s ease-out',
+          // Safe centering: auto margins center the card when it fits the
+          // viewport but collapse to 0 when it's taller, so the top of a long
+          // step is never clipped off-screen (flex align-center would clip).
+          margin: 'auto 0',
         } as CSSProperties}>
           <div ref={topRef} />
 
@@ -308,13 +334,16 @@ export default function RegisterPage() {
                 <div key={label} style={{ display: 'flex', alignItems: 'center' }}>
                   <button
                     type="button" tabIndex={i <= step ? 0 : -1}
+                    // Names the button even on phones, where the visible
+                    // label is display:none and would otherwise leave it nameless.
+                    aria-label={`Step ${i + 1}: ${label}`}
                     onClick={() => { if (i < step) { setAnimKey((k) => k + 1); setStep(i); } }}
                     style={{
                       background: 'none', border: 'none', padding: 0, cursor: i <= step ? 'pointer' : 'default',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                     }}
                   >
-                    <div style={{
+                    <div className="sf-step-dot" style={{
                       width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 13, fontWeight: 700, transition: 'background .3s, color .3s, box-shadow .3s, transform .2s',
                       background: i < step ? 'var(--green)' : i === step ? 'var(--blue)' : 'var(--paper-dim)',
@@ -330,14 +359,14 @@ export default function RegisterPage() {
                         <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>{stepIcons[i]}</span>
                       )}
                     </div>
-                    <span style={{
+                    <span className="sf-step-label" style={{
                       fontSize: 10.5, fontWeight: 600,
                       color: i <= step ? (i < step ? 'var(--green)' : 'var(--blue)') : 'var(--ink-faint)',
                       letterSpacing: '0.02em', transition: 'color .3s',
                     }}>{label}</span>
                   </button>
                   {i < STEPS.length - 1 && (
-                    <div style={{
+                    <div className="sf-step-line" style={{
                       width: 40, height: 2.5, margin: '0 8px 18px', borderRadius: 2, overflow: 'hidden',
                       background: 'var(--paper-dim)',
                     }}>
@@ -351,6 +380,10 @@ export default function RegisterPage() {
                 </div>
               ))}
             </div>
+            {/* Phone-only caption: replaces the per-dot labels hidden at small widths. */}
+            <p className="sf-steps-caption" aria-hidden>
+              Step {step + 1} of {STEPS.length} · {STEPS[step]}
+            </p>
           </div>
 
           {/* Step content */}
@@ -362,7 +395,7 @@ export default function RegisterPage() {
                   <h2 className="display" style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>Business details</h2>
                   <p style={{ margin: '0 0 20px', fontSize: 13.5, color: 'var(--ink-soft)' }}>Tell us about your store.</p>
                   <Input label="Store name" placeholder="Blue Palm Grocers" error={errors.storeName?.message} {...regField('storeName')} required />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div className="sf-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>Business type <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
                       <select aria-label="Business type" required className="sf-select" style={selStyle} {...regField('businessType')}>
@@ -429,7 +462,7 @@ export default function RegisterPage() {
                   {(errors.ownerPhoneCode || errors.ownerPhone) && (
                     <p style={{ fontSize: 12, color: 'var(--red)', margin: '0 0 12px' }}>{errors.ownerPhoneCode?.message || errors.ownerPhone?.message}</p>
                   )}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div className="sf-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginBottom: 7 }}>ID type <span aria-hidden style={{ color: 'var(--red)', marginLeft: 2 }}>*</span></label>
                       <select aria-label="ID type" required className="sf-select" style={selStyle} {...regField('ownerIdType')}>
@@ -465,7 +498,7 @@ export default function RegisterPage() {
                           <span style={{ fontSize: 11.5, color: pwStrength!.color, fontWeight: 600 }}>{pwStrength!.label}</span>
                           <span style={{ fontSize: 11, color: 'var(--ink-faint)' }}>{pw.length} characters</span>
                         </div>
-                        <div style={{
+                        <div className="sf-grid-2" style={{
                           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', marginTop: 10,
                           padding: 10, background: 'var(--paper)', borderRadius: 10, border: '1px solid var(--line-soft)',
                         }}>
@@ -597,11 +630,12 @@ export default function RegisterPage() {
                   </p>
 
                   {/* OTP input boxes */}
-                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center', margin: '28px 0 12px' }} onPaste={handlePaste}>
+                  <div className="sf-otp-row" style={{ display: 'flex', gap: 10, justifyContent: 'center', margin: '28px 0 12px' }} onPaste={handlePaste}>
                     {otp.map((digit, i) => (
                       <input
                         key={i}
                         ref={(el) => { otpRefs.current[i] = el; }}
+                        className="sf-otp-box"
                         type="text" inputMode="numeric" autoComplete="one-time-code"
                         maxLength={1}
                         value={digit}

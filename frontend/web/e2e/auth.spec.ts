@@ -6,7 +6,9 @@ import AxeBuilder from '@axe-core/playwright';
 
 test.describe('Login flow', () => {
   test('has no serious/critical axe violations on the login screen', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/login');
+    await page.waitForTimeout(500);
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
@@ -21,8 +23,9 @@ test.describe('Login flow', () => {
     // toggle, and the label's aria-hidden required marker breaks exact match.
     await page.getByRole('textbox', { name: 'Password' }).fill('fail');
     await page.getByRole('button', { name: 'Sign in' }).click();
-    // The error banner is an ARIA alert.
-    await expect(page.getByRole('alert')).toContainText(/invalid/i);
+    // The error banner is an ARIA alert. The error toast is ALSO role=alert
+    // and races the banner, so match on the text, not the bare role.
+    await expect(page.getByRole('alert').filter({ hasText: /invalid/i }).first()).toBeVisible();
   });
 
   test('an owner can sign in and lands on the dashboard', async ({ page }) => {

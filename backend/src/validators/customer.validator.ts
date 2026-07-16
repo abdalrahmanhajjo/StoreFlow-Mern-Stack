@@ -1,21 +1,18 @@
 import { z } from "zod";
 
 const phoneRegex = /^[0-9+\-\s()]{6,20}$/;
-const customerNameRegex = /^[A-Za-z\u0600-\u06FF\s.'-]+$/;
 
 export const createCustomerSchema = z.object({
     body: z.object({
+        // No character whitelist \u2014 real names carry accents, digits and other
+        // scripts, and the POS must never fail a sale over a display name.
         name: z
             .string({
                 error: "Customer name is required",
             })
             .trim()
             .min(2, "Customer name must be at least 2 characters")
-            .max(100, "Customer name cannot exceed 100 characters")
-            .regex(
-                customerNameRegex,
-                "Customer name can only contain letters, spaces, dots, apostrophes, and hyphens"
-            ),
+            .max(100, "Customer name cannot exceed 100 characters"),
 
         phone: z
             .string()
@@ -96,10 +93,6 @@ export const updateCustomerSchema = z.object({
             .trim()
             .min(2, "Customer name must be at least 2 characters")
             .max(100, "Customer name cannot exceed 100 characters")
-            .regex(
-                customerNameRegex,
-                "Customer name can only contain letters, spaces, dots, apostrophes, and hyphens"
-            )
             .optional(),
 
         phone: z

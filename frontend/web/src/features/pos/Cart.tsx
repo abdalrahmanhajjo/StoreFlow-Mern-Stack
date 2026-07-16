@@ -63,8 +63,8 @@ export function Cart() {
     });
   };
 
-  const onCreateCustomer = (name: string) => {
-    const c = useCustomers.getState().create(name);
+  const onCreateCustomer = (name: string, phone?: string) => {
+    const c = useCustomers.getState().create(name, phone);
 
     setCustomer({
       id: c.id,

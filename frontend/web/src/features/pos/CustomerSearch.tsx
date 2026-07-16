@@ -14,9 +14,13 @@ function hashColor(name: string): string {
   return AVATARS[Math.abs(h) % AVATARS.length];
 }
 
+// Mirrors the server's customer phone rule so a bad number is caught at the
+// register instead of failing the create call.
+const PHONE_RE = /^[0-9+\-\s()]{6,20}$/;
+
 interface Props {
   onSelect: (c: Customer) => void;
-  onCreate: (name: string) => void;
+  onCreate: (name: string, phone?: string) => void;
 }
 
 export function CustomerSearch({ onSelect, onCreate }: Props) {
@@ -24,7 +28,12 @@ export function CustomerSearch({ onSelect, onCreate }: Props) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [formErr, setFormErr] = useState('');
   const ref = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
@@ -46,20 +55,59 @@ export function CustomerSearch({ onSelect, onCreate }: Props) {
 
   const choose = (i: number) => {
     if (showCreate && i === results.length) {
-      onCreate(query.trim());
-    } else if (results[i]) {
+      // Don't create yet — ask for the phone number first.
+      setCreating(true);
+      setNewName(query.trim());
+      setNewPhone('');
+      setFormErr('');
+      setTimeout(() => phoneRef.current?.focus(), 50);
+      return;
+    }
+    if (results[i]) {
       onSelect(results[i]);
     }
     setQuery('');
     setOpen(false);
   };
 
+  const cancelCreate = () => {
+    setCreating(false);
+    setFormErr('');
+    ref.current?.focus();
+  };
+
+  const submitCreate = () => {
+    const name = newName.trim();
+    const phone = newPhone.trim();
+    if (name.length < 2) {
+      setFormErr('Name must be at least 2 characters');
+      return;
+    }
+    if (phone && !PHONE_RE.test(phone)) {
+      setFormErr('Phone must be 6–20 characters: digits, +, -, spaces or parentheses');
+      return;
+    }
+    onCreate(name, phone || undefined);
+    setCreating(false);
+    setQuery('');
+    setOpen(false);
+  };
+
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (creating) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(a + 1, total - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
     else if (e.key === 'Enter') { e.preventDefault(); choose(active); }
     else if (e.key === 'Escape') setOpen(false);
   };
+
+  const fieldStyle = {
+    width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 8,
+    fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--paper)', outline: 'none',
+  } as const;
+  const labelStyle = {
+    display: 'block', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-soft)', margin: '0 0 4px',
+  } as const;
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
@@ -75,14 +123,62 @@ export function CustomerSearch({ onSelect, onCreate }: Props) {
           aria-label="Search customer"
           value={query}
           placeholder="Search customer by name or phone…"
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(0); }}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(0); setCreating(false); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKey}
           style={{ border: 'none', outline: 'none', width: '100%', padding: '9px 0', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', background: 'transparent' }}
         />
       </div>
 
-      {open && (query || results.length > 0) && (
+      {open && creating && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 10, boxShadow: 'var(--shadow-md)', zIndex: 20, padding: 14 }}>
+          <form onSubmit={(e) => { e.preventDefault(); submitCreate(); }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: '0 0 10px' }}>New customer</p>
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle} htmlFor={`${listId}-new-name`}>Name</label>
+              <input
+                id={`${listId}-new-name`}
+                value={newName}
+                onChange={(e) => { setNewName(e.target.value); setFormErr(''); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') cancelCreate(); }}
+                style={fieldStyle}
+              />
+            </div>
+            <div style={{ marginBottom: formErr ? 6 : 12 }}>
+              <label style={labelStyle} htmlFor={`${listId}-new-phone`}>Phone number</label>
+              <input
+                id={`${listId}-new-phone`}
+                ref={phoneRef}
+                type="tel"
+                inputMode="tel"
+                placeholder="+1 555 123 4567"
+                value={newPhone}
+                onChange={(e) => { setNewPhone(e.target.value); setFormErr(''); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') cancelCreate(); }}
+                style={fieldStyle}
+              />
+            </div>
+            {formErr && <p role="alert" style={{ fontSize: 12, color: 'var(--red)', margin: '0 0 10px' }}>{formErr}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={cancelCreate}
+                style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--card)', color: 'var(--ink-soft)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', background: 'var(--blue)', color: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                Add customer
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {open && !creating && (query || results.length > 0) && (
         <div
           id={listId}
           role="listbox"

@@ -3,6 +3,7 @@ import "dotenv/config";
 import app from "./app";
 import connectDB from "./config/db";
 import { validateEnv } from "./config/validateEnv";
+import { ensureSeedData } from "./config/ensureSeedData";
 import { verifyMailer } from "./utils/auth.utils";
 import { startBillingScheduler } from "./services/billing/scheduler";
 
@@ -12,7 +13,8 @@ validateEnv();
 const PORT = process.env.PORT || 5000;
 
 // Connect to database, then verify the mail transport, then listen.
-connectDB();
+// A fresh database gets its required plans + email templates on first boot.
+connectDB().then(() => ensureSeedData());
 verifyMailer();
 startBillingScheduler();
 

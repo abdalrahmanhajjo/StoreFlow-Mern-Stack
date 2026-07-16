@@ -7,7 +7,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { EmailTemplate } from '../models/email_templates.model';
 
-const TEMPLATES = [
+export const TEMPLATES = [
   {
     name: "Email Verification",
     slug: "email-verification",
@@ -159,7 +159,11 @@ async function seed() {
   await mongoose.disconnect();
 }
 
-seed().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run when executed directly (ts-node …) — the template list is also
+// imported by the boot-time seeder, which must not trigger a connect here.
+if (require.main === module) {
+  seed().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
